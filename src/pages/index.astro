@@ -1,11 +1,340 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import JsonLd from '../components/JsonLd.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import { fetchLatestSubstackPosts } from '../utils/substack';
+import {
+  SITE_TITLE,
+  SITE_DESCRIPTION,
+  SITE_URL,
+  AUTHOR,
+  NEWSLETTER_URL,
+  SUBSTACK_RSS_URL,
+  SOCIAL,
+} from '../consts';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// Newsletter: real Substack posts at build time.
+// - If the fetch succeeds, render real posts.
+// - In dev, when the fetch returns nothing, render local placeholders so the
+//   section has visual weight while iterating.
+// - In prod, when the fetch returns nothing, render a single empty-state row.
+//   We never ship placeholder copy to production.
+const substackPosts = await fetchLatestSubstackPosts(SUBSTACK_RSS_URL, 3);
+const newsletterPlaceholders: { title: string; href: string; date: string }[] = [
+  { title: 'Placeholder newsletter post one', href: NEWSLETTER_URL, date: '2026' },
+  { title: 'Placeholder newsletter post two', href: NEWSLETTER_URL, date: '2026' },
+  { title: 'Placeholder newsletter post three', href: NEWSLETTER_URL, date: '2026' },
+];
+
+// AI Blog: pulled from the blog content collection, sorted by pubDate desc.
+const allNotes = await getCollection('blog', ({ data }) =>
+  import.meta.env.PROD ? !data.draft : true,
+);
+const notes = allNotes
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+
+const projects: { title: string; description: string; href?: string }[] = [
+  // TODO: replace with real projects
+  { title: 'Project placeholder', description: 'Short description of an AI experiment or build.' },
+  { title: 'Project placeholder', description: 'Short description of an AI experiment or build.' },
+];
+
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: AUTHOR,
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  sameAs: SOCIAL.filter((s) => s.href.startsWith('http')).map((s) => s.href),
+};
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<BaseLayout description={SITE_DESCRIPTION}>
+  <JsonLd slot="jsonld" data={personSchema} />
+
+  <article class="home">
+    <header class="hero">
+      <h1>{SITE_TITLE}</h1>
+      <p class="tagline">{SITE_DESCRIPTION}</p>
+      <p class="bio">
+        {/* TODO: bio — 2–4 sentences. Who you are, what you build, who you build it for. */}
+        <span class="bio-placeholder">
+          Short paragraph bio goes here. Two to four sentences on what you do, what you've built,
+          and what you're working on right now.
+        </span>
+      </p>
+    </header>
+
+    <section aria-labelledby="newsletter-heading" class="block">
+      <div class="block-head">
+        <h2 id="newsletter-heading">Newsletter</h2>
+        <a href={NEWSLETTER_URL} class="block-link" target="_blank" rel="noopener">Subscribe →</a>
+      </div>
+      <ul class="post-list">
+        {
+          substackPosts.length > 0 ? (
+            substackPosts.map((post) => (
+              <li>
+                <a href={post.link} target="_blank" rel="noopener">
+                  <span class="post-title">{post.title}</span>
+                  <span class="post-date">
+                    <FormattedDate date={post.pubDate} format="short" />
+                  </span>
+                </a>
+              </li>
+            ))
+          ) : import.meta.env.DEV ? (
+            newsletterPlaceholders.map((post) => (
+              <li>
+                <a href={post.href} target="_blank" rel="noopener">
+                  <span class="post-title">{post.title}</span>
+                  <span class="post-date">{post.date}</span>
+                </a>
+              </li>
+            ))
+          ) : (
+            <li class="newsletter-empty">
+              <p class="post-placeholder">
+                <span class="post-title">Latest newsletter posts will appear here.</span>
+                <span class="post-date">—</span>
+              </p>
+            </li>
+          )
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="ai-blog-heading" class="block">
+      <div class="block-head">
+        <h2 id="ai-blog-heading">AI Blog</h2>
+        <a href="/blog/" class="block-link">All posts →</a>
+      </div>
+      <ul class="post-list">
+        {
+          notes.length > 0 ? (
+            notes.map((note) => (
+              <li>
+                <a href={`/blog/${note.id}/`}>
+                  <span class="post-title">
+                    {note.data.draft && <span class="draft-tag">[Draft]</span>}
+                    {note.data.title}
+                  </span>
+                  <span class="post-date">
+                    <FormattedDate date={note.data.pubDate} format="short" />
+                  </span>
+                </a>
+              </li>
+            ))
+          ) : (
+            <>
+              <li>
+                <span class="post-placeholder">
+                  <span class="post-title">Note placeholder one</span>
+                  <span class="post-date">—</span>
+                </span>
+              </li>
+              <li>
+                <span class="post-placeholder">
+                  <span class="post-title">Note placeholder two</span>
+                  <span class="post-date">—</span>
+                </span>
+              </li>
+              <li>
+                <span class="post-placeholder">
+                  <span class="post-title">Note placeholder three</span>
+                  <span class="post-date">—</span>
+                </span>
+              </li>
+            </>
+          )
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="building-heading" class="block">
+      <div class="block-head">
+        <h2 id="building-heading">Building</h2>
+      </div>
+      <ul class="project-list">
+        {
+          projects.map((p) => (
+            <li>
+              {p.href ? <a href={p.href}>{p.title}</a> : <span class="project-title">{p.title}</span>}
+              <p class="project-desc">{p.description}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="elsewhere-heading" class="block">
+      <div class="block-head">
+        <h2 id="elsewhere-heading">Elsewhere</h2>
+      </div>
+      <ul class="elsewhere-list">
+        {
+          SOCIAL.map((s) => (
+            <li>
+              <a href={s.href} rel={s.href.startsWith('http') ? 'me noopener' : undefined}>
+                {s.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .home {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+
+  .hero h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 4.5vw, 2.75rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 0.75rem;
+  }
+  .tagline {
+    font-family: var(--font-serif);
+    font-size: 1.1875rem;
+    color: var(--muted);
+    margin: 0 0 2rem;
+    font-style: italic;
+  }
+  .bio {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    margin: 0 0 4rem;
+    max-width: 36rem;
+  }
+  .bio-placeholder {
+    color: var(--muted);
+  }
+
+  .block {
+    margin-top: 3.5rem;
+  }
+  .block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .block h2 {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+  .block-link {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .block-link:hover {
+    color: var(--fg);
+  }
+
+  .post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .post-list li {
+    margin-bottom: 0.25rem;
+  }
+  .post-list a,
+  .post-placeholder {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    text-decoration: none;
+    padding: 0.4rem 0;
+  }
+  .post-title {
+    font-size: 1.0625rem;
+    flex: 1;
+  }
+  .post-list a:hover .post-title {
+    color: var(--accent);
+  }
+  .post-date {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .post-placeholder {
+    color: var(--muted);
+    cursor: default;
+    margin: 0;
+  }
+  .draft-tag {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-right: 0.4rem;
+  }
+
+  .project-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .project-list li {
+    padding: 0.5rem 0 1rem;
+  }
+  .project-list li + li {
+    border-top: 1px solid var(--rule);
+  }
+  .project-title {
+    font-size: 1.0625rem;
+  }
+  .project-desc {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    color: var(--muted);
+    margin: 0.25rem 0 0;
+    line-height: 1.55;
+  }
+
+  .elsewhere-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+  }
+  .elsewhere-list a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .elsewhere-list a:hover {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+</style>
