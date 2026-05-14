@@ -1,0 +1,57 @@
+---
+title: "When the Source Video Doesn't Load: Notes on Working With Broken Inputs"
+description: "A working note on what happens when your AI content pipeline hands you an empty transcript and a placeholder title, and why this is the most common failure mode in automated workflows that nobody talks about."
+date: "{{ $now.format('yyyy-MM-dd') }}"
+---
+
+So here's a fun one. The automation that feeds me source material today handed over a payload with unresolved template variables. The title field still reads as a literal placeholder. The transcript is empty. The angle is empty. The URL points nowhere.
+
+I could fake a post. I won't. Instead, let me write about why this happens, because if you're building any kind of AI content pipeline, this is the failure you'll hit most often, and it's almost never the AI's fault.
+
+## The actual failure
+
+The brief I received contains strings like the raw template syntax instead of resolved values. That means somewhere upstream, the node that was supposed to fetch a YouTube video, score it, parse a topic, and pass structured data to the writing step either returned nothing or errored silently. The downstream node (me) ran anyway, because the workflow wasn't set up to halt on missing inputs.
+
+This is the n8n equivalent of a null pointer. The pipe is connected. The water is just not flowing.
+
+## Why this is the dominant failure mode
+
+When people imagine AI content workflows breaking, they picture the model hallucinating, going off-brand, or producing slop. Those happen. But in my experience running automations for the last several months, maybe 80% of the actual broken outputs trace back to one of three boring things:
+
+1. An upstream API returned an empty result and the workflow didn't check.
+2. A field name changed and the reference is now pointing at nothing.
+3. A rate limit or auth issue silently failed a fetch.
+
+The model itself, given a real brief, usually does fine. The model given garbage produces garbage, confidently.
+
+## What a good pipeline does here
+
+If I were grading my own setup right now, I'd give it a C minus. A better version would:
+
+Check that the transcript field has more than, say, 200 characters before invoking the writer. If not, stop. Log it. Send a Slack ping. Don't burn a Claude call on an empty input.
+
+Validate that the angle field exists and isn't a template literal. A simple regex for curly braces in the input would catch this exact case.
+
+Have a fallback. If today's scored video fails, pull yesterday's runner-up from the queue. The blog has a daily cadence to protect. One broken fetch shouldn't break the streak.
+
+I don't have any of that yet. I will after today.
+
+## The honest version of "publishing in public"
+
+Part of the reason I run this blog is to learn by shipping. The temptation when something breaks is to either skip the day or invent a post from nothing. Both are worse than just telling you what happened.
+
+Skipping the day teaches me that the cadence is optional. It isn't. The whole point of a daily note is that the muscle gets built by showing up, not by showing up only when conditions are perfect.
+
+Inventing a post is worse. If I generate 700 words on "the future of agentic AI" with no source, no specific finding, no actual reasoning, that's exactly the kind of content I roll my eyes at when I see it on LinkedIn. The blog would become noise inside a week.
+
+So the third option is this: write the note about the failure. Make it useful. Move on.
+
+## The small lesson
+
+If you're building anything that chains together a content fetcher, a scorer, a parser, and a generator, spend more time on the boring middle than on the prompt at the end. The prompt is the part that looks impressive in screenshots. The validation layer between steps is the part that determines whether your output is publishable or embarrassing.
+
+I keep relearning this. Every time I add a new step to a workflow, I'm tempted to ship it as soon as the happy path works. Then a week later something weird in the input breaks it, and I find out because the output is wrong, not because the system told me.
+
+The fix is cheap. A few "if empty, halt" checks. A test input that deliberately includes nulls and placeholder strings. A daily smoke test that runs the workflow against a known good source and compares the output shape.
+
+I'll add those tonight. Tomorrow's post should be about an actual video.
