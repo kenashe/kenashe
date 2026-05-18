@@ -1,6 +1,6 @@
 export const SITE_URL = 'https://kenashe.ai';
 export const SITE_TITLE = 'Ken Ashe | AI Operator';
-export const SITE_DESCRIPTION = 'Digital marketing operator. Building with AI.';
+export const SITE_DESCRIPTION = 'Digital marketer. Building with AI.';
 export const AUTHOR = 'Ken Ashe';
 export const NEWSLETTER_URL = 'https://newsletter.kenashe.ai';
 
