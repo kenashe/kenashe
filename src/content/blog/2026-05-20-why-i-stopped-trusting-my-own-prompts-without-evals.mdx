@@ -1,0 +1,59 @@
+---
+title: "Why I Stopped Trusting My Own Prompts Without Evals"
+description: "Most marketers building with AI ship prompts the same way they ship ad copy: vibes and a thumbs up. That breaks the moment you scale, and the fix is borrowed from software engineering, not copywriting."
+pubDate: 2026-05-20
+tags: ["prompt-engineering", "evals", "ai-workflows"]
+draft: false
+---
+
+I have a confession. For most of the last year, I shipped prompts the way I used to ship Facebook ad copy. Write it, test it on three examples, eyeball the output, call it good. If it felt right, it went into production.
+
+That works fine when you're writing one email. It falls apart fast when a prompt is running 4,000 times a day inside an automation.
+
+## The moment vibes-based prompting breaks
+
+Here's the pattern I keep seeing. You build a workflow. Maybe it's classifying inbound leads, maybe it's drafting outreach, maybe it's tagging support tickets. You test it on a handful of cases, it looks great, you deploy.
+
+Three weeks later somebody points out the classifier has been quietly miscategorizing a specific kind of lead the whole time. Or the drafts have a weird tic you didn't notice because you only ever read the first paragraph. Or a model update from the provider shifted behavior and nobody caught it because nobody was watching.
+
+The fundamental issue: you cannot eyeball a system that runs at volume. You need a measurement layer.
+
+## What an eval actually is
+
+An eval is just a test suite for a prompt. You collect a set of inputs paired with the answer you want, you run the prompt against them, and you measure how often it gets the answer right. That's it.
+
+The pieces:
+1. A dataset of inputs (real examples from your actual workflow, not made up ones)
+2. A definition of what "correct" looks like for each input
+3. A way to grade the output (sometimes deterministic, sometimes another LLM doing the grading)
+4. A score you can track over time
+
+The thing that took me too long to internalize: the dataset is the hard part, not the grading. If you have 50 real inputs from your actual use case with the actual correct answer labeled, you have something. Most people skip this step and then wonder why their prompt iteration feels like flailing.
+
+## The cost of skipping this
+
+Without evals, every prompt change is a guess. You tweak a line, you run it on two examples, the two examples look better, you ship. But you have no idea whether you just fixed one edge case while breaking five others. This is the classic regression problem in software, and it shows up identically in prompt work.
+
+I had a sales email generator that I "improved" four times in a row based on individual examples that bugged me. When I finally built a proper eval set and ran the new version against the old version, the new version was worse on 60% of cases. I had been optimizing for the loudest squeaks while quietly degrading everything else.
+
+The other hidden cost: model swaps. When GPT-4o came out, or when Claude 3.5 dropped, or when Gemini 2.5 shipped, I had no way to know whether switching would help or hurt my workflows. With evals, swapping models becomes a one-hour exercise. Without them, it's a leap of faith you keep putting off.
+
+## The minimum viable eval
+
+You don't need a fancy framework. Here's the smallest thing that works:
+
+A Google Sheet with three columns: input, expected output, notes. Fifty rows. You fill it with real cases from your last month of work, including the weird ones that broke.
+
+Then a script (or an n8n workflow, or a Python notebook, or whatever) that loops through the rows, runs your prompt, and writes the actual output into a fourth column. You eyeball-grade the first run, mark each row pass or fail, and now you have a baseline score.
+
+Next prompt change, you run the whole sheet again. If your score goes up, ship it. If it goes down, don't.
+
+Once you have this, you start trusting your iterations. The vibes problem disappears because you're not relying on vibes anymore.
+
+## Where this gets uncomfortable
+
+Building eval sets is boring. It's data labeling. There's a reason most people don't do it: it feels like the unglamorous part. Prompt engineering feels like creative work; eval building feels like homework.
+
+But the people I see shipping reliable AI features are doing the homework. The ones still posting screenshots of clever prompts on Twitter are mostly doing demos, not production work. The gap between demo-quality and production-quality is almost entirely measurement.
+
+If you're a marketer building AI workflows for a real business, the move this quarter is to pick your single most-used prompt, build a 30-row eval set for it, and run it weekly. Don't try to evaluate everything. Pick the one that matters most: the one feeding your CRM, the one writing your outreach, the one your team actually depends on. Get one eval working end to end before you build a second. The catch nobody mentions: once you have the eval, you'll realize how bad your prompt actually is, and that's the entire point.
