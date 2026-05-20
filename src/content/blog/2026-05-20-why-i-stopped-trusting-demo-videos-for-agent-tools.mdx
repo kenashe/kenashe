@@ -1,0 +1,53 @@
+---
+title: "Why I Stopped Trusting Demo Videos for Agent Tools"
+description: "Agent demos look magical until you try to ship one. Here's what I've learned about the gap between a polished demo and a workflow that actually runs reliably on Monday morning when nobody's watching."
+pubDate: 2026-05-20
+tags: ["ai-agents", "automation", "marketing-ops"]
+draft: false
+---
+
+Every week I watch another agent demo that promises to replace half my workflow. The founder types a one-line prompt, the agent spins up a browser, fills forms, scrapes data, writes a report, and emails it to the team. Two minutes. No human in the loop. Magic.
+
+Then I try to build the same thing for a real client task and spend three days debugging why the agent keeps clicking the wrong button on a checkout page.
+
+The gap between demo and production is the actual story of AI right now, and almost nobody talks about it honestly.
+
+## The demo is optimized for the demo
+
+A demo agent runs on a happy path the founder ran fifty times before recording. The site loads fast. The DOM hasn't changed. The login isn't behind a Cloudflare challenge. The CAPTCHA didn't trigger. The data is clean. The model didn't hallucinate a field name.
+
+When you watch the demo, you're seeing the one take that worked, not the nineteen that didn't. That's not dishonesty, that's just how product marketing works. But it sets a false baseline for what you should expect when you wire the same tool into your own stack.
+
+I've started timing how long it takes me to get an agent tool from "I just signed up" to "this ran successfully on a real task I cared about." The median is around six hours. The demo suggested six minutes.
+
+## What actually breaks
+
+A short list of things I've watched go wrong in the last month while testing agent workflows for actual marketing use cases:
+
+The agent picks the wrong element because two buttons have the same label. It logs in successfully then loses session on the next step because the tool didn't persist cookies. It scrapes a page that loaded before the JavaScript hydrated, so half the content is missing. It hits a rate limit and silently retries until the account gets flagged. It "completes" a task by writing a plausible-looking output that has nothing to do with what actually happened on the page.
+
+That last one is the scariest. Agents will lie to you in the cheerful way an intern lies when they don't want to admit they couldn't figure something out. The output looks correct. The screenshots look correct. The data is fabricated.
+
+## The eval problem nobody wants to solve
+
+The real reason most agent tools feel like toys is that nobody has a good answer for evaluation. How do you know it worked? In a deterministic script, you write a test. The function returns the expected value or it doesn't.
+
+With an agent, "success" is fuzzy. Did it find the right product page? Maybe. Did it extract the price correctly? You'd have to check manually, which defeats the purpose. Did it summarize the competitor's pricing strategy accurately? Now you need a human reviewer, and you're back to doing the work yourself.
+
+The teams shipping real agent products in production almost always have a heavy human-review layer baked in. They just don't show it in the demo because it makes the magic feel less magical.
+
+## What I do instead
+
+I've moved most of my workflows to a model I think of as scoped automation. Pick a single repeatable task. Define the input and output explicitly. Use a model where it adds value (drafting, classifying, summarizing) and use deterministic code for everything else (fetching, parsing, saving, sending).
+
+Concrete example: I have a weekly competitor pricing report. The agent version was supposed to browse five sites, extract pricing, and write a summary. It worked maybe sixty percent of the time. The scoped version uses a scraper I wrote, dumps prices into a Google Sheet, and uses Claude only for the narrative summary at the end. It works one hundred percent of the time and runs in ninety seconds.
+
+I lost the cool factor. I gained a thing that actually ships.
+
+## When agents do earn their keep
+
+I'm not anti-agent. There are tasks where the flexibility is worth the unreliability: research where you can't predict what sites you'll need, one-off investigations where setup cost would exceed task cost, anything exploratory where the human is going to review the output anyway.
+
+But for production marketing workflows, the boring scoped version wins almost every time. The agent is a 2027 product being sold as a 2025 product.
+
+If you're evaluating an agent tool this quarter, don't watch the demo. Ask for a free trial, pick the single ugliest task in your weekly routine, and time how long it takes you to get one clean successful run on real data. If it's under an hour, that's a signal. If it's a full afternoon, you've just learned more about the product than the entire sales page told you. The builders who quietly ship the most right now are the ones who treat agents as one component in a workflow, not as the workflow itself, and they pay the cost of that boring discipline upfront so they don't pay it forever in failed runs.
