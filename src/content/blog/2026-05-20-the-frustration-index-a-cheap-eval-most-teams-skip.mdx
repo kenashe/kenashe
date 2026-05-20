@@ -1,0 +1,59 @@
+---
+title: "The Frustration Index: A Cheap Eval Most Teams Skip"
+description: "A lean way to A/B test AI agents in production: pipe chat logs through a cheap LLM, classify user frustration per message, and use that single number to compare prompt, model, and infra changes without building a full eval suite."
+pubDate: 2026-05-20
+tags: ["ai-evals", "product-analytics", "ai-agents"]
+draft: false
+---
+
+Most small teams shipping AI features hit the same wall. You change a prompt, swap a model, tweak the system instructions, and you have no idea if it got better. Conversion rate is too downstream. Thumbs-up buttons get ignored. Building a real eval suite feels like a quarter of engineering work nobody can spare.
+
+There's a shortcut that works surprisingly well, and almost nobody is using it.
+
+## The signal hiding in your chat logs
+
+When an AI agent is doing its job, users go quiet. They accept the output, move to the next request, keep building. The conversation reads like a smooth handoff.
+
+When the agent breaks, users get loud. "Why isn't this working." "I already told you that." "This is the third time." The frustration is right there in plain text, in every production conversation you're already logging.
+
+That's the whole insight. You don't need a labeled dataset. You don't need golden answers. You have a strong, free signal sitting in your database, and a cheap LLM can read it.
+
+## Building the index
+
+The setup is embarrassingly simple. Take every user message from a conversation, send it to a small fast model (Haiku, Gemini Flash, GPT-5 mini, whichever is cheapest per million tokens this week), and ask it to classify frustration on a scale. I'd start with three levels: neutral, mild, high. More granularity adds noise before it adds insight.
+
+The prompt is one paragraph. Something like: "Rate this user message for frustration with the AI assistant. Return 0 if neutral or task-focused, 1 if mildly annoyed or repeating themselves, 2 if clearly upset or calling out a failure." Add two or three few-shot examples from your own logs and you're done.
+
+Now you have a per-message score. Aggregate to the session level (max, mean, or count of high-frustration messages, pick one and stick with it). Aggregate to the cohort level. That's your index.
+
+Cost math: at roughly $0.20 per million input tokens on a small model, even a chat-heavy product with millions of messages a month is spending tens of dollars to score everything. This is not a budget conversation.
+
+## How to actually A/B test with it
+
+The reason this works as an eval is that you can run it across any change. Prompt rewrite. New base model. Different retrieval strategy. Infra swap. The metric stays the same.
+
+Put 5 to 10 percent of traffic on the new version. Let it run long enough to get a real sample (a week for most products, longer if you're touching low-frequency flows). Compare frustration index between control and treatment.
+
+A few things to watch:
+
+Segment by user tier. Paying users behave differently than free users, and frustration on a paid plan matters more. Splitting the index by cohort usually reveals more than the overall number.
+
+Watch for compositional shifts. If the new version makes the agent more capable, users might try harder things and get frustrated more often at a higher ceiling. That's not a regression, but you'll need to look at completion alongside the index to catch it.
+
+Don't ship on the index alone for big changes. It's a directional metric, not a verdict. For prompt tweaks and model swaps, it's enough. For an architecture change, pair it with task completion or conversion.
+
+## Why this beats jumping straight to evals
+
+The standard advice is to build a proper eval suite. Golden datasets, regression tests, simulated users, the whole apparatus. That advice is correct eventually. It's wrong as a first move.
+
+A real eval suite assumes you know what "correct" looks like for your agent. Most teams shipping AI features don't, not in any precise way, because the product surface is still moving. You'd spend three months building eval infrastructure for a product that will be unrecognizable by the time the suite is done.
+
+The frustration index inverts the problem. Instead of defining correctness upfront, you let users define failure for you, in their own words, in real time. The eval suite comes later, once you know which failure modes actually matter to the people paying.
+
+## The catch nobody mentions
+
+The frustration classifier itself drifts. If you change your agent enough, the kinds of messages users send change too, and the few-shot examples in your classifier prompt start feeling stale. Recalibrate it every couple of months by pulling 50 random messages, labeling them by hand, and checking agreement with the model. If agreement drops below 80 percent or so, refresh the examples.
+
+Also: the index will not catch silent failures. If your agent confidently gives wrong information and the user believes it, frustration stays at zero and you ship a regression. This is why the index is a complement to user research, not a replacement.
+
+For a marketer or operator shipping AI features today, here's what I'd actually do this week. Pull last month's chat logs. Write the three-level classifier prompt. Run it over 500 random sessions. Look at the distribution and read the high-frustration messages by hand, because that single exercise will teach you more about your product's failure modes than any dashboard. Then wire it into your deploy pipeline so every new agent version gets a frustration score automatically. The teams that win at AI products in the next two years won't be the ones with the fanciest evals. They'll be the ones who started measuring something, anything, before they knew exactly what to measure.
