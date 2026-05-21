@@ -1,0 +1,51 @@
+---
+title: "Split-brain agents: when planner and executor stop talking, quality collapses"
+description: "Multi-agent architectures look elegant on paper but break in subtle ways when the planning agent doesn't know what the execution agent can actually do. Consolidating tools into a single brain fixes a class of bugs that look like model randomness but aren't."
+pubDate: 2026-05-21
+tags: ["ai-agents", "architecture", "llm-engineering"]
+draft: false
+---
+
+The current fashion in AI engineering is multi-agent everything. CrewAI, AutoGen, swarms, orchestrators with sub-orchestrators. The pitch is clean: separation of concerns, modularity, each agent does one thing well. It looks like good software engineering.
+
+It often isn't. The further I get into building with agents, the more I think the multi-agent pattern is being applied way too early and in places where it actively makes systems worse.
+
+## The split-brain failure mode
+
+Here's the pattern that keeps showing up. You have an outer agent that plans. It breaks a user request into tasks. Then it calls an inner agent to execute each task, usually something specialized like SQL generation or API calls.
+
+Looks reasonable. The problem is that the planner doesn't actually know what the executor can do in a single shot. So the planner writes a task like "summarize pull requests by author and correlate with support ticket volume," hands it to the SQL sub-agent, and the sub-agent says: I can only produce one query, and this isn't one query. Failure. Retry. Weird workaround. The user sees a half-broken answer and you see a trace that looks like the model just got confused.
+
+It didn't get confused. The architecture lied to the planner about what the executor could handle. That's the split brain. The planning context and the execution constraints live in two different heads, and neither knows enough about the other to make good decisions.
+
+## Why it reads as model randomness
+
+This is the part that fooled me for a while. When split-brain failures happen, they don't look architectural. They look like LLM flakiness. Same question, different answers. Sometimes it works, sometimes it doesn't. The instinct is to blame the model, swap to a bigger one, or add more prompt engineering.
+
+But if you actually read the traces, the pattern is consistent. The outer agent generates a plan that violates the inner agent's implicit constraints. The inner agent makes do. The output is degraded in proportion to how badly the plan mismatched what was executable. There's nothing random about it. It's structural.
+
+This is why I've become obsessed with trace inspection over evals-as-scorecards. The score tells you something is broken. The trace tells you why. And in agent systems, "why" is almost always at a seam between two components.
+
+## Consolidating the brain
+
+The fix is unglamorous: pull the sub-agent's tools up into the outer agent. One brain, full context, all the tools. The planner now knows what it can actually do because the planner is the executor.
+
+You lose the architectural elegance. The outer agent gets bigger. The tool surface area grows. It feels like bad code. And the quality goes up sharply because every decision is made by something that has all the relevant information at once.
+
+There's a deeper point here. Context is the actual product when you're building with LLMs. Anything that severs context, whether it's a sub-agent boundary, a separate prompt, a tool call that returns only a summary, costs you. Sometimes the cost is worth it because the context window can't hold everything or the latency is unacceptable. But the default assumption should be: keep it in one head until proven otherwise.
+
+## When multi-agent actually earns its keep
+
+I'm not saying never split. Splitting makes sense when the sub-task is genuinely independent (no shared decision-making with the parent), when the context for that sub-task is large enough that mixing it in would crowd out the planner, or when you need parallel execution and the tasks really don't interact.
+
+What doesn't work is splitting because the architecture diagram looks cleaner. Or because some framework's tutorial showed a planner-executor pattern and you copied it. If your sub-agent has to know things about the broader task to do its job well, you've created a split brain and you'll pay for it in inconsistent outputs.
+
+A quick test I now use: can the sub-agent succeed without knowing what the parent is ultimately trying to accomplish? If no, don't split. Give the parent the tools directly.
+
+## What I'm changing in my own builds
+
+I've been building a research agent for client work that had three layers: a planner, a retriever, and a synthesizer. The synthesizer kept producing summaries that were technically correct but missed what the planner had actually intended to surface. Reading the traces, the planner's intent never made it cleanly through the retrieval step. The retriever was optimizing for something subtly different.
+
+Collapsing those three into one agent with three tools (plan, retrieve, synthesize, all called by the same brain) cut my failure rate roughly in half on a 40-case eval. The runs are longer and use more tokens. I don't care. The outputs are usable without me babysitting.
+
+If you're shipping an agent product right now, the move I'd suggest is to stop adding agents and start removing them. Look at your most consistent failures, pull the trace, and ask whether the agent making the decision had everything it needed. If it didn't, the bug isn't in the prompt. It's in the wall you built between two parts of your system. The catch most people miss: this kind of bug is invisible until you read traces line by line, and almost nobody does that until a CEO yells about a bad answer.
