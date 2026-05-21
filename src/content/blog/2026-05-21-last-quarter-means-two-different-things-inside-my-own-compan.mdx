@@ -1,0 +1,61 @@
+---
+title: "Last quarter means two different things inside my own company"
+description: "A practical framework for building a semantic layer that teaches LLMs your internal jargon, so AI analytics tools stop hallucinating revenue numbers and start answering questions the way your CEO actually asks them."
+pubDate: 2026-05-21
+tags: ["ai-analytics", "semantic-layer", "marketing-ops"]
+draft: false
+---
+
+Ask anyone on my marketing team what "last quarter" means and you get the calendar version: Jan-Mar, Apr-Jun, etc. Ask the sales team and you get fiscal quarters, which at most companies are offset by a month or two. Ask finance and you might get something else entirely.
+
+Now plug an LLM into your CRM, your ad platforms, and your warehouse, and ask it: "How did paid social perform last quarter compared to the previous one?"
+
+Whose definition of "quarter" does it use? Whichever one shows up first in the training data, probably. Which is to say: you have no idea, and neither does the answer.
+
+This is the core problem with bolting AI onto internal analytics. The model is brilliant at SQL and reasoning. It is completely ignorant of your company.
+
+## The semantic layer is the fix nobody talks about
+
+A semantic layer is a translation layer between natural language questions and the actual SQL that hits your warehouse. It encodes three things the LLM cannot know on its own:
+
+1. What your fields actually mean ("qualified lead" at your company is not "qualified lead" at the company in the model's training data).
+2. Which tables to use when there are 40 versions of "revenue" sitting in the warehouse.
+3. Who is allowed to see what.
+
+The interesting part: the more you treat the semantic layer like a CLAUDE.md file for your data, the better the answers get. Context lives next to the field it describes, not in some sprawling system prompt at the top.
+
+If `mql_date` has an AI context note that says "Marketing Qualified Lead, defined as a lead with a score above 75 that has not yet been accepted by sales. Used in funnel reporting. Do not confuse with `sql_date` which is Sales Qualified," the model uses it correctly. If that same context lives in a separate doc the agent has to go fetch, accuracy drops.
+
+Localized context beats centralized context. Every time.
+
+## What actually goes into a field definition
+
+For a marketing ops team building this today, here is the minimum I would put on every important metric:
+
+**Label and description**: human readable. What is this field, in one sentence.
+
+**AI context**: written specifically for the LLM. How should you use this? When a user asks about X, prefer this field. When they say Y, they probably mean this. The phrasing is different from a description because you are coaching a junior analyst who has read every textbook but never worked at your company.
+
+**Sample queries**: two or three examples of canonical questions and the queries that answer them. This grounds the model in your typical patterns. It is the difference between "answer this question in theory" and "answer this question the way we usually answer it."
+
+**Sample values**: this one is subtle and important. Show the model what the actual values look like. If your region field contains `AMER`, `EMEA`, `APAC`, the model can now infer that when a user types "United States," it should filter on `AMER`, not on a string match for "United States." For ad platform data this is huge. Campaign naming conventions are full of internal shorthand that no model will guess.
+
+## Where most teams get this wrong
+
+The first version of any AI analytics tool is single-shot: question in, answer out. It works for demos. It falls apart in week two when somebody asks a multi-step question.
+
+The fix is an agentic loop, but the way you structure that loop matters a lot. If you split the agent into an outer planner and an inner SQL writer, you create a knowledge gap. The planner does not know what the SQL writer can do in one query, so it asks for things that require three queries, gets back partial answers, and confuses itself.
+
+Keep the brain consolidated. One agent, many tools. The agent that plans should also know what one SQL query can and cannot do.
+
+The second mistake: trying to invent your own query format. Some teams build an intermediate JSON representation of queries that the LLM produces, then translate to SQL. This was a defensible choice in 2023. It is not now. Models are excellent at SQL. Let them write SQL. Parse the SQL on your end if you need to enforce structure. You will save a lot of tokens and the queries will be more efficient because the model is operating in a language it actually knows.
+
+## The feedback loop is the whole game
+
+Here is the thing about marketing definitions: they change. The MQL threshold moves. A new attribution model rolls out. Someone renames a campaign convention. If your semantic layer is static, accuracy degrades quietly and you only find out when the CEO catches a wrong number in a board deck.
+
+Build the loop so that when a question gets answered, the definitions and context can be updated from that interaction. New synonyms get added. New sample queries get captured. Bad answers get traced, not just flagged.
+
+And trace everything. Not because you will look at every trace, but because when the CEO says "this number is wrong, fix it," you need to be able to open the trace and see exactly which field the agent picked, which filter it applied, and where the reasoning went sideways. Evals matter, but the raw trace data is what tells you why an answer was bad.
+
+For a marketing operator building this today, the practical move is smaller than it sounds. Pick your ten most-asked questions. Write the canonical SQL for each by hand. Document the fields those queries touch with AI context and sample values. That is your v1 semantic layer. Wire an LLM to it with one rule: it can only query through the layer, never against raw tables. You will hallucinate less in a week than most teams do in a year of plugging GPT into Snowflake and hoping. The catch nobody mentions: the semantic layer is a product, not a project. If no one owns it after launch, it rots, and the answers rot with it.
