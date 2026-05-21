@@ -1,0 +1,47 @@
+---
+title: "Last Quarter Means Two Different Things Inside Your Own Company"
+description: "Marketing operators keep failing to ship working AI data agents because LLMs do not know what your company means by 'revenue,' 'last quarter,' or 'active user.' Here is the practitioner framework I am using to encode that context directly into the data, not the prompt."
+pubDate: 2026-05-21
+tags: ["ai-agents", "semantic-layer", "data-marketing"]
+draft: false
+---
+
+I keep watching marketing teams try to wire Claude or GPT into their CRM and analytics, then quietly give up six weeks later. The demo works. Production does not. The reason is almost never the model. It is that the model does not know what your company means by anything.
+
+Ask your own team what "last quarter" means. At my last shop, product engineering meant the calendar quarter. Sales meant fiscal. Finance meant fiscal but offset by a week because of how the close worked. Three definitions, one phrase, same Slack channel. Now imagine an agent trying to answer "how did we do last quarter" without being told which one wins.
+
+This is the actual unlock for AI on company data, and it has nothing to do with bigger models. It is what people are starting to call a semantic layer: a translation layer that sits between the question and the SQL, encoding what your business actually means by its own words.
+
+## Stop stuffing the system prompt
+
+The first instinct when an agent gets something wrong is to add a paragraph to the system prompt. "Note: when the user says revenue, use the net_revenue_final_v3 table." Then another note. Then another. Within a month the prompt is 4,000 tokens of tribal knowledge and the agent is somehow getting worse.
+
+The better move is to put the context next to the thing it describes. If you have a field called `revenue_usd`, the description of that field should carry the AI context, not the global prompt. When the agent retrieves that field, the context comes with it. When the field is irrelevant, the context is not burning tokens or confusing the model.
+
+This is the same principle as CLAUDE.md files in a codebase. Local context beats global context. The closer the instruction lives to the thing it governs, the more reliably the model uses it.
+
+## Three things every field definition needs
+
+Here is the minimum I would encode for every meaningful field in a marketing data model before I let an agent touch it:
+
+**AI-specific context.** Not the human-readable label. A second description written for the model, explaining when to use this field, what it actually represents, and what it should not be confused with. "Use this for MQL counts. Do not use `leads_total`, which includes disqualified records."
+
+**Sample queries.** Two or three example questions and the query that answers them. This grounds the model in how the field is typically used, which is way more useful than abstract description. "Q: How many MQLs did we generate last week? A: select count(*) from mql_events where created_at >= ..."
+
+**Sample values, especially abbreviations.** This one is subtle and matters more than people expect. If your `region` field contains AMER, EMEA, APAC, tell the model. Otherwise a user asks "how did the United States do" and the agent confidently filters for "United States" against a column that only contains "AMER." Three example values is usually enough for the model to infer the pattern and translate user input correctly.
+
+## The split-brain problem nobody warns you about
+
+When you build the agent itself, there is a tempting design where an outer agent plans and an inner agent generates queries. It feels clean. It is a trap.
+
+The outer agent knows what data exists. The inner agent knows how to write SQL. The user asks something that requires joining three things, and the outer agent hands the task to the inner agent, which can only produce one query at a time and does not know what is joinable. The inner agent fails. The outer agent reroutes. You get answers that are almost right, in ways that are hard to debug.
+
+The fix is unglamorous: consolidate the brain. One agent, one set of tools, full context on both the data and the query generation. Sub-agents are useful when the sub-task is genuinely independent. Query generation against a semantic layer is not independent. It needs to see everything the planner sees.
+
+## Why this matters more for marketers than engineers
+
+Engineers can read SQL. When the agent gets it wrong, they catch it. Marketers cannot, and that is exactly why marketing is the function most exposed to silent failure here. An agent that confidently reports "Q1 pipeline was up 18%" using the wrong definition of pipeline is worse than no agent at all, because someone is going to act on it.
+
+The semantic layer is what makes the answer auditable. The agent does not write raw SQL against your warehouse. It writes against named, defined, version-controlled business concepts. When the CEO asks why the number changed, you can point to a definition, not a prompt.
+
+If you are a marketing operator trying to ship an AI data agent this quarter, here is the order I would work in: pick the 20 metrics your team actually asks about, write AI context and three sample queries for each one, encode the abbreviations and enum values explicitly, then wire the agent. Skip the temptation to start with the agent and figure out definitions later. The catch most people miss is that the semantic layer is the product. The chat interface is just how you query it. Get the definitions right and a mediocre model will outperform a great model with no context, every time.
