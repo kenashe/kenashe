@@ -1,0 +1,68 @@
+---
+title: "Newer Models Obey Old Patches Too Literally"
+description: "Migrating prompts to smarter models often causes performance to drop, not improve. The reason is counterintuitive: defensive instructions written for older, dumber models get followed too well by newer ones, causing them to withhold valid information or refuse correct actions."
+pubDate: 2026-05-22
+tags: ["prompt-engineering", "llm-migration", "ai-ops"]
+draft: false
+---
+
+I have a prompt I've been maintaining for about a year. Maybe you have one too. It started clean, then a teammate added a section, then I patched a hallucination problem, then we bolted on a tone rule after a customer complaint. Nobody owns it. It mostly works.
+
+Then I tried moving it to a newer model. Performance got worse. Not in obvious ways. The model started refusing to answer questions it absolutely had the data to answer. It started escalating cases it should have handled. It got cagier, not smarter.
+
+This is the part of model migration nobody warns you about.
+
+## The patches you wrote are now the problem
+
+Most production prompts are archaeology. Each layer is a fossil of a previous model's failure. "Never give wrong plan details, instead point them to the URL" was a real, sensible patch when your old model confidently hallucinated pricing. The instruction was a guardrail against a known weakness.
+
+Newer models follow instructions much more literally. So that same patch, fed to a more capable model, now means: deflect even when you have the correct answer right there in the customer record. The model isn't malfunctioning. It's doing exactly what you told it. The problem is that what you told it was calibrated for a model that no longer exists in your stack.
+
+I've seen this show up in three ways:
+
+1. The bot withholds information it has direct access to.
+2. The bot refuses to escalate when it should, because an old cost-optimization line ("escalations cost $8, avoid them") is being followed without the missing context about when escalation is correct.
+3. The bot gives wishy-washy answers to questions that have crisp answers, because a "never be overconfident" patch is now suppressing legitimate confidence.
+
+## One-sided trade-offs are the worst offender
+
+The escalation example is the one I keep running into. Somebody on the team writes: "Avoid escalating unless absolutely necessary, it costs $8." That's true. It's also half the story.
+
+Older models needed that bias because they'd escalate everything. Newer models, given only the cost side of the trade-off, will refuse to escalate even when a customer is owed a refund and the failure to escalate will cost you ten times the $8 in churn. The model is optimizing the only objective you gave it.
+
+Fix: state both sides. "Escalations cost about $8. Failing to escalate a real billing error costs a refund plus customer trust. Escalate when the customer has evidence of a charge they didn't authorize." Now the model has enough to weigh the call itself, which is the thing newer models are actually good at.
+
+## An audit pass I now run before any migration
+
+Before swapping a model, I go through the existing prompt and tag every instruction as one of four things:
+
+- **Policy** (what the business requires)
+- **Capability patch** (working around a past model failure)
+- **Tone or format** (how the output should read)
+- **Data** (facts the model needs)
+
+The capability patches are the audit target. For each one, I ask: was this written because the old model couldn't do something the new model can do? If yes, it's a candidate for removal or rewrite. The hallucination patch from 18 months ago probably doesn't need to exist anymore. The "always show your math" patch can probably be deleted if your new model has reasoning built in.
+
+This isn't theoretical. The first time I did this on a real workflow, I deleted about 40% of the prompt and the eval scores went up.
+
+## Version control your defensive instructions
+
+The reason these patches accumulate is that nobody remembers why they're there. Six months later, the line "never quote prices, defer to the link" looks load-bearing because no one wants to be the person who broke pricing. So it stays.
+
+The fix is mechanical: every defensive instruction gets a comment in the prompt source explaining what failure mode it was patching and which model it was patching for. Something like:
+
+```
+<!-- Added 2025-01, patch for Sonnet 3.5 hallucinating legacy plan rates.
+Revisit on next model upgrade. -->
+Never quote plan details for grandfathered accounts...
+```
+
+Now when you migrate, you have a checklist. You can actually re-test whether the patch is still needed instead of guessing. This is the cheapest, highest-leverage prompt engineering habit I've picked up this year and almost no one I talk to is doing it.
+
+## Evals are the only honest referee
+
+None of this works without an eval set. You need control cases that should always pass, edge cases representing past failures, and explicit refusal or escalation cases. Five well-chosen tests beat fifty random ones. When you delete a patch, you need to know within a minute whether you broke something or freed the model to perform better.
+
+Without that, you're just rearranging instructions and hoping. With it, you can actually see that removing "never give wrong info" took the hotspot question from 0/5 to 5/5, because the model could finally read the customer record it had been ignoring.
+
+The practitioner's take: if you're shipping anything on a model older than six months and you haven't audited your prompt since the last migration, you're probably leaving accuracy on the table right now, without knowing it. Open your longest production prompt, search for the words "never," "always," "critical," and "do not." Each hit is a candidate for the trash. Don't delete them blindly. Run them against your eval set with the line removed. The catch most readers will miss: the patches that hurt you most are the ones that sound the most responsible. "Never give wrong information" feels like good policy. On a 2026 model, it can read as "withhold correct information when uncertain," and your customers will feel the difference before your dashboards do.
