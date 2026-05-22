@@ -1,0 +1,57 @@
+---
+title: "The mechanism matters: making AI competitive analysis auditable"
+description: "Single-shot prompts produce competitive analyses that look right but can't be trusted. The fix is treating the workflow itself as the artifact, with a logged, replayable trail of how the answer was built."
+pubDate: 2026-05-22
+tags: ["ai-workflows", "competitive-analysis", "agentic-systems"]
+draft: false
+---
+
+Two AI systems hand you the same competitive landscape table. Same competitors, same positioning, same gaps. Do you trust them equally?
+
+Of course not. One might have done three web searches and guessed. The other might have pulled 200 sources, deduped them, screened by recency, and cross-referenced press releases against earnings calls. The output looks identical. The thing behind the output is not.
+
+This is the part of AI marketing work that most operators are skipping. We obsess over the prompt and the final deliverable. We pay almost no attention to the mechanism in between. And that's exactly where trust gets built or broken.
+
+## The black box problem with deep research prompts
+
+Run "do a competitive analysis of the top 10 AI note-taking apps" through ChatGPT or Claude with deep research turned on. You'll get something that reads beautifully. Tables, positioning summaries, pricing tiers, sentiment notes.
+
+Now try to answer: which sources did it weight most heavily? Did it actually visit those pricing pages or hallucinate them from training data? When it said "Otter has weaker enterprise features," what evidence chain led there? If your client pushes back on one row, can you reproduce just that row without rerunning the whole thing?
+
+You probably can't. The research happened inside a box. You got the conclusion. The reasoning is gone, or buried in a chat log that won't survive the next turn.
+
+For a personal "what should I read next" question, fine. For a deck going to a client paying you $15k, not fine. The output is only as trustworthy as your ability to defend the process that made it.
+
+## Three properties an auditable workflow needs
+
+Borrowing language from the team at Elicit, who think about this harder than most because their users are scientists making real decisions: a good AI research process needs to be legible, faithful, and stable under iteration.
+
+Legible means a human (or another agent) can look at the steps and spot-check them. Not just "it used web search." The actual queries, the actual filters, the actual joins between data sources. Visible.
+
+Faithful means the system actually does what the plan said it would do. Not "claims to have searched 50 sources" while really searching 8. The plan and the execution are the same object.
+
+Stable under iteration means when you say "now also add open-source competitors" or "filter to companies funded after 2023," the system extends the work without losing what it already did. No prompt drift. No quietly forgetting the original constraints three turns in.
+
+Single-shot prompting fails all three. The "plan" lives inside the model's head, the execution is invisible, and every iteration risks scrambling the earlier reasoning.
+
+## What this looks like in Make.com or n8n
+
+You don't need to build a custom domain-specific language to get most of the benefit. You need to break the work into named steps that log their inputs and outputs.
+
+A workflow for a real competitive analysis might look like: a planning step that produces an explicit list of competitors and attributes to gather, written to a Google Sheet. A retrieval step per competitor that hits search APIs, scrapes pricing pages, pulls G2 reviews, and stores raw responses in a folder. A normalization step that extracts structured fields with a model and writes to a database. A synthesis step that reads the normalized table and produces the narrative.
+
+Each step gets its own module in Make.com or its own node in n8n or Flowise. Each writes to durable storage before the next runs. The planning is separated from the execution. The model that decides what to gather is not the same call that does the gathering or the writing.
+
+The payoff: when the client asks "where did you get that Notion pricing number," you open row 14 of the sheet, find the source URL and timestamp, and answer in 30 seconds. When they ask to add three more competitors, you rerun the retrieval and normalization for those three only. The synthesis step picks them up automatically.
+
+## The caching trick that makes this practical
+
+The objection to multi-step workflows is always speed. If every iteration reruns the whole pipeline, you'll burn tokens and hours.
+
+The solution is content-addressed caching. Hash the inputs to each step. If you've seen that exact input before, return the cached output. Most workflow tools don't do this natively, but you can fake it with a lookup table keyed on a hash of the step inputs. Make.com data stores work. So does a Supabase table.
+
+This means you can rewrite the plan, rerun the whole workflow, and only the genuinely new work executes. Adding a competitor doesn't re-scrape the existing ones. Changing the synthesis prompt doesn't re-trigger retrieval. The system gets faster the more you iterate on it, not slower.
+
+## What changes when the process is the artifact
+
+Here's the practitioner's take. Stop selling the deliverable and start selling the auditable trail behind it. The next time you ship a competitive analysis to a client, include a one-page appendix that lists every source URL, every query you ran, every filter you applied, with timestamps. Most of your competitors are sending Claude outputs with no provenance. Yours has receipts. That's the real moat for AI-assisted marketing services right now, not the model you use or the prompt you wrote. The catch most readers will miss: this only works if you actually build the workflow that produces the log. Faking the appendix from a single-shot output is the path that ends with a client catching a hallucinated stat and never calling you again.
