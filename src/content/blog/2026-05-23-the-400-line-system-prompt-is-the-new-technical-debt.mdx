@@ -1,0 +1,49 @@
+---
+title: "The 400-line system prompt is the new technical debt"
+description: "Marketing operators keep bolting business rules onto agent system prompts until performance collapses. Progressive disclosure through skills fixes the bloat, cuts token costs, and forces a cleaner architecture. Here is how the pattern actually works in practice and what most builders get wrong about when to use sub-agents."
+pubDate: 2026-05-23
+tags: ["ai-agents", "prompt-engineering", "anthropic"]
+draft: false
+---
+
+Every agent I have built for a marketing workflow has followed the same arc. Ship something small. It works. A stakeholder asks for one more capability. Then another. Six weeks later the system prompt is 400 lines, there are a dozen tools, and the thing that used to handle inventory questions cleanly now hallucinates promotion multipliers and contradicts its own policies.
+
+This is not a model problem. It is an architecture problem. And the fix is not a better prompt. It is a different way of thinking about where information lives.
+
+## The bolt-on tax
+
+The pattern is so consistent I have started calling it the bolt-on tax. You add a forecasting capability, so you write 40 lines of forecasting rules into the system prompt. You add report writing, so you append the formatting guide. You add supplier picking, and now there are two policies about discount thresholds that quietly contradict each other in different sections of the same prompt.
+
+The model is not confused because it is dumb. It is confused because you handed it a 400-line briefing document and then asked it a question that only needs 15 lines of context. The other 385 lines are noise that can and will distort the answer.
+
+Anthropic showed a clean version of this with a demo agent called Stock Pilot. Same orchestrator. They cut the system prompt from 400 lines to 15. Eval pass rate climbed from 83% to 92%. Token usage dropped by an order of magnitude on some tasks. Nothing about the model changed.
+
+## Progressive disclosure, in plain terms
+
+The mechanism is skills. A skill is a packaged chunk of instructions, policies, or procedures that the model pulls into context only when it decides the task needs it. Forecasting rules live in a forecasting skill. Promotion math lives in a promotions skill. The system prompt no longer carries that weight.
+
+The mental model I use: the system prompt is what Claude needs in its head regardless of the task. Skills are what Claude needs in its head sometimes. Stuffing everything into the system prompt is like making every employee memorize the entire policy binder before they can answer the phone. Skills are the binder on the shelf, indexed, that gets pulled when relevant.
+
+For a marketing operator this matters because the policies that govern your agent are usually conditional. Brand voice rules apply when writing copy, not when querying analytics. UTM conventions apply to link generation, not to reporting. Each of those is a skill, not a system prompt block.
+
+## Tools: start with the human primitives
+
+The second piece of the bloat problem is tool sprawl. Twelve tools, three of them sub-agent wrappers, each with its own schema and quirks. Half of them existed because someone said "we need a tool for that" instead of asking whether the model already had what it needed.
+
+The rule I am adopting: start with the same primitives a human would use. File system access. Code execution. Web search. A to-do list. Then add a custom tool only when those primitives genuinely cannot do the job. Then, and only then, reach for MCP, and only when multiple agents need to share that toolset.
+
+The token math is the part that surprised me. Giving the agent the ability to write and run a Python script across a CSV uses dramatically fewer tokens than dumping the CSV into context and asking the model to reason over it. The Stock Pilot example went from over 200,000 tokens on a task to a fraction of that, just by swapping data-reading tools for bash plus code execution. The model writes a script, runs it, reads the result. That is cheaper and more accurate than asking it to do mental arithmetic across 2,000 rows.
+
+## When sub-agents actually earn their keep
+
+I have been overusing sub-agents. The honest test is two questions: do I need to throw a lot of parallel work at this problem, or do I need a fresh perspective uncontaminated by the main context?
+
+Deep research across many sources fits the first. Code review fits the second. Forecasting fits the second too, which is why Anthropic kept that one sub-agent in their refactor and killed the others. You do not want the same Claude instance that is chatting with a user also doing the numerical forecast, because the chat context will subtly distort the math.
+
+Most of the sub-agents I shipped this year did not pass either test. They were just tool calls in disguise, adding a communication boundary that lost information between the orchestrator and the worker. That communication breakdown is one of the most common silent failure modes in agent systems. The orchestrator asks for X, the sub-agent returns something adjacent to X, and the orchestrator confidently treats it as X.
+
+## What I am doing differently this week
+
+If you are running an agent in production, the move is to audit your system prompt first. Print it. Read it out loud. Every paragraph that is conditional on a task type is a skill candidate. Every tool that exists to read structured data is a code-execution candidate. Every sub-agent should have to justify itself against the two-question test.
+
+The practitioner angle most readers will miss: you do not get the eval gains from any single one of these changes. You get them from the combination, because each one reduces context pollution that was distorting the others. Shorten the system prompt without moving to skills and you lose capability. Add skills without simplifying tools and the model still drowns. The architecture is the unit of improvement, not any individual piece. Budget a full afternoon, run your eval suite before and after, and resist the temptation to ship the first 20% win. The 92% number only shows up after you commit to the whole pattern.
