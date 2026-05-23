@@ -1,0 +1,45 @@
+---
+title: "Shrink the system prompt, ship the skills folder"
+description: "Anthropic's progressive disclosure pattern says your 400-line system prompt is the bug, not the feature. Here's how moving business logic into on-demand Skills cuts token costs, kills hallucinations from conflicting instructions, and lets one agent absorb capability that used to require sub-agents."
+pubDate: 2026-05-23
+tags: ["prompt-engineering", "ai-agents", "claude"]
+draft: true
+---
+
+Every agent I have built for a client follows the same arc. Version one is clean. Forty lines of system prompt, three tools, does one job well. Then the requests start. Can it also handle the holiday promo logic? Can it write the Monday recap? Can it flag when a supplier is late? Six weeks later the system prompt is 380 lines, half of it contradicts the other half, and the thing that used to be sharp now hallucinates multipliers on basic math.
+
+The Anthropic Applied AI team has a name for the fix: progressive disclosure. The idea is almost embarrassingly simple once you see it. Most of what lives in a bloated system prompt is information Claude only needs sometimes. So stop loading it always.
+
+## The 400 to 15 collapse
+
+The pattern they showed at Code with Claude in London moved a working inventory agent from a 400-line system prompt to a 15-line one. The business logic did not disappear. It got packaged into Skills, which are modular folders of instructions that the model pulls into context only when it recognizes a task that needs them.
+
+Forecasting rules? That is a skill. Promo multiplier policy? Skill. Weekly report format? Skill. The system prompt now just describes the agent's identity, its tools, and how to decide when to reach for what.
+
+The eval numbers moved with it. They went from 62% pass rate to 92%, token usage on a single task dropped from over 200,000 to a fraction of that, and cost per run fell accordingly. Same model. Same task. Different architecture.
+
+## Why long prompts hallucinate
+
+Here is the part that should bother every operator running a complex GPT or Claude setup. The reason that inventory agent was using a 1.35x multiplier instead of the correct 3.1x was not a model failure. The promo policy was correct in the prompt. So was the forecasting policy. They just lived 200 lines apart and contradicted each other in an edge case. The model picked one and went.
+
+This is what context pollution actually looks like in production. It is not that the model "got confused." It is that you gave it two true statements that resolve differently and asked it to pick. Long prompts make this worse because every new requirement you bolt on has a non-zero chance of conflicting with something already in there. You stop noticing until an eval catches it. Or worse, a customer does.
+
+Skills fix this because the model only loads the forecasting policy when it is forecasting. The promo policy only enters context when a promo is in play. The two never sit in the same window unless the task actually requires both, and when it does, you wrote them knowing they would meet.
+
+## What belongs in the system prompt vs a skill
+
+The rule I am settling on: the system prompt is for what Claude needs to know regardless of the task. Identity, tone, the tools available, the decision logic for routing. That is it.
+
+Everything else is a skill. Policies. Procedures. Output formats. Brand voice rules. Anything that applies to some tasks and not others. The model will pull it in when it sees a task that fits, and it will leave the rest of your business logic on the shelf where it cannot interfere.
+
+For a marketing context, think of it this way. You do not need your email subject line conventions loaded into context when the agent is doing a competitive analysis. You do not need your paid social compliance rules loaded when it is writing a blog draft. Each of those is a skill. The system prompt just tells the agent that skills exist and when to reach for them.
+
+## The sub-agent question
+
+The other piece of this is rethinking sub-agents. Most teams I see reach for sub-agents the way they reach for microservices: too early, too often. The honest test is whether you need either fresh context (a reviewer that has not seen the writer's reasoning) or parallel work (throw five Claudes at a research problem). If you do not need one of those, you probably do not need a sub-agent. You need a skill.
+
+A lot of what people build as sub-agents is really just business logic that wanted to be modular. Skills are the modular unit. Sub-agents are for when you need a separate mind, not a separate instruction set.
+
+## Practitioner's take
+
+If you are running a customer-facing agent right now, here is the move for this week. Open your system prompt. Highlight every section that starts with "When X happens..." or "If the user asks about Y...". Those are skills in disguise. Pull them into separate markdown files, name them by trigger condition, and gut the system prompt down to identity plus routing. Run your evals before and after. The thing most readers will miss: this is not really about token costs, though those drop. It is about isolating your conflicts so that two policies you wrote three months apart cannot quietly poison each other. The cost win is the reason your CFO approves the refactor. The reliability win is why you actually do it.
