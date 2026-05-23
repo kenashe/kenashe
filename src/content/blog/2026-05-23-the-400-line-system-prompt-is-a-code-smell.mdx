@@ -1,0 +1,52 @@
+---
+title: "The 400-line system prompt is a code smell"
+description: "Most marketing operators keep stuffing rules into their custom GPT or Claude agent until it breaks. There's a cleaner architectural pattern called progressive disclosure that shrinks the prompt to 15 lines and offloads everything else into skills the model pulls in only when needed."
+pubDate: 2026-05-23
+tags: ["ai-agents", "prompt-engineering", "claude-skills"]
+draft: false
+---
+
+I keep running into the same problem when I look at custom agents people have built for their marketing ops. The first version is clean. Maybe 40 lines of instructions, three tools, does one job well. Then someone asks for a new capability. Then another. Six months later the system prompt is 400 lines, half the rules contradict each other, and the agent is somehow worse than when it started.
+
+This is not a model problem. It is an architecture problem. And there is a fix that I have not seen marketers talk about much yet, even though Anthropic has been pushing it hard: progressive disclosure through skills.
+
+## What system prompt bloat actually does to your agent
+
+When you stuff every brand guideline, every edge case, every "if the user asks about pricing, do X" rule into one prompt, three things go wrong at once.
+
+First, you burn tokens on every single call. A 400-line prompt is roughly 3,000 tokens before the user even types anything. Multiply that by every turn in a conversation and every user. You are paying to re-read the same wall of instructions thousands of times a day.
+
+Second, the model gets confused. Two policies written six weeks apart will eventually contradict each other. The model picks one, sometimes the wrong one, and you get a quiet hallucination that nobody catches until a customer does.
+
+Third, context pollution. The model's attention is finite. If you fill the window with rules about invoice formatting, it has less capacity to actually reason about the task in front of it.
+
+## Progressive disclosure: rules only load when needed
+
+The idea is simple. The system prompt should only contain what the model needs in its head regardless of the task. Everything else gets packaged into skills, which are modular bundles of instructions plus optional files that the model pulls into context only when it decides it needs them.
+
+If a user asks the agent to write a forecast, the forecasting skill loads. If a user asks for a weekly report, the report-writing skill loads. The pricing skill, the compliance skill, the brand voice skill, none of those touch the context window until they are actually relevant.
+
+For a marketing agent, the practical breakdown looks something like this:
+
+- System prompt (always loaded): who the agent is, who it serves, the handful of universal rules.
+- Skills (loaded on demand): campaign-launch checklist, brand voice guide, GA4 reporting format, email compliance rules, paid media bidding logic.
+
+The before-and-after numbers from Anthropic's own demo were striking. A 400-line system prompt collapsed to 15 lines. Token usage per task dropped from over 200,000 to a fraction of that. Eval pass rate climbed from 83 percent to 92 percent. Same model. Same tasks. Just better architecture.
+
+## Tools, skills, and sub-agents are not interchangeable
+
+The mistake I have been making, and I see others making it too, is treating every new capability as a new tool. Need forecasting? Build a forecasting tool. Need report writing? Build a report-writing tool. Pretty soon you have 12 tools, three of them are wrappers around sub-agents, and the orchestrator is drowning.
+
+The mental model that actually works:
+
+A **skill** is for instructions and knowledge the model needs sometimes. Brand voice, policy docs, step-by-step workflows. Put it in a skill.
+
+A **tool** is for an action the model takes in the world. Hitting an API, reading a file, running code. Start with general-purpose primitives (code execution, file system, web search) before you build custom tools. You will be surprised how far bash plus read plus write gets you for things like CSV analysis or generating reports.
+
+A **sub-agent** is for one of two specific cases: when you need to throw parallel reasoning at a big problem, or when you need a fresh, uncontaminated mind to review work. Forecasting is a good sub-agent case because you do not want conversation history about the user's complaints distorting the math. Most other capabilities do not need a sub-agent, they just need a skill.
+
+## What to actually try this week
+
+Open your most complex custom GPT or Claude project. Count the lines in the system prompt. If it is over 100, you have bloat. Pull out three chunks that only apply to specific tasks (a particular report format, a specific approval workflow, a niche compliance rule) and rewrite them as standalone instructions. In Claude, package them as skills. In a custom GPT, the closest analog is splitting the work across multiple specialized GPTs and using project files that load on demand rather than baking everything into instructions.
+
+The catch most readers will miss: skills only help if the model can correctly figure out when to load them. That means the skill descriptions matter as much as the skill contents. A skill called "pricing" with a vague description will get pulled into the wrong contexts. A skill described as "use when the user asks about enterprise tier pricing or volume discounts" will load exactly when it should. Treat the skill router metadata like ad copy: specific, narrow, intent-matched. The whole architecture falls apart if the model cannot tell what each skill is for.
