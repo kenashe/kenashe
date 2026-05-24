@@ -1,0 +1,57 @@
+---
+title: "The 400-Line System Prompt Is a Marketing Anti-Pattern"
+description: "Most marketing AI workflows fail not because the model is weak, but because operators keep stacking brand rules, SEO policies, and tone guides into one giant system prompt. Progressive disclosure through Skills fixes the degradation, and it changes how you should architect agents."
+pubDate: 2026-05-24
+tags: ["ai-agents", "prompt-engineering", "marketing-ops"]
+draft: false
+---
+
+Every marketing operator I know has built one. A god-prompt. It starts at 80 lines covering brand voice and persona. Then SEO rules get bolted on. Then a section for product naming conventions. Then formatting rules for LinkedIn vs. blog vs. email. Then exception handling for the CEO's pet phrases. Six months later you have a 400-line system prompt and a Claude or GPT workflow that "used to be great" but now hallucinates dates, ignores the no-em-dash rule, and quietly contradicts itself.
+
+The instinct is to blame the model. It's almost never the model.
+
+## What's actually breaking
+
+When a system prompt grows past a few hundred lines, three things start happening at once. Rules conflict (your "always use active voice" line argues with your "match the client's brand archive samples" line). The model has to hold every policy in working memory for every task, even the irrelevant ones. And token cost on every single call balloons because you're shipping the full operating manual to write a 200-word LinkedIn post.
+
+This is what Anthropic's engineering team calls agent degradation. The symptom is regression on tasks the agent used to nail. The cause is context bloat. The fix is architectural, not prompt-level.
+
+## Progressive disclosure, in marketing terms
+
+The shift: stop treating the system prompt as a knowledge base. Treat it as a job description. Move the knowledge into Skills, which are modular folders of instructions plus reference files that the agent pulls into context only when it decides it needs them.
+
+A concrete remap for a content workflow:
+
+System prompt (keep it under 50 lines): who the agent is, what it does, when to reach for which skill, the non-negotiable guardrails.
+
+Skill: brand-voice. Contains the voice guide, banned phrases, three approved samples, the rewrite checklist. Loaded only when writing or editing copy.
+
+Skill: seo-policy. Title length rules, meta description format, internal linking pattern, keyword density notes. Loaded only when optimizing for search.
+
+Skill: client-acme. Acme-specific terminology, product naming, their CEO's quirks. Loaded only when working on Acme.
+
+Skill: linkedin-format vs. blog-format vs. email-format. Each one loaded only for that channel.
+
+The agent reads the table of contents (a one-line description of each skill) and decides what to load. A LinkedIn post for Acme pulls brand-voice + client-acme + linkedin-format. Maybe 600 tokens of policy instead of 8,000.
+
+## The forecasting-style failure most marketers will recognize
+
+There's a specific failure pattern worth naming because every operator hits it. Two policies that don't directly contradict in isolation will contradict in context. Your system prompt says "use specific numbers and statistics." Another section, added three months later, says "never invent figures, only cite from the provided source." A third section says "match the energy of the brand samples," and the brand samples are full of confident round numbers.
+
+The model picks one. You get a fabricated stat. You blame hallucination.
+
+When those three rules live in three separate skills, each loaded for the appropriate task, the conflict literally cannot occur. The brand-energy guide isn't in context during fact-checking. The "use specific numbers" rule lives inside the skill where you've defined what "specific" means and where numbers come from.
+
+## What this means for the tool stack
+
+Two practical implications.
+
+First, your prompt library is the wrong abstraction. Most marketing teams have a Notion full of saved prompts. The new abstraction is a skill library: small folders, each one a packaged capability with its own reference files. Versioned. Auditable. Swappable per client.
+
+Second, agent tools should be primitives, not wrappers. If your workflow has separate tools for "research keyword," "analyze SERP," "draft outline," "rewrite intro," you're going to hit the same bloat problem at the tool layer that you hit at the prompt layer. Give the agent the ability to run code, read and write files, and search the web. Then let skills tell it how to use those primitives for specific marketing tasks. Token usage drops hard when the agent processes a CSV by writing a Python script instead of reading every row into context.
+
+## What to actually try this week
+
+Pull your biggest system prompt. Print it. Highlight every section that only matters for a specific task type (a channel, a client, a content format, a phase of the workflow). Those highlights are your first skills. What's left, the universal stuff, is your real system prompt.
+
+The catch most readers will miss: skills only work if the agent's "table of contents" descriptions are good. The model picks which skill to load based on a short summary, the same way you'd skim folder names. If your skill is called `content-rules` and described as "general content guidance," it'll get loaded for everything and you've just rebuilt the mega-prompt with extra steps. Name skills by the narrow task they serve (`linkedin-thought-leadership-post`, not `social-content`), and write the descriptions like you're writing ad copy for the model. That's the part nobody tells you, and it's the difference between this working and you quietly going back to the 400-line prompt in two months.
