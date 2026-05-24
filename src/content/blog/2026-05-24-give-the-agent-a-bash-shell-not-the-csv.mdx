@@ -1,0 +1,51 @@
+---
+title: "Give the agent a Bash shell, not the CSV"
+description: "Pumping spreadsheets and CRM exports into the context window is the lazy default, and it burns tokens fast. The smarter move is handing the agent code execution primitives so it can write a script, run it locally, and reason over the results."
+pubDate: 2026-05-24
+tags: ["ai-agents", "token-costs", "agent-architecture"]
+draft: true
+---
+
+I keep watching marketing teams hit the same wall with AI agents. Someone exports a 40k-row CRM dump or a year of campaign data, drops it into Claude or ChatGPT, and asks for analysis. The agent chews through 180k tokens, gets close to the context limit, and produces an answer that is mostly right but expensive and slow. Then they do it again tomorrow.
+
+There is a better default, and it flips the usual instinct on its head. Stop feeding the data into the model. Give the model the tools to look at the data the way you would.
+
+## The instinct is backwards
+
+When you, a human, get a big CSV, you do not memorize it. You open it in a notebook, write a quick filter, group by something, and look at the result. The CSV sits on disk. Your brain only touches the parts that matter.
+
+Agents should do the same thing. The pattern most builders default to (stuff the whole dataset into the prompt) is the equivalent of you trying to read every row out loud before answering a question. It is slow, it is expensive, and it actively makes the model worse because you are polluting context with stuff it does not need yet.
+
+The fix is what Anthropic's applied team has started calling human primitives: a Bash shell, a Python execution tool, file read/write, maybe web search. That is it. The agent writes a script, runs it against the file on disk, reads the result, and reasons over a summary instead of raw data.
+
+## What the token math actually looks like
+
+In one of Anthropic's recent walkthroughs of an inventory agent, swapping bespoke data tools for raw code execution dropped token usage on a single task from over 200k to a fraction of that. Same answer. Same dataset. The difference was that the model was reading a 12-row aggregated output from its own Python script instead of trying to hold the whole inventory table in its head.
+
+For a marketing operator running this kind of workflow daily, the cost delta is not small. If you are doing weekly attribution analysis across a year of GA4 exports, the difference between "load the CSV" and "give Claude bash and let it pandas" is the difference between $4 per run and 30 cents per run. Multiply by however many clients or campaigns you manage.
+
+There is a latency benefit too, but I will be honest, it is not always huge. The agent takes more turns when it writes code. The win is tokens and cost, not wall-clock speed. Fine trade for me.
+
+## When custom tools still earn their keep
+
+I am not saying throw out all your tools. The argument is about defaults. Start with primitives. Add a custom tool only when:
+
+- The action touches a system the agent cannot reach with a shell (a specific SaaS API where you want guardrails on the call).
+- The action needs to be governed or audited (you do not want the agent freelancing SQL against your production warehouse).
+- The same capability is needed across multiple agents and you want one canonical implementation.
+
+That last one is when you graduate to MCP. Not before. I have seen teams reach for MCP on day one because it feels like architecture, then end up with five overlapping servers and an agent that has no idea which tool to pick. Start narrow. Add structure when the pain is real.
+
+## The skills layer changes the system prompt problem too
+
+The same principle applies to instructions. The temptation when an agent gets a new responsibility is to append more lines to the system prompt. Three months later you have a 400-line prompt with internal contradictions and the model is hallucinating multipliers because two policies disagree.
+
+Skills (packaged, composable instructions the agent pulls in only when relevant) solve this the same way code execution solves the data problem. Keep the system prompt to the stuff the model needs every single turn. Push the conditional stuff (forecasting methodology, brand voice rules, the specific way you want weekly reports formatted) into skill files the agent loads on demand.
+
+It is the same idea applied to a different surface: do not preload what you can fetch.
+
+## The catch most people will miss
+
+Here is the part that will bite you if you just copy this pattern: the agent's code is only as good as the sandbox you give it. Letting Claude write Python to crunch a CSV is great until the script needs a library that is not installed, or the file path is slightly different than the agent assumed, or the data has weird encoding and the script silently drops rows. The token savings are real, but you trade them for a class of failure mode that looks like quiet wrongness instead of loud over-cost.
+
+So if you are shipping this, the move I would make this week is small: pick one workflow you currently solve by uploading a file, give the agent a code execution environment with pandas preinstalled, run it ten times against known datasets, and compare answers to your manual analysis row by row. If it matches, you have just cut that workflow's cost by 80% and you can stop worrying about context limits on that task forever. If it does not match, you have learned something specific about where the agent's scripts go wrong, which is far more useful than another generic "AI is unreliable" lesson. The builders who win the next year are the ones who treat the agent like a junior analyst with a laptop, not like a search box you paste data into.
