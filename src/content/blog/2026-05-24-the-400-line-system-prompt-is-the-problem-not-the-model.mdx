@@ -1,0 +1,51 @@
+---
+title: "The 400-Line System Prompt Is the Problem, Not the Model"
+description: "When agents start regressing, operators blame the model. Usually it's the system prompt. Moving static business logic into callable Skills is a cheaper, faster fix that most marketing teams haven't tried yet."
+pubDate: 2026-05-24
+tags: ["ai-agents", "prompt-engineering", "context-engineering"]
+draft: false
+---
+
+Every operator I know who has shipped an AI agent has the same scar. You build it for one job. It works. Then product asks for one more capability. Then legal hands you a policy. Then brand wants tone rules. Six weeks later your system prompt is 400 lines of contradictions and your eval scores are dropping.
+
+The instinct is to blame the model. Switch to a smarter one. Add a sub-agent. Wrap another tool around it. None of that fixes the actual problem, which is that you are stuffing everything Claude might ever need into the context window on every single turn.
+
+## Why long system prompts quietly poison agents
+
+A system prompt is read on every call. Every token in it competes for attention with the actual task. When you append your refund policy, your forecasting rules, your supplier ranking logic, and your brand voice guide into one document, the model has to weigh all of it against the user's request, even when the request is "summarize yesterday's stockouts."
+
+Two things go wrong. First, costs scale linearly with how much junk you carry. Second, contradictions become invisible. I have seen prompts where the promotional pricing rule on line 80 disagrees with the forecasting rule on line 310, and the model picks whichever it saw last. You will not notice this until an eval starts failing in a way that looks like hallucination but is really just confusion.
+
+A real example: a forecasting agent pulls the correct baseline of 12 units per day and the correct 3.1x promo multiplier, then quietly applies 1.35 in the math. That is not a model defect. That is a context defect.
+
+## Progressive disclosure as the fix
+
+Anthropic has been pushing a pattern they call Skills, and the idea is straightforward: package static business logic into modular files that Claude can load into context only when it decides it needs them. The system prompt stays short and describes what the agent is and what Skills exist. The Skills themselves sit in a folder, waiting.
+
+So instead of a 400-line prompt that always loads, you get a 15-line prompt plus a directory of Skills like `forecasting.md`, `supplier-selection.md`, `weekly-report-format.md`. When a user asks for a forecast, the model pulls the forecasting Skill. When they ask for a report, it grabs the reporting Skill. The pricing rules never enter context if pricing is not relevant.
+
+This is what "progressive disclosure" actually means in agent design. Show the model what it needs, when it needs it. Not before.
+
+## What this looks like for a marketing stack
+
+Most marketing operators I talk to are running something like a content agent, a research agent, or a campaign-ops agent. The prompts I see are usually some flavor of:
+
+Brand voice rules. Banned phrases. Persona descriptions. Channel-specific formatting. Approval workflow. CRM field mappings. UTM conventions. Legal disclaimers by region.
+
+All of that should live as Skills, not in the system prompt. The system prompt should say "you are a campaign ops assistant for X, here are the Skills available, here is when to use each." That is it.
+
+A few practical notes from rebuilding one of mine:
+
+The first win is cost. Tokens-per-task dropped meaningfully when I stopped loading every policy on every call. Second win is consistency. When the brand voice Skill is the only place brand voice lives, you stop getting weird drift where one rule contradicts another. Third win is faster iteration. Updating one Skill file does not risk breaking unrelated behavior, which is exactly what happens when you edit a giant prompt and accidentally nudge five other things.
+
+## When sub-agents actually earn their keep
+
+There is a related trap. Operators see agent complexity and reach for sub-agents the way teams used to reach for microservices: prematurely and for the wrong reasons. Two cases genuinely warrant a sub-agent. One is parallelism, when you want many instances working at once (deep research, broad codebase exploration). The other is a fresh perspective, where you do not want the same context that produced an output to also review it.
+
+Everything else is usually solved with a Skill plus a tool, not a separate agent. Sub-agents introduce communication overhead between orchestrator and child, and that handoff is where I see a surprising number of eval failures: the sub-agent gets the right answer, then loses something in translation back to the parent.
+
+## The 30-minute audit worth running this week
+
+Open your agent's system prompt right now. Count the lines. Then go through each section and ask: does the model need this on every single turn, or only when a specific kind of task comes up? If the answer is "only sometimes," that section is a Skill, not a prompt.
+
+Most operators will not do this audit because the agent still mostly works and the prompt is scary to touch. That is the catch. The degradation from prompt bloat is gradual and shows up as flaky behavior on edge cases, not a full failure. You will keep adding capability and watching eval scores creep down without ever pinning the cause. The teams that pull ahead in the next year will be the ones who treat prompt hygiene as infrastructure, version their Skills like code, and measure cost-per-task as seriously as they measure output quality. If you ship one change this quarter, make it this: cut the system prompt by 80%, move the rest into Skills, and rerun your evals. The numbers will tell you whether I am right.
