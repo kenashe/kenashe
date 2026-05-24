@@ -1,0 +1,62 @@
+---
+title: "The 200K Token CSV Problem Has a One-Line Fix"
+description: "Most marketing agents balloon past 200K tokens because operators dump entire CSVs into context. Giving the model a bash primitive to write and run Python against the file locally cuts cost, latency, and hallucination in one move."
+pubDate: 2026-05-24
+tags: ["ai-agents", "context-engineering", "marketing-ops"]
+draft: false
+---
+
+I keep watching marketers (myself included) make the same mistake when wiring up agents for data work. We dump the whole dataset into the prompt. CRM export, 40,000 rows of ad spend, a Shopify inventory pull. Straight into the context window. Then we act surprised when the bill is huge, the answer is wrong, and the agent took 90 seconds to count something Excel would have counted in one.
+
+There's a cleaner pattern, and it's almost embarrassingly simple: don't read the file. Let the model write code that reads the file.
+
+## The default is the problem
+
+Most agent builds I've seen for data tasks follow the same arc. You start with one job (flag low stock, summarize last week's spend). You build a custom tool for it. The job expands. You build more custom tools. Three months in, you have twelve tools, a 400-line system prompt, and every run is shoveling the full dataset through the context window because that's how the retrieval tool was written.
+
+The token math gets ugly fast. A 50MB CSV of campaign data can easily push a single run past 200,000 tokens just on input. At current Sonnet pricing that's real money per run, and you're paying that tax every single time the agent reasons over the same data.
+
+Worse, the model gets dumber. Big context windows do not mean the model attends to everything equally. Numbers buried in row 8,400 of a CSV are exactly the kind of thing models hallucinate around. I've watched agents pull the right baseline number and then quietly use the wrong multiplier two steps later. Not a model problem. A context problem.
+
+## The swap: give it bash, not a CSV
+
+The fix that's been working for me: stop building a "read_campaign_data" tool. Give the agent a bash primitive and let it write a Python script against the file on disk.
+
+So instead of:
+
+1. Tool call returns 180,000 tokens of CSV content
+2. Model reasons across all of it in its head
+3. Model produces an answer (and maybe hallucinates a number)
+
+You get:
+
+1. Model writes a 12-line pandas script
+2. Bash runs it
+3. Model reads the small result (a number, a top-10 list, a grouped summary)
+4. Model reasons across that small result
+
+The agent is doing what a human analyst would do. You don't memorize the CSV. You open it, run a query, look at the answer. Code execution is the query layer.
+
+In one test I ran on a campaign performance dataset, the same task went from ~210K tokens to under 15K. Latency dropped. Cost dropped harder. And the answers got more reliable because the model wasn't trying to do arithmetic across 40,000 rows in its head.
+
+## Why this isn't obvious
+
+I think the reason people default to dumping CSVs is that "tool" has become synonymous with "API wrapper." We think of tools as things that fetch structured data and return JSON. So when we have a CSV, we write a tool that returns the CSV.
+
+But the more useful framing is to think about what primitives a human operator actually uses. You have a file system. You have a terminal. You have the ability to write a script. You have a browser. That's roughly it. Agents that get those same primitives, instead of bespoke wrappers around every action, tend to age better. When a new model drops, it just uses the same primitives more skillfully. You don't have to refactor your tool layer.
+
+Custom tools still matter, but they should be the exception, not the starting point. Reach for them when the primitive approach genuinely can't do the job (proprietary API, gated data source, action that needs guardrails). For data analysis on files you already have? Bash plus Python beats a custom tool almost every time.
+
+## What this looks like for a marketing stack
+
+Concrete examples from my own work this month:
+
+A weekly ad performance summary across Meta, Google, and TikTok exports. Old version: three retrieval tools, full CSVs into context, ~180K tokens per run. New version: files dropped in a working directory, agent writes a pandas script to join and aggregate, returns a 2KB summary. Roughly 8K tokens per run.
+
+An inventory reorder check across a 12,000-SKU export. Old version: a "get_low_stock" tool returning every SKU under threshold (still a lot of tokens). New version: agent writes a filter script, gets back 47 SKUs that actually need attention, reasons over those.
+
+A CRM segmentation task where I want to find lapsed high-value customers. Old version: dump the contact export, ask the model to find them. Hallucinations and missed records. New version: agent writes a SQL-on-CSV query via duckdb, returns the exact list.
+
+The pattern is the same in all three. The token reduction is between 10x and 25x. The accuracy goes up because arithmetic and filtering moved out of the model's head and into actual code.
+
+The catch most people will miss: this only works if your agent harness actually gives the model a sandboxed environment to run code in. If you're hand-rolling on the raw API with no execution layer, you're stuck either building one or living with the CSV dump. So before you redesign your prompts, decide where the code is going to run. Anthropic's managed agent runtime handles this out of the box now, and you can replicate it locally with a Docker sandbox in an afternoon. Either way, the order of operations is: get an execution environment first, then start deleting tools. Not the other way around.
