@@ -1,0 +1,53 @@
+---
+title: "Skills beat system prompts for marketing agents over 200 lines"
+description: "A 400-line system prompt is the most common reason custom marketing agents start hallucinating. Progressive disclosure through modular skills fixes it, and the token math alone makes the architectural shift worth doing before your next client build."
+pubDate: 2026-05-25
+tags: ["ai-agents", "prompt-engineering", "marketing-ops"]
+draft: true
+---
+
+Every custom marketing agent I have built or inherited has the same disease. It starts at 80 lines. Six weeks later it is 400. Brand voice rules, escalation policies, channel-specific tone guides, a list of competitors not to mention, the legal team's six bullet points on claims language, the SOP for handling refunds in email but not SMS. All of it bolted onto a single system prompt because that was the fastest way to ship the last feature request.
+
+Then the agent starts hallucinating. Forecasts come back with the wrong promo multiplier. The tone shifts mid-conversation. Outputs contradict policies that are sitting right there in the prompt. The instinct is to blame the model. The actual problem is that you have polluted the context window with 380 lines of stuff the model does not need for the task in front of it.
+
+## The bloat tax nobody itemizes
+
+Here is what a long system prompt actually costs you. Every turn, every tool call, every sub-agent invocation reloads that full prompt. If your prompt is 400 lines and your agent takes 12 turns to complete a task, you are paying for those 400 lines twelve times. On a 200,000-token task, the system prompt overhead alone can be 30 to 50 percent of the bill.
+
+But the money is the small problem. The bigger one is attention. When two policies in different sections of your prompt mildly contradict each other, the model picks. Sometimes it picks wrong. The longer the prompt, the more surface area for these silent contradictions. I have seen agents fail evals because a brand voice rule in line 47 quietly conflicted with a channel guideline in line 312, and the model averaged them into something neither team approved.
+
+## What progressive disclosure actually means
+
+The idea is simple. Your system prompt should only contain what the model needs in its head regardless of the task. Your identity, your top-level role, your hard guardrails. Maybe 30 to 50 lines. Everything else gets packaged into discrete skills the model pulls into context only when a task requires them.
+
+A skill is a folder. Inside it, a short description telling the model when to use this skill, plus the actual instructions, examples, or reference material. The model reads the descriptions, decides which skill applies, and loads that one into context. The other forty skills stay on disk.
+
+For a marketing agent, this maps cleanly:
+
+- A skill for paid social copy with platform character limits and brand voice examples
+- A skill for email subject line testing protocols
+- A skill for the monthly reporting template
+- A skill for handling competitor mentions in customer responses
+- A skill for the legal claims matrix
+
+None of these belong in a system prompt. Each gets loaded only when the agent realizes it needs it.
+
+## The retrieval is the trick
+
+The piece people underestimate: this only works if the skill descriptions are written so the model can actually route to them. "Brand voice guidelines" is a bad description. "Use when writing customer-facing copy for Brand X across email, social, or web. Includes tone rules, banned phrases, and approved examples" is a good one.
+
+I have started thinking about skill descriptions the way I used to think about meta descriptions for SEO. The job is to help a system that is scanning quickly decide whether to click in. Same discipline, different reader.
+
+This also means you should write skills as standalone documents. Do not assume the model is carrying context from the system prompt into the skill. Each skill should be readable on its own, with its own examples, its own constraints, its own success criteria. If a skill says "follow the brand voice from above," it will fail half the time. The "above" is not always there.
+
+## When to keep a sub-agent versus collapse it
+
+The other half of the cleanup is sub-agents. Most marketing agent builds I see have three or four sub-agents that should not exist. They were created because someone hit a wall and the easiest fix was spinning up a fresh agent loop instead of fixing the prompt.
+
+Two cases justify a sub-agent. First, when you genuinely want a clean context to review the main agent's work (a QA pass on generated copy, for example). Second, when you want to parallelize, like running five competitor research threads at once. Everything else is usually better as a skill plus the right tools on the main agent.
+
+Forecasting is a good keep. You do not want the same agent instance that is chatting with a stakeholder also doing the numerical work, because the conversational context will distort the calculation. Reporting is usually a bad keep. The main agent can write the report fine if it has the skill and the data.
+
+## The practitioner take
+
+If you are running custom GPTs, Claude projects, or homegrown agents for clients, do this audit next week. Open your system prompt. Count the lines. Anything over 150 is suspect. For every block in that prompt, ask: does the model need this for every single task, or only for some tasks? The "some tasks" blocks become skills. The shift takes a few hours and tends to drop token costs 40 to 60 percent on the same workloads while improving output quality, because you stop forcing the model to ignore most of what you gave it. The catch most people will miss: skills only work if your agent harness actually supports dynamic loading. If you are on a platform that just concatenates everything into one prompt under the hood, you have not saved anything. Check before you refactor.
