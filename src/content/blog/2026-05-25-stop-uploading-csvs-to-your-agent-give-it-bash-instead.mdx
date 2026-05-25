@@ -1,0 +1,49 @@
+---
+title: "Stop Uploading CSVs to Your Agent. Give It Bash Instead."
+description: "Most marketers building data agents shove entire CSVs into the context window and watch token counts explode past 200k. There's a better pattern borrowed from how Anthropic engineers build internally: hand the agent a code interpreter and let it write its own analysis script."
+pubDate: 2026-05-25
+tags: ["ai-agents", "context-engineering", "marketing-ops"]
+draft: true
+---
+
+## The default pattern is killing your agent
+
+Here is what almost everyone does when they build a marketing analysis agent. They take a CSV export from HubSpot or Google Ads or Klaviyo, upload it into the chat, and ask Claude or GPT to find patterns. For a 500 row file, this works fine. For a 50,000 row file, you watch your token count balloon past 200k, your latency triple, and your reasoning quality drop because the model is drowning in raw data it has to hold in working memory.
+
+The instinct then is to build a custom tool. A "CSV reader" tool. A "filter by column" tool. A "calculate average" tool. Before long you have twelve tools, half of which overlap, and the agent spends its turns deciding which tool to call instead of actually thinking about your data.
+
+There is a different approach that I've started using, and it changes the economics of data-heavy agent work pretty dramatically.
+
+## Human primitives instead of custom tools
+
+The idea: instead of building purpose-specific tools for every data operation, give the agent the same primitives a human analyst has. A file system. A bash shell. The ability to write and run Python. That's it.
+
+Now when the agent gets a CSV with 50,000 rows of ad spend data, it doesn't read the file into its context. It writes a small pandas script, runs it, reads the printed output (usually a few hundred tokens of summary stats), and reasons from there. The data never enters the context window. Only the insights do.
+
+This is roughly how a competent human analyst works. You don't memorize the CSV. You query it. The model should do the same.
+
+## What the numbers actually look like
+
+I ran this on an inventory style task with a CSV the agent needed to analyze. Custom tool version: about 210k tokens, multiple minutes of wall time, and the model occasionally hallucinated numbers because it was trying to do arithmetic on a wall of text it had been forced to ingest.
+
+Code execution version of the same task: token usage dropped by roughly an order of magnitude, latency fell, cost fell with it, and accuracy went up because pandas does not hallucinate a sum. The agent took a similar number of turns, but each turn was cheaper and the math was correct.
+
+For anyone running this kind of workflow at scale, say nightly reports across client accounts, that difference compounds fast. A workflow that costs $4 per run becomes a workflow that costs $0.40, and you stop getting paged because a forecast came back with a fabricated multiplier.
+
+## Where this applies for marketers
+
+If you're building any of the following, this pattern is worth trying before you reach for custom tooling:
+
+Performance reporting agents that read ad platform exports. Lead scoring agents that need to look across a CRM dump. Cohort analysis on Shopify or Klaviyo data. Attribution sanity checks across multiple CSVs. Any "summarize this spreadsheet" use case.
+
+The shift in how you think about the agent is: it's not a model that consumes data, it's an analyst that queries data. You give it a sandbox, you sync the files in, and you let it write the SQL or pandas it needs. You stop trying to anticipate every possible aggregation and stop building a custom tool for each one.
+
+## Where it doesn't apply
+
+This isn't a universal answer. If your data is small enough to fit comfortably in context (a few hundred rows, a single short doc), uploading it directly is fine and probably faster. If your agent is doing pure conversational work with no data analysis, code execution is overkill. And if your "data" is unstructured text that the model genuinely needs to read end to end, then yes, it belongs in context.
+
+The rule of thumb I'm using: if the agent's job is to compute something deterministic over structured data, give it code. If the job is to interpret something fuzzy, give it the text.
+
+There's also a security angle to think about. Letting an agent execute arbitrary bash is not something you do on your laptop with production credentials lying around. You need a sandboxed environment, which is part of why managed agent platforms are starting to ship this as a default rather than asking you to wire it up yourself.
+
+The practical move this week: take your most token-heavy agent workflow, the one where you've been uploading a CSV directly or where you built three custom data tools, and rebuild it with a single bash or code execution primitive instead. Sync the file into the sandbox, write a system prompt that tells the agent it has Python available, and let it figure out the rest. The catch most people will miss is that you also need to delete the old tools, not just add the new one. If both paths exist, the model will keep reaching for the familiar custom tool and you'll never see the token savings. Force the new pattern by removing the alternative.
