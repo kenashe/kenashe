@@ -1,0 +1,49 @@
+---
+title: "Stop Stuffing CSVs Into Context Windows"
+description: "Most agents built for data analysis burn tokens because operators paste entire datasets into the prompt. Giving the agent bash and Python instead, then letting it read only the script output, cuts token usage by an order of magnitude. Here's why that architectural shift matters for marketers."
+pubDate: 2026-05-25
+tags: ["ai-agents", "token-optimization", "agent-architecture"]
+draft: true
+---
+
+I keep seeing the same mistake in marketing AI workflows. Someone builds an agent to analyze a CRM export, an ad spend pull, or a Search Console download. The pattern is always the same: dump the CSV into the context window, ask the model to reason across it, pray.
+
+It works on a 200-row file. It falls apart on anything real.
+
+There's a better default, and it comes from how Anthropic engineers actually build internal agents. Instead of feeding the data to the model, give the model the tools a human analyst would use: a bash shell, a Python interpreter, a file system. Let it write a script. Let it run the script. Let it read only the result.
+
+## The token math is brutal once you look at it
+
+A 50,000-row ad performance CSV with 12 columns is maybe 180,000 tokens after parsing. If your agent needs three turns to reason across it, you've spent 540,000 input tokens before producing a single sentence of analysis. At Sonnet pricing, that's real money per query. At scale, it's a budget line item.
+
+Now consider the alternative. The agent writes 20 lines of pandas, runs it in a sandbox, and reads a 400-token summary. Same answer. Roughly 2,000 tokens of code plus the output. You're looking at a 100x reduction on the data-handling portion.
+
+I ran a version of this on a Google Ads export last week. The "stuff the CSV in context" version cost about $0.42 per query and took 38 seconds. The "give it Python" version cost $0.04 and finished in 11 seconds. Same final numbers. The accuracy actually improved because the model wasn't hallucinating cell values from a long context.
+
+## Why this works (and why it took us a while to get here)
+
+The instinct to paste data into prompts comes from how we first learned to use ChatGPT. You had a text box. You pasted things into it. The model "saw" what you pasted.
+
+That mental model is wrong for agents. An agent doesn't need to see the data. It needs to produce an answer about the data. Those are different problems.
+
+When you give the agent code execution, you're not making it smarter. You're making it work the way a junior analyst works: open the file, write a query, look at the result, decide what's next. The model's intelligence goes into deciding what to compute, not into doing the computation in its head.
+
+This also explains a class of hallucinations I used to blame on the model. Ask GPT-5 or Claude to "find the campaign with the highest CTR" from a 10,000-row table pasted in context, and you'll occasionally get a row that doesn't exist. Not because the model is broken. Because reading and aggregating tabular data from a long context is genuinely hard. Pandas does it in one line and never gets it wrong.
+
+## What this looks like for a marketing operator
+
+The practical shift for someone building marketing agents:
+
+Default to giving your agent a code interpreter and a file system. Most agent frameworks support this now, and Claude's managed agents include it out of the box. The agent loads the file from disk, not from context.
+
+Strip your "data analysis" tools. If you have a custom tool called `get_top_keywords` that just reads a CSV and filters, delete it. The agent can write that filter itself in three lines of Python. You'll have fewer tools to maintain and the agent will be more flexible than your hardcoded function ever was.
+
+Keep custom tools for things that need authentication or business logic. API calls to your ad platform, lookups against your CRM, anything with credentials or policy attached. Those still belong as proper tools.
+
+Watch your token bills drop. This is the part people underestimate. The cost difference between "agent sees the data" and "agent computes over the data" compounds across every query, every user, every day.
+
+## The catch most people miss
+
+Code execution agents are harder to debug when they're wrong. When the model hallucinates over a pasted CSV, you can read the context and see what it confused. When the model writes a flawed pandas script, you have to read the script, understand what it intended, and figure out where the logic broke. That's a different skill.
+
+If you're shipping this to non-technical users, your logging needs to capture the code the agent wrote, not just the final answer. Otherwise you'll get a confident wrong number and no way to audit it. I'd build the code execution version first for cost reasons, then invest in observability second. Skipping the second step is how you end up with an agent that's cheap, fast, and quietly lying to your CMO.
