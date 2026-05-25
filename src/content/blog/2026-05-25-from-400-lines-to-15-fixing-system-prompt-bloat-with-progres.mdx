@@ -1,0 +1,67 @@
+---
+title: "From 400 Lines to 15: Fixing System Prompt Bloat with Progressive Disclosure"
+description: "System prompts balloon when you bolt new business rules onto an agent over months. There's a cleaner pattern: package the rules as skills the model pulls into context only when needed. Here's how that shift cut a 400-line prompt to 15 and lifted eval scores."
+pubDate: 2026-05-25
+tags: ["ai-agents", "prompt-engineering", "agent-architecture"]
+draft: true
+---
+
+Every operator I know who has shipped an AI agent into production has lived this exact arc. You build something focused. It works. Someone asks for one more capability. Then another. Six months later your system prompt is 400 lines, you have a dozen tools, three sub-agents, and the thing that used to be sharp is now hallucinating prices and forgetting policies it followed last week.
+
+The instinct is to blame the model. It's almost never the model. It's that you've been stuffing every business rule, edge case, and policy into the system prompt because that was the only place you knew to put them.
+
+## The pattern: progressive disclosure
+
+The cleaner approach is something Anthropic has been calling progressive disclosure, and the implementation vehicle is what they call Skills. The idea is simple. The system prompt should only contain information the model needs in its head regardless of the task. Everything else, all the policies, the workflows, the formatting rules, the conditional logic, gets packaged into separate skills that the model loads into context only when it recognizes it needs them.
+
+Think about how you actually work. You don't keep your entire employee handbook in your active memory. You know the handbook exists, you know roughly what's in it, and when a question comes up about PTO, you go look at the PTO section. That's the move here. Stop forcing the model to hold 400 lines of mostly-irrelevant rules in working memory for every single turn.
+
+## Why bloated prompts cause regressions
+
+When a prompt grows organically over months, three things go wrong at once.
+
+First, you get contradictions. Policy A was written in month two. Policy B was written in month seven by someone who forgot Policy A existed. They conflict in some narrow case. The model picks one, sometimes the wrong one, and you can't figure out why.
+
+Second, you get attention dilution. The model has to weigh hundreds of instructions on every call. The signal-to-noise ratio for any single rule keeps dropping. You start seeing the model "forget" things that are literally written in the prompt.
+
+Third, you waste tokens. Every turn ships the full prompt. If 80% of it is irrelevant to the current request, you're paying for context the model is actively being distracted by.
+
+In one walkthrough I saw, moving from the bloated setup to skills dropped per-task token usage from over 200,000 to a fraction of that, with cost and latency falling in lockstep.
+
+## What actually goes in the system prompt
+
+Here's the test I'm now using. If the answer to "does the model need this for every task this agent does?" is no, it doesn't belong in the system prompt. It belongs in a skill.
+
+What stays:
+- Identity and role
+- The overall mission
+- How to decide which skills or tools to reach for
+- Hard rules that apply universally (safety, escalation, tone floor)
+
+What moves to skills:
+- Specific workflows (how to file a PO, how to write a weekly report)
+- Domain policies (promotion rules, return policies, pricing tiers)
+- Output templates and formatting specs
+- Reference data the model only needs sometimes
+
+That's how a 400-line prompt collapses to 15. The 15 lines are the part that was always supposed to be there. The other 385 were a filing cabinet jammed into a sticky note.
+
+## The tool side of the same problem
+
+The same disease shows up in tool design. You start with a few tools. You keep adding wrappers for every new capability until your agent has 12 tools, three of which are themselves wrappers around sub-agents with isolated context. Each tool definition costs tokens. Each one is something the model has to consider on every turn.
+
+The fix that pairs with progressive disclosure: start with primitive, human-like tools. A file system. Code execution. Web search. A scratchpad. Then add custom tools only when the primitives can't handle it. A lot of "I need a tool for X" turns out to be "I need the model to write five lines of Python and read the result." Giving it bash is cheaper and more flexible than writing a bespoke tool for every analysis pattern.
+
+This is why agents that can execute code burn fewer tokens on data tasks. Loading a 50,000-row CSV into context to reason over it is wasteful. Letting the model write a query against the file and read the answer is not.
+
+## When sub-agents actually earn their keep
+
+Sub-agents got over-prescribed for a while. The honest use cases are narrow:
+
+One, you want to parallelize a lot of model calls against a big problem (deep research, large codebase exploration). Two, you want a fresh context window to review or audit work the main agent did, because you don't want the same instance grading its own homework.
+
+If your sub-agent exists because you couldn't figure out where else to put a capability, it's probably a skill in disguise. Try collapsing it back into the main loop with a skill behind it and see if performance holds. Frontier models are intelligent enough now that a lot of the orchestrator-and-three-sub-agents architectures from 2024 can be flattened.
+
+## What I'd do Monday morning
+
+If you have an agent in production right now with a system prompt longer than a page, here's the concrete play. Open the prompt and color-code every paragraph by whether it applies to every request or only some. Take everything in the "only some" bucket and turn each cluster into a named skill file. Rewrite the system prompt to be a short orientation that tells the model which skills exist and when to reach for them. Then run your evals before and after. The catch most people miss: you have to invest in the skill descriptions, because that's what the model uses to decide when to pull a skill in. A skill the model never loads is worse than a paragraph in the prompt. Treat the skill index like an internal search problem, not a folder dump, and the architecture pays you back immediately.
