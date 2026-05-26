@@ -1,0 +1,65 @@
+---
+title: "How a 400-line system prompt becomes 15 lines with Skills"
+description: "A walkthrough of progressive disclosure as a fix for prompt bloat in marketing agents, why stuffing brand rules and SEO logic into one system prompt degrades reasoning, and how modular Skills restore eval scores while cutting token costs."
+pubDate: 2026-05-26
+tags: ["ai-agents", "prompt-engineering", "marketing-ops"]
+draft: true
+---
+
+Most marketing agents I've seen die the same way. Not from a bad model. From accumulation.
+
+You build an agent to do one thing. A blog drafter, an email triage bot, a paid-search auditor. It works. Then someone asks for brand voice rules. You paste them in the system prompt. Then SEO guidelines. In they go. Then the legal disclaimer policy, the affiliate disclosure rules, the tone-by-channel matrix. Six months later your system prompt is 400 lines of contradicting instructions and the agent has gotten measurably worse at the thing it used to do well.
+
+The fix has a name now: progressive disclosure through Skills.
+
+## The actual failure mode of a bloated system prompt
+
+When you stuff every rule into the system prompt, two things happen. The model burns context on policies that don't apply to the current task. And contradictions creep in that the model has to silently resolve.
+
+Concrete example. Say your prompt has a forecasting policy in line 80 ("apply a 3.1x multiplier during promo months") and a general accuracy reminder in line 290 ("favor conservative estimates, multipliers above 2x should be flagged"). For a normal forecast, no problem. During a promo month? The model hallucinates a compromise. It uses 1.35x. Both rules technically satisfied. Output completely wrong.
+
+This isn't a model failure. It's a context design failure. The model did what you'd expect when given conflicting instructions: it averaged them.
+
+I've watched the same pattern in content agents. A brand voice guide says "use contractions, sound human." A separate SEO ruleset says "include the exact keyword phrase three times." The model produces something that reads like a robot trying to do an impression of a human. Neither rule is wrong on its own. Together they fight.
+
+## What Skills actually do
+
+A Skill is a packaged chunk of instructions, examples, and rules that lives outside the system prompt and gets pulled into context only when the agent recognizes it needs it. Think of it like a manual on a shelf. The agent has a one-line index of what's available. When a forecasting task comes in, it grabs the forecasting manual. When a brand voice task comes in, it grabs the voice manual.
+
+The system prompt shrinks to what the agent needs to know all the time: who it is, what tools it has, how to decide which Skill applies. That's it. Maybe 15 to 50 lines.
+
+Everything else moves out:
+- Brand voice rules become a `brand-voice` Skill.
+- SEO guidelines become an `seo-optimization` Skill.
+- Channel-specific formatting (Twitter, LinkedIn, email) becomes one Skill per channel.
+- Promotional calendar logic becomes a `promo-rules` Skill.
+
+The agent only loads the relevant one. Token usage drops. Conflicts disappear because rules that shouldn't be co-present aren't co-present.
+
+## What this looks like for a marketing operator
+
+I rebuilt a content drafting agent last week using this pattern. The before state: a roughly 380-line system prompt that included three brand voice guides (we work with three clients), an SEO ruleset, a list of banned phrases, a tone matrix, and a long section on formatting.
+
+What I did:
+
+One Skill per client brand. So `acme-voice`, `globex-voice`, `initech-voice`. Each contains the voice rules, banned phrases, sample paragraphs, and tone matrix for that client only.
+
+A separate `seo-optimization` Skill that only loads when SEO is part of the task. Most drafting tasks don't need it.
+
+A `formatting` Skill with channel rules. Loads when the task specifies a channel.
+
+The new system prompt is 22 lines. It tells the agent it's a content drafter, lists the available Skills with one-line descriptions, and instructs it to load the relevant client Skill based on which client the task references.
+
+Token usage per draft dropped roughly 60%. The bigger win: the Acme drafts stopped accidentally inheriting Globex's voice rules. That had been happening maybe one in eight outputs before and I could never figure out why. It was just context pollution.
+
+## The catch that's easy to miss
+
+Skills only work if the agent reliably picks the right ones. That means the trigger description for each Skill has to be unambiguous. "Use this when writing for Acme" is fine. "Use this for technical content" is a coin flip waiting to happen.
+
+I spent more time writing Skill descriptions than writing the Skills themselves. That's the actual work. The content of each Skill is just your existing brand guide pasted in. The selection logic is the part you have to design.
+
+Second catch: this only matters if you have evals. Without a test suite, you won't know if the refactor improved anything or quietly broke a use case you forgot about. Build the eval first, even a crude one with 10 representative tasks. Run it before and after. Otherwise you're just rearranging YAML and hoping.
+
+## Practitioner's take
+
+If you run any custom GPT, Claude Project, or agent with more than 150 lines of system prompt, audit it this week. Print it out. Highlight every section that only applies to a subset of tasks. Those sections are Skill candidates. Move them out, write a one-line trigger for each, shrink the system prompt to the always-on instructions. The win isn't theoretical: you'll see it in token bills within a week and in output consistency within two. The trap most marketers will fall into is treating Skills like folders for tidiness instead of as a selection problem. The value isn't organization. It's keeping conflicting rules out of the same context window at the same time. That's the whole game.
