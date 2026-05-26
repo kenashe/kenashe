@@ -1,0 +1,53 @@
+---
+title: "Agent Amnesia Has a Fix, and It Looks Like Sleep"
+description: "Claude's new Dreaming feature lets agents review their own logs between sessions and decide what to remember. For marketing operators fighting brand-voice drift and repeated mistakes in recurring workflows, this is the missing piece that turns one-off agents into ones that actually compound."
+pubDate: 2026-05-26
+tags: ["claude", "ai-agents", "memory"]
+draft: false
+---
+
+The most expensive part of running an AI agent in a marketing stack isn't tokens. It's the human time spent re-explaining the same corrections every week. Wrong tone. Wrong CTA placement. Forgot the brand bans the word "solutions." Forgot the client hates oxford commas. You fix it Monday, fix it again Wednesday, fix it again the following Monday.
+
+That problem now has a name on the Anthropic side: agent amnesia. And the fix they shipped is, oddly enough, called Dreaming.
+
+## What Dreaming actually is
+
+Inside Claude Managed Agents, Dreaming is an asynchronous memory service. After a session ends, Claude goes back through its own logs and decides what to keep. Not the whole transcript. Not a vector dump of every message. A curated set of facts, preferences, and corrections that should persist into the next run.
+
+Think of it as the agent doing a retro on itself while you sleep. It reviews where it got corrected, what the user reinforced, what conventions kept appearing, and it writes that into memory the next session will read first.
+
+That last part is what makes this different from the "memory" features bolted onto chatbots over the last 18 months. Most of those just save snippets you tagged. Dreaming makes the curation itself an agent task.
+
+## Why this matters specifically for marketing ops
+
+A marketer's relationship to an AI agent is almost entirely about taste corrections delivered over time. The first version of a blog draft is rarely usable. The third or fourth, after specific edits, usually is. The problem has always been that the agent doesn't learn from those edits. It produces version one again next week.
+
+A few places this changes things if it works as advertised:
+
+Brand voice drift. If you keep correcting an agent that uses "leverage" as a verb (guilty), Dreaming should internalize that as a persistent rule rather than something you re-prompt every session.
+
+Recurring campaign workflows. Weekly newsletter agents, monthly report generators, ongoing SEO content pipelines. These are exactly the workflows where amnesia costs the most, because the corrections compound if remembered and repeat if forgotten.
+
+Multi-client agencies. Each client gets its own agent with its own dream log. The agent for Client A remembers Client A hates emoji in subject lines. The agent for Client B remembers Client B requires them. You stop being the broker of that context.
+
+## The architectural piece most people will miss
+
+Claude Managed Agents separates the brain (the agent loop, running on Anthropic's infrastructure) from the hands (the tool execution environment, which can now run in your own containers). Dreaming sits on the brain side. It's a server-side process that happens between your sessions, not something you have to wire up in your tool layer.
+
+That matters because the historical reason memory features fail in production is that they live as an afterthought in the application code. Someone has to build the "save important things" function, the "retrieve relevant things" function, the dedup logic, the conflict resolution when two memories disagree. Most teams ship a v1 that mostly works and never touch it again. Six months later it's a mess of stale facts.
+
+Putting curation inside the harness means it's a primitive, not a feature you maintain. That's the same argument for managed agents in general: compaction, caching, context anxiety mitigations are all things you stop owning. Memory curation joins that list.
+
+## Where I'd actually try it first
+
+If I were testing this on a real workflow this week, I wouldn't start with content generation. I'd start with QA agents. Specifically: an agent that reviews outbound copy against brand guidelines before it ships.
+
+Reason: the corrections in a QA loop are crisp and binary. "This violates rule 4." "This is fine." That's exactly the kind of feedback Dreaming can curate cleanly. Creative generation is noisier, the corrections are more taste-based, and you'll get fuzzier memories.
+
+Once the QA agent is reliably remembering your house rules across sessions, then push memory into the generation side. The QA agent becomes a forcing function that surfaces what needs remembering in the first place.
+
+## The catch
+
+Curated memory is still memory of one perspective. If the agent gets a correction wrong (misreads a one-off edit as a general rule), that misread now persists. You're trading the cost of repeating corrections for the cost of occasionally untraining a bad lesson. That's a better trade, but it's not free. You'll want a way to inspect and edit the dream log directly, the way you'd review a junior teammate's notes. Treat the memory store as a document, not a black box.
+
+The operator move here isn't to turn on Dreaming and walk away. It's to add a weekly fifteen-minute review of what your agent decided to remember. That habit is what separates an agent that compounds from one that confidently drifts. The teams who win the next year of this aren't the ones with the most tools wired up. They're the ones who treat their agents' memory like a managed asset, audited and pruned, the same way they treat their CRM.
