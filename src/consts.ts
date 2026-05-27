@@ -5,7 +5,7 @@ export const AUTHOR = 'Ken Ashe';
 export const NEWSLETTER_URL = 'https://newsletter.kenashe.ai';
 
 // Platform-stable Substack RSS URL — works regardless of custom domain config.
-export const SUBSTACK_RSS_URL = 'https://kenashe.substack.com/feed';
+export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 
 // TODO: replace with a 1200x630 PNG before launch — SVG OG images are not
 // supported on every platform (notably Facebook). Drop the file in /public
