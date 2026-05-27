@@ -1,0 +1,47 @@
+---
+title: "Splitting the agent loop from tool execution cut TTFT by 90%"
+description: "Anthropic's Managed Agents architecture separates reasoning from tool execution, which solves two problems marketing operators hit hard: securing API credentials for tools like HubSpot and WordPress, and the latency tax of spinning up containers per session."
+pubDate: 2026-05-27
+tags: ["ai-agents", "agent-architecture", "marketing-automation"]
+draft: true
+---
+
+Most agent harnesses bundle the reasoning loop and the tool execution into one container. The model thinks, the tools fire, all in the same box. That made sense when agents were simple. It stops making sense the moment your agent needs a HubSpot token, a WordPress app password, a Google Ads refresh token, and an Ahrefs key all living in the same runtime.
+
+Anthropic's Managed Agents pulled those apart. The brains run server-side on their infrastructure. The hands run wherever you put them: their sandbox, your container, your VPC. That decoupling is the architectural choice worth paying attention to, and the numbers behind it matter for anyone shipping marketing agents.
+
+## What the split actually buys you
+
+Two things, mostly.
+
+First, time to first token. When the loop and tools share a container, every new session waits for that container to spin up before the model says a word. Anthropic's own P95 TTFT dropped by over 90% after the split. For a marketer, that's the difference between an agent that feels alive when a lead form fires a webhook and one that makes the user wait six seconds before anything streams back.
+
+Second, credential isolation. Tool credentials live in a separate encrypted store (Anthropic calls them Vaults). The reasoning model never touches the raw secret. It calls the tool, the tool runtime resolves the credential, the call goes out. If a prompt injection convinces the model to exfiltrate keys, there's nothing to exfiltrate in the context where the model lives.
+
+## Why this matters for marketing stacks specifically
+
+Marketing agents are credential-heavy in a way that coding agents aren't. A code agent mostly needs a shell and a file system. A marketing agent that researches a prospect, drafts an email, schedules a post, and updates a CRM record is touching five or six third-party APIs, each with its own auth pattern, rate limits, and revocation rules.
+
+The naive build looks like this: drop all the API keys into an `.env`, load them into the agent process, and hope nothing logs them. That works for a prototype and falls apart the moment you have more than one user, or any compliance scrutiny, or a contractor who needs to run the agent without seeing the keys.
+
+The decoupled model gives you a real answer. Per-user credential scoping. Tools that execute in a network you control. A reasoning layer that never sees the secret. You can finally hand an agent to a client without handing them, or your model provider, the keys to the CRM.
+
+## The events model is the other quiet upgrade
+
+Sessions in Managed Agents don't work in request/response. They work in events appended to a log: user message, tool call, tool result, model response, repeat. Each event is durable. Hard-refresh the page and the session resumes. The container dies and the loop picks back up.
+
+For a builder, this changes how you wire up the front end. You're not polling for a final answer, you're subscribing to a stream. For long-running marketing tasks (think a competitor research agent that takes four minutes), that's the difference between a spinner and a UI that shows progress: "checking SERPs," "pulling Ahrefs," "drafting summary."
+
+It also means webhooks can drive state changes. A form submission can resume a paused session. A Slack reply can kick a sub-agent. The session state machine (idle, running, rescheduling, terminated) is a thing you can program against, not something hidden inside a runtime.
+
+## Where it still costs you something
+
+Decoupling isn't free. You give up some of the speed of having tools in-process. Every tool call now crosses a boundary, which adds round-trip latency per call even as TTFT improves. For agents that fire 30 quick tool calls in a row, that adds up.
+
+You also inherit a new mental model. Agents, environments, and sessions are three resources, not one. The first time you wire them together you'll wonder why it's not just one object. The answer becomes obvious around the third agent you ship, when you start reusing environments across agents and scoping sessions per user.
+
+The other catch: "managed" means you've handed compaction, caching, and context anxiety mitigations to Anthropic. When they get better at it (Opus 4.5 made some Sonnet 4.5 mitigations obsolete) you benefit for free. When their defaults don't match your use case, you have less surface area to tune. For most marketing workflows, that trade is fine. For edge cases, it's something to test before committing.
+
+## Practitioner's take
+
+If I were starting a marketing agent project this week, the first decision wouldn't be which model. It would be where the credentials live. Pick the architecture that lets a non-engineer client revoke a HubSpot token without touching your code, and lets a single agent serve ten clients without comingling secrets. The decoupled brain/hands pattern gives you that for free, and the TTFT win is a bonus. The catch most people will miss: this only pays off if you actually use the credential boundary. If you shove all your keys into the tool runtime and never scope them per user, you've bought yourself a faster agent and none of the security. The architecture is an invitation, not a guarantee.
