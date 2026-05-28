@@ -1,0 +1,53 @@
+---
+title: "Stop Vibe-Checking New Models. Build a 50-Prompt Eval Set Instead."
+description: "Frontier developers run automated evals the moment a new model lands. Most marketers still open the chat window and eyeball the output. Here's how to close that gap with a simple benchmark set of past briefs, ad copy, and SEO tasks you can rerun in an afternoon."
+pubDate: 2026-05-28
+tags: ["llm-evals", "ai-workflows", "marketing-ops"]
+draft: false
+---
+
+When Claude 4.5 or GPT-5.1 or whatever ships next drops, my workflow used to look like this: open the chat, paste in a meta description prompt I've used a hundred times, read the output, mutter "feels sharper," and move on. That is a vibe check. It is not a benchmark.
+
+The teams actually shaping these models don't work that way. The first thing they do when a new checkpoint lands is kick off automated evals in the background. They have a fixed test set. They run the new model against it. They look at where the numbers moved. Then they form an opinion.
+
+Marketers can do the same thing. You don't need an ML team. You need a spreadsheet, an API key, and about four hours.
+
+## What an eval actually is for a marketer
+
+An eval is just: a fixed set of inputs, a model output, and some way to score the output. That's it.
+
+For marketing work, the inputs are tasks you already do every week. SEO brief generation. Ad copy variants. Email subject lines. Product description rewrites. Audience segment summaries. Pick the workflow where you spend the most LLM tokens. That's the one worth benchmarking.
+
+Build a set of 50 real prompts from your last six months of work. Not synthetic ones. Real briefs you actually shipped, with the actual context (target keyword, audience, brand voice notes, competitor URLs). Save them in a Google Sheet or a JSON file. This becomes your benchmark, and you reuse it forever.
+
+## The scoring problem, solved cheaply
+
+The hard part of evals is scoring. For code, you can run the code and see if it passes tests. For marketing, "good" is fuzzier.
+
+Three approaches that work:
+
+Pairwise comparison. Run prompt 1 through the old model and the new model. Show yourself both outputs side by side without labels. Pick the better one. Do this for all 50. If the new model wins 35+ times, it's a real upgrade. If it wins 26 times, that's noise.
+
+LLM-as-judge. Use a third model (often a bigger, slower one) to score outputs on specific criteria. "Rate this meta description from 1 to 5 on: keyword inclusion, click appeal, accuracy to the source brief." This is what most eval frameworks like Braintrust, Promptfoo, and Langfuse default to. It's imperfect but consistent, which is what you need to track movement across model versions.
+
+Hard checks. For tasks with verifiable rules, just check them in code. Did the meta description stay under 160 characters? Did the ad copy avoid the banned phrase list? Does the SEO brief include all five required H2s? You'd be surprised how much of marketing QA is actually rule-based.
+
+Most working eval setups blend all three.
+
+## What this changes in practice
+
+Once you have a benchmark, model launches stop being marketing events for you and start being data points.
+
+Last time Anthropic shipped a new Sonnet, I ran it through my brief-generation eval set. Pairwise, it beat the previous version 31 times out of 50 on overall quality but lost 18 times on tone-matching for one specific client whose brand voice runs more conservative. That's not something the launch blog post tells you. That's something you only learn by testing your work, not someone else's demo.
+
+The other thing evals catch: regressions. Sometimes a new model is genuinely better at reasoning and genuinely worse at following a specific formatting instruction you depended on. Without a benchmark, you find out when a client emails you. With one, you find out before you route any production traffic through the new model.
+
+## The tooling question
+
+You can run this in a Python script with pandas and the Anthropic SDK in about 80 lines. You can run it in n8n or Make with a Google Sheets trigger if you want no-code. You can pay for Promptfoo or Braintrust if you want a real dashboard and version history.
+
+For a solo operator or small team, I'd start in a sheet. Columns: prompt_id, prompt_text, context, model_a_output, model_b_output, winner, notes. Run it manually the first time. If you find yourself doing it three times, automate it. Don't pay for an eval platform until you've felt the pain of not having one.
+
+## Where most marketers will get this wrong
+
+The trap is building an eval set that's too clean. Real client work is messy: half-written briefs, contradictory instructions, weird brand guidelines, edge cases. If your 50 prompts are all polished and well-scoped, your benchmark will tell you every model is great, and you'll learn nothing. Pull from the actual mess. Include the prompt where the client wanted three CTAs in 90 characters. That's the one that separates models. If you build this once and commit to rerunning it every time a frontier model ships, you'll have something most agencies don't: an opinion grounded in your own data instead of someone else's launch tweet.
