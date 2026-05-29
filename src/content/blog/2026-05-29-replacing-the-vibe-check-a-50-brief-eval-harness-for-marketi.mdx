@@ -1,0 +1,52 @@
+---
+title: "Replacing the Vibe Check: A 50-Brief Eval Harness for Marketing Agents"
+description: "Marketing teams keep judging new AI models by feel. Engineering teams run automated evals the minute a model drops. Here's how to build a basic eval pipeline for SEO briefs, ad copy, and agent workflows so you can measure real lift instead of guessing."
+pubDate: 2026-05-29
+tags: ["ai-evals", "marketing-ops", "agent-workflows"]
+draft: false
+---
+
+When Claude 4.5 or the next GPT drops, most marketers do the same thing: paste in two prompts, eyeball the output, and decide whether it "feels smarter." That's the vibe check. It's also why marketing teams keep getting surprised when a model that felt great in the demo falls apart on a real client account.
+
+The teams building agents at the frontier do something different. The second a new model is in their hands, they kick off automated evals in the background. They don't argue about whether it's better. They look at a dashboard and see that the testing agent's success rate jumped 20 points, or it didn't. I want to bring that discipline into marketing ops, because we are absolutely going to need it.
+
+## What an eval actually is
+
+An eval is just a test suite for an LLM. You have inputs (prompts, briefs, tasks), expected behaviors (formats, facts, structure), and a scoring function that says pass or fail. Run the same suite against Model A and Model B, compare scores. That's the whole idea.
+
+For an engineer testing a coding agent, the eval might be "given this repo, can the agent fix the failing test?" Pass or fail is obvious: the test runs green or it doesn't.
+
+For marketers, the pass/fail criteria are softer, but not as soft as people think. An SEO brief either contains the target keyword in the H1 or it doesn't. A meta description either fits in 155 characters or it doesn't. An ad copy variant either stays under 30 characters for the headline or it blows past it. Most of what we ask AI to do has measurable structural requirements buried inside the creative judgment.
+
+## The 50-brief test set
+
+Here's the setup I'm running for an SEO content workflow. I pulled 50 historical content briefs my team has shipped over the last year. For each one, I have the original input (target keyword, intent, audience, internal links to weave in) and the final approved brief that went to the writer.
+
+The eval runs a candidate model against all 50 inputs and scores each output on:
+
+1. Keyword in H1 (binary)
+2. Keyword density between 0.5% and 2% (binary)
+3. All required internal links included (binary)
+4. Word count within 10% of target (binary)
+5. Heading structure matches brief template (binary)
+6. Semantic similarity to approved brief, using embeddings (continuous, 0 to 1)
+
+Five binary checks plus one similarity score. Total runtime against 50 briefs using the API is about 12 minutes and costs me less than four dollars per model tested. When a new Claude or Gemini drops, I run the script before lunch and have a real comparison by the afternoon.
+
+## The scoring script is boring on purpose
+
+I keep this in a single Python file. Inputs are a CSV. Outputs are a CSV. The scoring functions are dumb regex and string checks for the binary stuff, plus an OpenAI embeddings call for the similarity score. No LangChain, no eval framework, no abstractions to debug.
+
+The reason this matters: the moment you build something complex, you stop running it. The whole point of automated evals is that they're cheap to fire off. If I have to spend 30 minutes remembering how my eval harness works every time a new model ships, I won't bother. The vibe check wins by default.
+
+One concrete pattern: I store every model's raw output alongside the scores. When the numbers shift, I want to look at actual examples, not just averages. A model that drops from 92% to 78% on heading structure might be making one specific mistake on one specific brief type, and that's a totally different problem than degrading across the board.
+
+## Where evals actually change decisions
+
+The interesting part isn't picking which model is best overall. It's seeing the specific shape of where a model improves. When Claude 4 came out, my eval showed the structural compliance scores barely moved (they were already near ceiling) but the embedding similarity score jumped meaningfully. Translation: the new model wasn't following the template better, it was thinking more like my senior strategist about what to include.
+
+That changed where I deployed it. The old model kept doing the templated brief production work, because it was cheaper and equally compliant. The new model got promoted to the harder strategic briefs where I'd been doing the thinking myself. Without the eval, I would've just upgraded everything and paid more for the same output on 80% of my work.
+
+This is also where evals reveal what doesn't work yet. Tasks that fail today, consistently, across multiple model generations, are your roadmap. They tell you what the next model release needs to clear before you can build the workflow you actually want.
+
+If you're an operator shipping AI work right now, here's the move: pick one repeatable workflow you run weekly, grab 30 to 50 historical examples, and write a scoring script this week, even if it's ugly. The eval doesn't need to be sophisticated to beat the vibe check. It just needs to exist. The catch most people miss is that the value compounds: every new model release becomes a 15-minute decision instead of a half-day investigation, and six months from now you'll have a defensible record of which models actually moved your business metrics versus which ones just felt smart in a demo.
