@@ -1,5 +1,5 @@
 export const SITE_URL = 'https://kenashe.ai';
-export const SITE_TITLE = 'Ken Ashe | AI Operator';
+export const SITE_TITLE = 'Ken Ashe | AI Optimist';
 export const SITE_DESCRIPTION = 'Digital marketer. Building with AI.';
 export const AUTHOR = 'Ken Ashe';
 export const NEWSLETTER_URL = 'https://newsletter.kenashe.ai';
@@ -13,7 +13,7 @@ export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 export const DEFAULT_OG_IMAGE = '/og-default.svg';
 
 export const NAV: { label: string; href: string }[] = [
-  { label: 'AI Blog', href: '/blog/' },
+  { label: 'Writing', href: '/blog/' },
   { label: 'Newsletter', href: 'https://newsletter.kenashe.ai' },
   { label: 'About', href: '/about/' },
   { label: 'Contact', href: '/contact/' },
