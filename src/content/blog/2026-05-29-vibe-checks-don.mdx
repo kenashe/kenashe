@@ -1,0 +1,69 @@
+---
+title: "Vibe checks don't survive model upgrades"
+description: "Frontier engineers run automated evals the moment a new model drops. Most marketers type three prompts and call it a day. Here is how to build a real evaluation pipeline for your AI marketing stack without writing much code."
+pubDate: 2026-05-29
+tags: ["llm-evals", "ai-workflows", "marketing-ops"]
+draft: false
+---
+
+When Claude 4.5 or GPT-6 or whatever ships next month, I know exactly what most marketing teams will do. Someone on Slack will paste in three prompts they like, eyeball the output, and declare it "way better" or "honestly not that different." Then everyone goes back to work.
+
+That is a vibe check. And it is roughly how I tested new models for about two years.
+
+The teams actually building production AI products do something different. The minute a new model drops, they run automated evals against a fixed dataset. They get a number. The number tells them whether to migrate, stay, or rebuild prompts. No vibes involved.
+
+Marketing ops should be doing this. It is not hard. It just requires you to stop treating model releases as entertainment and start treating them as version changes in a piece of infrastructure you depend on.
+
+## What an eval actually is
+
+An eval is three things in a spreadsheet:
+
+1. An input (a prompt, plus context)
+2. An expected output or a quality rubric
+3. A score
+
+That is it. The "automated" part means you run all your inputs through the model at once and collect scores, instead of testing one at a time and forgetting what last week's output looked like.
+
+For an SEO team, the dataset might be 50 past briefs you wrote that performed well. For paid social, it might be 100 winning ad headlines tagged by product category. For lifecycle, it could be 30 subject lines and their open rates.
+
+The point is you already have the data. You just have not organized it as a test set.
+
+## A minimal pipeline for a marketing team
+
+Here is the smallest possible version, which I am running now:
+
+I keep a Google Sheet with three columns: brief input, the prompt template I use, and a "gold standard" output (usually a piece of human work I am happy with). When a new model drops, I run the prompts through it using a Python script of about 40 lines, or honestly just a Make.com scenario if you do not code.
+
+The scoring is the hard part. You have two options. First, you can have a stronger model grade the outputs against your gold standard on a 1 to 5 scale for things like brand voice match, factual accuracy, and structural completeness. This is called LLM-as-judge and it works better than people expect. Second, you can score on objective criteria you define: word count, presence of required sections, no banned phrases, correct schema markup format.
+
+Most marketing tasks need both. A judge model for taste, a regex for compliance.
+
+## What to actually measure
+
+The mistake I made early on was measuring "is the output good." That is too vague. Break it down:
+
+Brand voice adherence. Does it sound like you? Score against five gold-standard pieces.
+
+Instruction following. If your prompt says "exactly 3 H2 headings," does it produce exactly 3? Count them.
+
+Factual grounding. Did it hallucinate the product feature? You need a known-truth dataset for this. Build one from your own docs.
+
+Cost per acceptable output. A model that wins on quality but costs 10x more might lose on this metric. Track it.
+
+When a new model comes out, you do not ask "is it better." You ask "is it better at the specific things I need it for, at what cost." Sometimes the answer is no even when Twitter says yes.
+
+## The signal you should actually watch for
+
+Here is the part nobody talks about. The most valuable eval data is not which prompts pass. It is which prompts have never passed, in any model.
+
+If you have a prompt for "write a technical SEO audit from a Screaming Frog export" that has failed on every model for a year, and then suddenly it starts working consistently on a new release, that is the signal. That is the moment a workflow you wrote off as "AI can't do this yet" becomes automatable.
+
+I keep a separate sheet of "aspirational evals." Things I want AI to do but cannot today. Every model launch, I run them. Most still fail. But the ones that flip from failing to passing are where the real product opportunities are, because most of your competitors are still running vibe checks and will not notice for six months.
+
+## What this changes about how you buy AI
+
+If you have evals, you stop arguing about which model is best. You have numbers. You can tell your CMO "Claude won on brief generation, GPT won on ad copy variants, we are using both, here is the cost split." You can renegotiate vendor contracts based on real performance on your work, not benchmarks that test things you do not care about.
+
+You also stop panicking at every release. New model drops, you run the eval, you get a number, you decide. The whole cycle takes an afternoon instead of a week of Slack speculation.
+
+If you are running a marketing team in 2026 and you cannot answer the question "how did the last model release change your output quality, in numbers," you are flying blind. The fix is one spreadsheet and one afternoon. Start with your ten most-used prompts and the last ten pieces of work you were proud of. Build the test set this week, before the next model drops, because once you have it the second eval costs almost nothing and the compounding starts. The catch most people miss: the eval set itself becomes a strategic asset, because it encodes what "good" means at your company in a way a prompt library never will.
