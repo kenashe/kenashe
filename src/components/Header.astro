@@ -6,6 +6,7 @@ const isCurrent = (href: string) => {
   if (href === '/') return path === '/';
   return path === href || path.startsWith(href);
 };
+const external = (href: string) => /^https?:\/\//.test(href);
 ---
 
 <header class="site-header" data-scrolled="false">
@@ -15,33 +16,93 @@ const isCurrent = (href: string) => {
       <span class="name">ken ashe</span>
       <span class="brace" aria-hidden="true">{'}'}</span>
     </a>
-    <nav aria-label="Primary">
+
+    <nav class="nav-desktop" aria-label="Primary">
       <ul>
         {
-          NAV.map(({ label, href }) => {
-            const external = /^https?:\/\//.test(href);
-            return (
-              <li>
-                <a
-                  href={href}
-                  aria-current={!external && isCurrent(href) ? 'page' : undefined}
-                  target={external ? '_blank' : undefined}
-                  rel={external ? 'noopener' : undefined}
-                >
-                  {label}
-                  {external && (
-                    <span class="ext" aria-hidden="true">
-                      ↗
-                    </span>
-                  )}
-                </a>
-              </li>
-            );
-          })
+          NAV.map(({ label, href }) => (
+            <li>
+              <a
+                href={href}
+                aria-current={!external(href) && isCurrent(href) ? 'page' : undefined}
+                target={external(href) ? '_blank' : undefined}
+                rel={external(href) ? 'noopener' : undefined}
+              >
+                {label}
+                {external(href) && (
+                  <span class="ext" aria-hidden="true">
+                    ↗
+                  </span>
+                )}
+              </a>
+            </li>
+          ))
         }
       </ul>
     </nav>
+
+    <button
+      type="button"
+      id="nav-toggle"
+      class="nav-toggle"
+      aria-label="Open menu"
+      aria-expanded="false"
+      aria-controls="nav-sheet"
+    >
+      <svg
+        class="icon icon-bars"
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+      >
+        <line x1="4" y1="9" x2="20" y2="9"></line>
+        <line x1="4" y1="16" x2="20" y2="16"></line>
+      </svg>
+      <svg
+        class="icon icon-close"
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+      >
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+        <line x1="6" y1="18" x2="18" y2="6"></line>
+      </svg>
+    </button>
   </div>
+
+  <nav id="nav-sheet" class="nav-sheet" aria-label="Mobile primary">
+    <ul>
+      {
+        NAV.map(({ label, href }) => (
+          <li>
+            <a
+              href={href}
+              aria-current={!external(href) && isCurrent(href) ? 'page' : undefined}
+              target={external(href) ? '_blank' : undefined}
+              rel={external(href) ? 'noopener' : undefined}
+            >
+              {label}
+              {external(href) && (
+                <span class="ext" aria-hidden="true">
+                  ↗
+                </span>
+              )}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
 </header>
 
 <style>
@@ -75,6 +136,7 @@ const isCurrent = (href: string) => {
     display: inline-flex;
     align-items: baseline;
     gap: 0.25em;
+    white-space: nowrap;
   }
   .wordmark .brace {
     color: var(--accent);
@@ -82,53 +144,212 @@ const isCurrent = (href: string) => {
   .wordmark:hover {
     color: var(--accent);
   }
-  nav ul {
+
+  /* Desktop nav (>= 640px) */
+  .nav-desktop {
+    display: block;
+  }
+  .nav-desktop ul {
     display: flex;
     gap: 1.5rem;
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  nav a {
+  .nav-desktop a {
     font-family: var(--font-sans);
     font-size: 0.9375rem;
     color: var(--muted);
     text-decoration: none;
     transition: color 150ms ease;
   }
-  nav a:hover {
+  .nav-desktop a:hover {
     color: var(--accent);
   }
-  nav a[aria-current='page'] {
+  .nav-desktop a[aria-current='page'] {
     color: var(--fg);
   }
-  nav a .ext {
+  .nav-desktop a .ext {
     display: inline-block;
     margin-left: 0.15em;
     font-size: 0.75em;
     opacity: 0.7;
   }
-  @media (max-width: 520px) {
+
+  /* Hamburger button — hidden on desktop */
+  .nav-toggle {
+    display: none;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0.35rem;
+    color: var(--fg);
+    cursor: pointer;
+    line-height: 0;
+    border-radius: 4px;
+    transition: color 150ms ease;
+  }
+  .nav-toggle:hover,
+  .nav-toggle:focus-visible {
+    color: var(--accent);
+  }
+  .nav-toggle .icon {
+    display: block;
+  }
+  .nav-toggle .icon-close {
+    display: none;
+  }
+  .nav-toggle[aria-expanded='true'] .icon-bars {
+    display: none;
+  }
+  .nav-toggle[aria-expanded='true'] .icon-close {
+    display: block;
+  }
+
+  /* Mobile sheet — hidden on desktop, slides down on mobile */
+  .nav-sheet {
+    position: fixed;
+    inset: 0;
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 40;
+    display: none;
+    transform: translateY(-100%);
+    transition: transform 220ms ease;
+    padding-top: 4rem;
+  }
+  .nav-sheet ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .nav-sheet li {
+    border-top: 1px solid var(--border);
+  }
+  .nav-sheet a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1.1rem 1.5rem;
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    color: var(--fg);
+    text-decoration: none;
+    transition: color 150ms ease, background-color 150ms ease;
+  }
+  .nav-sheet a:hover,
+  .nav-sheet a:focus-visible {
+    color: var(--accent);
+    background-color: color-mix(in oklab, var(--accent) 6%, transparent);
+  }
+  .nav-sheet a[aria-current='page'] {
+    color: var(--accent);
+  }
+  .nav-sheet a .ext {
+    font-size: 0.85em;
+    opacity: 0.8;
+  }
+
+  :root[data-nav-open='true'] {
+    overflow: hidden;
+  }
+  :root[data-nav-open='true'] .nav-sheet {
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-sheet {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 639px) {
     .inner {
       padding: 1rem 1.25rem;
       gap: 1rem;
     }
-    nav ul {
-      gap: 1rem;
+    .wordmark {
+      font-size: 0.8125rem;
     }
-    nav a {
-      font-size: 0.875rem;
+    .nav-desktop {
+      display: none;
+    }
+    .nav-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-sheet {
+      display: block;
     }
   }
 </style>
 
 <script>
   const header = document.querySelector<HTMLElement>('.site-header');
+  const toggle = document.querySelector<HTMLButtonElement>('#nav-toggle');
+  const sheet = document.querySelector<HTMLElement>('#nav-sheet');
+  const root = document.documentElement;
+
+  // Sticky-header hairline border on scroll.
   if (header) {
-    const update = () => {
+    const updateScrolled = () => {
       header.setAttribute('data-scrolled', window.scrollY > 4 ? 'true' : 'false');
     };
-    update();
-    window.addEventListener('scroll', update, { passive: true });
+    updateScrolled();
+    window.addEventListener('scroll', updateScrolled, { passive: true });
+  }
+
+  // Mobile nav sheet — open/close with full a11y behavior.
+  if (toggle && sheet) {
+    const isOpen = () => toggle.getAttribute('aria-expanded') === 'true';
+
+    const open = () => {
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close menu');
+      root.setAttribute('data-nav-open', 'true');
+      // Focus the first link in the sheet so screen reader / keyboard users land in the menu.
+      const firstLink = sheet.querySelector<HTMLAnchorElement>('a');
+      firstLink?.focus();
+    };
+
+    const close = (returnFocus = true) => {
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open menu');
+      root.removeAttribute('data-nav-open');
+      if (returnFocus) toggle.focus();
+    };
+
+    toggle.addEventListener('click', () => {
+      if (isOpen()) close();
+      else open();
+    });
+
+    // Tap outside closes (but ignore clicks on the toggle itself and inside the sheet).
+    document.addEventListener('click', (e) => {
+      if (!isOpen()) return;
+      const target = e.target as Node;
+      if (toggle.contains(target) || sheet.contains(target)) return;
+      close(false);
+    });
+
+    // Escape closes and returns focus to the toggle.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) close();
+    });
+
+    // Anchor taps inside the sheet trigger navigation — close on the way out so
+    // the open state doesn't briefly flash on the next page if it caches.
+    sheet.addEventListener('click', (e) => {
+      const link = (e.target as HTMLElement).closest('a');
+      if (link) close(false);
+    });
+
+    // If the viewport crosses the desktop breakpoint while open, close the sheet
+    // so the desktop nav takes over cleanly.
+    const mq = window.matchMedia('(min-width: 640px)');
+    mq.addEventListener('change', (e) => {
+      if (e.matches && isOpen()) close(false);
+    });
   }
 </script>

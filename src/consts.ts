@@ -16,7 +16,6 @@ export const NAV: { label: string; href: string }[] = [
   { label: 'The Lab', href: '/blog/' },
   { label: 'Newsletter', href: 'https://newsletter.kenashe.ai' },
   { label: 'About', href: '/about/' },
-  { label: 'Contact', href: '/contact/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [
