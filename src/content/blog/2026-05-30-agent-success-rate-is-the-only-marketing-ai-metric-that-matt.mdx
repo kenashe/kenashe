@@ -1,0 +1,55 @@
+---
+title: "Agent success rate is the only marketing AI metric that matters"
+description: "Marketing operators ship AI agents on vibes and screenshots. Frontier developers ship on automated evals and a single number called agent success rate. Here is how to steal that practice and run it on your own marketing workflows without becoming an engineer."
+pubDate: 2026-05-30
+tags: ["ai-agents", "evals", "marketing-ops"]
+draft: true
+---
+
+When a new Claude or GPT drops, the first thing serious builders do is not open a chat window and ask it a clever question. They kick off automated evals in the background and watch a dashboard. One number on that dashboard is agent success rate. It goes up or down. That is the whole conversation.
+
+Marketers do the opposite. We swap models, run three prompts, decide it "feels smarter," and ship. I have done this. I am trying to stop.
+
+## What agent success rate actually is
+
+Agent success rate is the percentage of tasks in a fixed test set that your agent completes correctly without human help. Fixed test set is the important part. You write the tests once. You run them every time something changes: new model, new prompt, new tool, new data source. The number moves. You investigate why.
+
+For a marketing workflow, a task might be: "Given this transcript, produce a LinkedIn post under 1200 characters with no banned phrases and a CTA in the last line." Either the output passes those checks or it does not. Pass equals 1. Fail equals 0. Run it 50 times across 50 different transcripts. Your success rate is the average.
+
+That is it. No mystique. The reason engineers care and marketers do not is that engineers got burned enough times by regressions to build the muscle. We are about to get burned the same way.
+
+## Why vibes break the moment you have more than one workflow
+
+Vibes-based testing works when you have one prompt and one user (you). It collapses the second you have:
+
+A client agent that drafts five different deliverables. A team where someone else might tweak the prompt. A model provider that silently updates the model behind an API. A workflow that runs unattended overnight.
+
+I ran into this last month. A repurposing agent I built in February started producing thinner outputs in May. Same prompt, same model name, different behavior. If I had an eval set, I would have caught it the morning the regression hit. Instead I caught it when a client asked why the captions felt generic. Different cost.
+
+## The minimum viable eval setup for a marketing operator
+
+You do not need a framework. You need a spreadsheet and a script. Here is the shape:
+
+A test set of 20 to 50 real inputs from your actual work. Old transcripts, old briefs, old product pages. Real, not synthetic. For each input, write down what a passing output must contain and must not contain. Concrete checks: word count range, required sections, banned phrases, presence of a specific CTA pattern, factual claims that must appear, claims that must not.
+
+Then a runner. Loop through the inputs, send each to your agent, score the output against the checks. Most checks are simple string matches or regex. The harder ones (is the tone right, is the argument coherent) you grade with a second LLM call using a rubric you wrote. This is called LLM-as-judge. It is not perfect. It is way better than nothing and far cheaper than reading 50 outputs yourself.
+
+Total build time: an afternoon. I used Claude to write the runner itself, which felt appropriately recursive.
+
+## What to actually measure
+
+Three numbers, not one:
+
+Overall success rate. The headline. Track it over time in a simple chart.
+
+Failure mode breakdown. When a test fails, why did it fail? Wrong format, hallucinated fact, banned phrase, off-topic, too long. Tag every failure. After 20 runs you will see two or three failure modes dominate. Those are your prompt improvements.
+
+Cost and latency per task. A model that scores 5% higher but takes 4x longer and costs 6x more might not be worth it for a high-volume workflow. It probably is for a low-volume, high-stakes one. Knowing the tradeoff is the point.
+
+## What this unlocks that vibes cannot
+
+Two things. First, you can swap models the day they release and know in 20 minutes if the new one is better for your specific workflow, not better on some generic benchmark. Frontier developers describe new models making evals that "never worked" suddenly work. That signal is invisible if you have no evals.
+
+Second, you can let other people touch your prompts. Junior team member edits a system prompt? Run evals. Score drops 8 points? Revert. Score holds? Ship it. This is how you scale an AI-augmented team without every change becoming a coin flip.
+
+If you are a marketing operator building agents in 2026, the practical move this week is to pick your single most-run workflow, write 20 test cases with concrete pass/fail criteria, and get a baseline number before you change anything else. The catch most people miss: the value is not the first number. The value is the second number, three weeks later, when you can prove the thing got better instead of arguing about whether it feels better. That argument is what you are paying yourself to stop having.
