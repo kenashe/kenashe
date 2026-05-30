@@ -1,0 +1,66 @@
+---
+title: "Vibes don't survive a model swap: building evals for marketing workflows"
+description: "Frontier dev teams run automated evals the second a new model ships. Marketing operators still judge models by chat vibes. Here's how to close that gap with a lightweight eval setup that tells you whether Claude 4.5 actually does your SEO brief better than 4.1."
+pubDate: 2026-05-30
+tags: ["evals", "ai-workflows", "marketing-ops"]
+draft: false
+---
+
+Every time a new model drops, I see the same pattern in marketing Slacks. Someone pastes a prompt into the new model, eyeballs the output, and posts "feels smarter." Then a team rewrites half their workflows on that single data point.
+
+Meanwhile, the engineering teams shipping production AI run automated evals within hours of getting model access. They have dashboards. They track agent success rate. They can tell you the new model is 20% better at a specific task before lunch.
+
+Marketing has to catch up. Not because we need to act like engineers, but because vibes are not a procurement strategy when you're paying per million tokens and rebuilding workflows every quarter.
+
+## What an eval actually is
+
+An eval is a fixed test set with a grading method. That's it. The fixed test set is a list of inputs that represent your real work. The grading method is how you score the output.
+
+For marketing, your test set might be:
+
+- 20 keyword briefs you've already produced and are happy with
+- 15 customer emails you've previously written replies to
+- 10 product pages you've drafted hero copy for
+- 5 messy GA4 exports you've already synthesized into insights
+
+The grading method is where most people get stuck. They want a magic number. But you have three good options, and they all work.
+
+## Three grading methods that work for marketers
+
+**Reference comparison.** You have a known-good output. Ask a separate model (the "judge") to score the new output against the reference on specific dimensions: factual accuracy, tone match, structural completeness. Score 1-5 on each.
+
+**Rubric scoring.** No reference, just a rubric. For an SEO brief: did it include search intent? Did it include 3+ semantically related terms? Did it cite at least two competitor URLs? The judge model checks each box.
+
+**Pairwise preference.** Run the same prompt through old model and new model. Ask a judge which is better and why. Run it blind by randomizing which is A and which is B. This is the cheapest way to detect regression.
+
+I run all three. They tell you different things. Reference comparison catches drift. Rubric scoring catches missing pieces. Pairwise tells you whether to actually switch.
+
+## A minimal setup that costs almost nothing
+
+You don't need a platform. You need a spreadsheet and a script. Here's what mine looks like:
+
+A Google Sheet with columns for input, reference output, model A output, model B output, and judge scores. A Python script (or honestly, a Claude artifact) that hits the API for each row, then hits it again with a judge prompt. The judge prompt is the rubric.
+
+Total setup time the first time: about three hours. After that, running a new model against the test set takes ten minutes and maybe two dollars in API costs.
+
+The discipline is keeping the test set frozen. Every time you "improve" the test set after seeing results, you've contaminated the eval. Add new tests in a separate sheet. Treat the original like a benchmark.
+
+## What to actually measure for marketing work
+
+The metrics that matter aren't the ones the labs publish. MMLU scores tell you nothing about whether a model writes a decent product description.
+
+For content drafting: factual accuracy against source docs, brand voice adherence (rubric: does it use approved phrases, avoid banned ones), structural completeness.
+
+For data synthesis: did it pull the right numbers, did it flag the right anomalies, did it avoid hallucinating columns that don't exist in the input.
+
+For agent workflows (research, competitor analysis, multi-step tasks): success rate. Either the task completed correctly or it didn't. Binary. This is the metric the frontier teams obsess over, and it's the most honest one.
+
+Track these across models. When the next Claude or GPT lands, you'll know in an hour whether to migrate, not in three weeks of anecdotal grumbling from the team.
+
+## The thing nobody tells you
+
+Evals expose your own thinking. The first time I built one for an SEO brief workflow, I realized I couldn't actually articulate what a good brief looked like. I had to write the rubric, and writing the rubric forced me to define the work.
+
+This is the hidden ROI. Even if you never run the eval again, the act of building it sharpens what you're asking the AI to do. Half the prompts I've rewritten in the last six months came from rubric-writing, not from prompt engineering tutorials.
+
+If you ship one thing this week, make it this: pick your single most-used AI workflow. Write down 10 example inputs. Write down what "good" looks like as a 5-point rubric. Run your current model against it and score by hand. That's your baseline. Now when Anthropic or OpenAI drops the next model, you have a one-hour test that produces a real answer instead of a group chat full of "feels better, I think?" The catch most readers will miss: the judge model needs to be at least as capable as the model you're testing, otherwise you're using a worse brain to grade a better one. Use the strongest model you have access to as the judge, even if it's not the one you're considering switching to.
