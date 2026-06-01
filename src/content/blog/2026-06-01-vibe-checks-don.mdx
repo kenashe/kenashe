@@ -1,0 +1,53 @@
+---
+title: "Vibe checks don't survive a model swap: build evals for your marketing stack"
+description: "Frontier teams measure new models against automated evals the moment they drop. Most marketing operators still eyeball outputs and guess. Here's how to build a lightweight eval harness for SEO briefs, ad copy, and data synthesis so you can actually tell when a new model is better for your work."
+pubDate: 2026-06-01
+tags: ["evals", "ai-workflows", "marketing-ops"]
+draft: true
+---
+
+When a new model drops, what do you do? If you're like most marketers, you paste in a prompt you've used a hundred times, read the output, and say "feels better" or "feels worse." That's a vibe check. It's how almost everyone in our industry decides whether to switch models, and it's nearly useless.
+
+The teams building at the frontier do something different. The second a new model lands in their hands, they fire off a batch of automated evals and watch a dashboard. They can tell you the success rate moved from 64% to 84% on a specific task before they've even read a single output. That's the gap I want to close for marketing operators.
+
+## What an eval actually is
+
+An eval is a test case with a known good answer (or a known good shape of an answer) and a way to grade the model's response against it. That's it. You're not building a research lab. You're building a spreadsheet of inputs and a script that runs them and scores the outputs.
+
+For a software engineer, the eval might be "does this code compile and pass these unit tests." For a marketer, the inputs are messier, but the principle holds. You define what good looks like, then you measure.
+
+Three categories I'd start with:
+
+1. Deterministic checks. Does the output contain the target keyword? Is it under 155 characters for a meta description? Does it include all five required sections in a brief?
+2. Reference comparisons. Given this raw transcript, does the summary cover the three points I tagged as essential?
+3. LLM-as-judge. Use a separate model to score outputs on a rubric you wrote. "Rate this ad copy 1 to 5 on whether it leads with a benefit, not a feature."
+
+Most marketing tasks need a mix. A meta description eval can be 100% deterministic. A "rewrite this landing page hero" eval probably needs a judge.
+
+## A concrete setup for a small team
+
+You don't need infrastructure. Here's the minimum:
+
+A Google Sheet (or Airtable) with columns for input, expected qualities, model, output, score, and notes. Twenty to fifty rows per task type is plenty to start. Pull the inputs from real work you've already shipped, so the eval reflects your actual workload, not a synthetic benchmark.
+
+A simple script (Python, n8n, even a Zap) that loops through the rows, hits the model API, writes the output back, then either runs deterministic checks or sends the row to a judge model with a scoring rubric.
+
+A dashboard that's just a pivot table: average score per model per task type. When a new model ships, you rerun the sheet and watch the numbers move.
+
+The whole thing is a weekend project. The hard part isn't the code, it's writing good rubrics and curating the input set.
+
+## Where this pays off
+
+The first time I ran something like this, I assumed the newest, most expensive model would win across the board. It didn't. On structured SEO briefs, a mid-tier model scored within 3% of the flagship at a fraction of the cost. On ambiguous strategy synthesis (taking a messy client call transcript and pulling out positioning angles), the gap was huge: the flagship scored 4.2 average, the mid-tier scored 2.8.
+
+That's not a vibe. That's a routing decision. Cheap model for the briefs, expensive model for the synthesis. I would never have caught that confidence-level difference by eyeballing five outputs.
+
+The other payoff: when a new model drops, you have a number. Not a feeling. You can tell a client or a boss "we tested it on 40 representative tasks and the brief quality went up 11%, here's why we're switching." That conversation is very different from "the new one seems smarter."
+
+## The trap to avoid
+
+Eval sets rot. The minute you start optimizing prompts against your eval, the eval stops representing reality. You'll write prompts that game the rubric instead of doing the job. The fix is to refresh the inputs every month or two with new real-world examples, and to keep a small "holdout" set you never look at except when comparing models. Treat it like a test set in any honest measurement system.
+
+Also: a judge model has biases. It tends to prefer longer outputs, more hedged language, and its own family of models. If you're using GPT-5 as a judge to compare GPT-5 against Claude, you've already biased the result. Use a different model family as the judge than the ones you're testing, or use two judges and average.
+
+The practitioner's move here is to pick one workflow this week, the one you'd most regret getting wrong, and build an eval set of 20 examples for just that workflow. SEO meta descriptions, brand voice rewrites, lead enrichment, whichever. Don't try to cover everything. Once you have one working eval, every future model release becomes a 10-minute decision instead of a week of debate. The marketers who set this up in 2026 will quietly route work to the right model for the right cost while everyone else is still asking the team Slack which one feels better today.
