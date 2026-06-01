@@ -1,0 +1,63 @@
+---
+title: "The Eyeball Test Won't Scale Past Five Prompts"
+description: "Marketers ship AI workflows on vibes and a few manual spot checks. Frontier builders run automated evals the second a model drops. Here's how to port that practice into an SEO content pipeline or ad copy bot without a software engineering team behind you."
+pubDate: 2026-06-01
+tags: ["ai-marketing-ops", "evals", "prompt-engineering"]
+draft: false
+---
+
+Every digital marketer I know who is building with AI has the same workflow for testing prompts. They run the prompt three times, read the outputs, squint, and ship. If something looks off later, they tweak the prompt and run it three more times.
+
+That works when you have one prompt doing one job. It collapses the moment you have a content generator producing 200 briefs a week, or an ad copy bot spinning 40 variants per campaign, or an SEO agent doing competitive research across a client roster.
+
+The engineers building on the frontier do not work this way. When a new model drops, the first thing they do is kick off automated evals in the background. They have a test set, a scoring method, and a dashboard. They know within an hour whether the new model is better, worse, or weird in some specific dimension.
+
+Marketing operators need the same muscle. Here is how I am thinking about it.
+
+## What an eval actually is
+
+Strip the software jargon and an eval is three things: a set of inputs, an expected behavior, and a way to score whether the output matched.
+
+For a marketer, the inputs are real prompts your workflow handles. The expected behavior is what a good output looks like. The score is how you decide pass or fail.
+
+The trick is that "looks like" is fuzzy for marketing work. You are not checking if a function returned the right integer. You are checking if a meta description is under 155 characters, includes the target keyword, reads like a human wrote it, and matches brand voice.
+
+So you split the eval into checks. Some are deterministic (character count, keyword presence, banned phrases). Some are judged by another model (tone, clarity, brand fit). Both go into the same scorecard.
+
+## Building a 20-case eval set for content generation
+
+Start small. You do not need 500 test cases. You need 20 that cover the shape of work your bot actually does.
+
+For an SEO content generator, my starter set looks like this. Five briefs in your strongest vertical. Five in a weaker vertical where the model usually drifts. Five with intentionally messy inputs (typos, missing fields, conflicting instructions). Three with edge cases (very long source material, very short, non-English snippets). Two that historically broke the prompt.
+
+For each case, write down what a good output includes. Not the exact words. The required elements. Headline under 60 characters. H2s in question format. No phrases from your banned list. Internal link suggestion that matches a real URL pattern.
+
+Now you have something you can run every time you change the prompt, swap models, or upgrade a tool in the chain.
+
+## Scoring without an engineering team
+
+Two layers of scoring get you 90% of the value.
+
+Layer one is regex and string checks in a Google Sheet or Airtable. Did the output include the keyword? Is it under the character limit? Does it avoid the 12 phrases you hate? This catches the dumb failures and takes ten minutes to set up.
+
+Layer two is LLM-as-judge. You take a second model (ideally a different one than the one generating) and give it the original brief, the output, and a rubric. Score brand voice 1 to 5. Score factual grounding 1 to 5. Flag anything that reads like AI slop.
+
+Run both layers across your 20 cases. You get a number. That number is your baseline. When you change anything, you rerun and see if the number moved.
+
+## The marketer's version of the frontier ritual
+
+What the Anthropic customer base does when a new model ships is exactly what you should do when GPT-5.1 or Claude 4.5 drops, when you swap a prompt template, or when a vendor changes a model behind their API without telling you.
+
+Run the eval. Look at the delta. Decide.
+
+I have caught two silent regressions this year doing this. One was a hosted tool that quietly switched its backend model and my client's tone scores dropped from 4.2 to 3.1 overnight. The other was a prompt change I made myself that improved keyword density but tanked readability. Without the eval, I would have shipped both and discovered the problem from a client complaint three weeks later.
+
+## Where this breaks
+
+Evals are not free. The setup takes a day. Maintaining the test set takes ongoing attention. LLM-as-judge scoring costs API credits, modest but real.
+
+The bigger trap is treating the score as truth. A 4.5 on your tone rubric is not the same as customers loving the output. The eval measures what you told it to measure. If your rubric misses something, the score will lie to you confidently.
+
+So the eval is a floor, not a ceiling. It catches regressions and lets you compare options. It does not replace reading the actual outputs every week with your own eyes.
+
+If you are running any AI workflow that produces more than 50 pieces of output a month, build the 20-case eval before you build the next feature. The compounding payoff is real: every model swap, prompt tweak, and vendor change becomes a 15-minute decision instead of a guessing game. The catch most people miss is that the test set itself is the asset. The prompts will change. The models will change. A good eval set, refined over a year of real client work, is the thing that lets you move fast without breaking the deliverables.
