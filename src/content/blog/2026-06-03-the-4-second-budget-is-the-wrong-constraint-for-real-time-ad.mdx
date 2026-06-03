@@ -1,0 +1,49 @@
+---
+title: "The 4-second budget is the wrong constraint for real-time ad agents"
+description: "Real-time marketing agents are usually framed as a latency problem, but the harder constraint is decision quality under a fixed token and tool-call budget. Here's how I'm thinking about pit-crew style agent design for bidding, creative swaps, and live analytics."
+pubDate: 2026-06-03
+tags: ["ai-agents", "programmatic", "real-time-marketing"]
+draft: false
+---
+
+Every vendor pitching agentic ad tech this year leads with speed. Sub-second bidding. Real-time creative optimization. Agents that react before a human can blink. The framing is borrowed from F1 pit crews: small team, high pressure, four seconds, done.
+
+It's a good metaphor and a misleading one. The constraint that actually breaks these systems isn't latency. It's the decision budget you have inside that latency window.
+
+## What "pit crew agents" actually means in practice
+
+The shape most teams are converging on: a small set of specialized agents (3 to 6), each with a narrow scope, coordinated by a router. One agent watches bid pacing. One watches creative performance. One watches audience drift. One handles the actual bid or creative call. They share a small state object and run on a timer.
+
+The pit crew analogy holds up here. Nobody on the wall is doing everything. The tire gunner doesn't also refuel. Each agent has one job, one set of tools, one decision it's allowed to make.
+
+Where it breaks down is the assumption that you have unlimited compute inside the window. You don't. A programmatic bid response needs to come back in roughly 100ms. A dynamic creative swap on a landing page has maybe 400ms before it hurts CLS. Even a "slow" real-time analytics agent reacting to a campaign anomaly has maybe 4 seconds before the budget waste compounds.
+
+In those windows you get one, maybe two, LLM calls. That's the whole budget.
+
+## The token budget is the actual design constraint
+
+If you only get one model call per decision, the question stops being "how smart is the model" and becomes "what's already pre-computed before the call."
+
+This is where I keep seeing teams overspend. They want the agent to reason from raw event streams in real time. That's never going to work inside 4 seconds. What works:
+
+Pre-aggregate everything. Roll up the last 60 seconds of campaign data into a compact state object updated continuously by a non-LLM process. The agent reads state, doesn't compute it. Cache aggressively. If the same bid context appeared 30 seconds ago, you already have the decision. Don't re-reason. Constrain the output. Force JSON with a tight schema. No prose, no chain of thought in the response. The reasoning happens in the prompt construction, not the output.
+
+The agent's job inside the 4-second window is pattern matching against pre-computed state, not analysis from scratch.
+
+## Where the multi-agent part earns its keep
+
+If one model call is the budget, why have multiple agents at all? Why not one prompt that does everything?
+
+Because the agents don't all run inside the 4-second window. The pacing-watcher agent runs on a 30-second cadence and updates state. The audience-drift agent runs every 5 minutes. The creative-performance agent runs whenever a variant crosses a confidence threshold. The only agent operating inside the hot path is the one making the actual bid or swap decision, and it's reading state the others wrote.
+
+This is the part the pit crew metaphor gets right and the marketing copy gets wrong. The crew isn't all moving in the 4-second window. Most of the work happened in the garage, on the previous lap, in the strategy meeting that morning. The wall stop is the visible part. The pre-computation is the work.
+
+For a marketer building this: you're designing a system where slow agents prepare the ground for one fast agent. The fast one looks impressive. The slow ones do the actual thinking.
+
+## What I'd build first
+
+If I were spinning up a pit-crew agent system on a real account today, I'd start with the least sexy version: a single fast agent for dynamic creative selection on a landing page, fed by one slow agent that updates a "what's working right now" state object every 60 seconds from GA4 and the ad platform APIs.
+
+That's it. No 6-agent orchestra. No router. One hot agent, one cold agent, one shared state file. The reason: you'll discover within a week whether your pre-computation pipeline is actually good enough to make the fast agent's decisions defensible. If it isn't, no amount of agent choreography saves you. If it is, you can add more cold agents and more decision surfaces without touching the hot path.
+
+The catch most builders miss: the hot agent gets the credit, but the cold agents determine whether the system works. If your state object is stale, noisy, or missing the dimension that actually predicts the next click, your 4-second decision is a coin flip dressed up in JSON. Spend 80% of your build time on the boring aggregation layer. The agent on the wall is the easy part.
