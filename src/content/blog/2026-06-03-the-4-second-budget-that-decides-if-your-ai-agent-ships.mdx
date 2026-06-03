@@ -1,0 +1,47 @@
+---
+title: "The 4-second budget that decides if your AI agent ships"
+description: "Real-time marketing agents live or die by latency. Here's how I'm thinking about the sub-4-second budget when moving an LLM from demo to production, and which optimizations actually move the needle versus which ones just sound clever in a stand-up."
+pubDate: 2026-06-03
+tags: ["llm-latency", "ai-agents", "marketing-ops"]
+draft: false
+---
+
+Most AI marketing demos I see are 12-second affairs. The user types, a spinner spins, and eventually a beautifully formatted answer appears. Cool. Now try shipping that to a live chat widget on a checkout page, or a voice agent qualifying leads on the phone. The spinner becomes a bounce.
+
+The number that keeps coming up in my own testing: 4 seconds. Past that, real users assume the thing is broken. Voice is worse, closer to 1.5 seconds before the silence feels wrong. So the question I've been working on is unglamorous but important: how do you actually build an LLM agent that responds end to end in under 4 seconds, with tool calls, retrieval, and a model worth using?
+
+## Where the seconds actually go
+
+When I instrument a typical RAG agent, the breakdown looks something like this on a cold path: 200ms network, 150ms embedding the query, 300ms vector search, 400ms reranking, 1.8s first model call, 600ms tool call (CRM lookup, say), 1.2s second model call to synthesize. That's 4.65 seconds and I haven't even streamed the first token to the user.
+
+The interesting part is that the model calls aren't always the biggest cost. The orchestration is. Every hop between your app, your vector DB, your tool, and your model provider has its own TCP handshake, its own JSON parse, its own retry logic. I've seen agents where 40% of latency was network overhead between services that lived in different regions of the same cloud. Free win, if you notice it.
+
+## What actually cuts latency
+
+Streaming is the single biggest perceived-latency improvement, and it's almost free. If your first token lands in 600ms, users will tolerate a 6-second total response. They feel speed at the start, not the end. If you aren't streaming yet, do that before anything else.
+
+After that, the optimizations that paid off for me, ranked roughly by ROI:
+
+Model routing. Not every query needs your best model. A small classifier (even a fine-tuned 1B model or a cheap call to something like Haiku or 4o-mini) decides whether the query is simple enough for the fast model. On a marketing FAQ bot, maybe 70% of queries can be handled by the cheap fast tier in under 800ms. The remaining 30% go to the bigger model and you spend latency where it matters.
+
+Parallel tool calls. If you need three lookups (CRM, product catalog, order history), fire them concurrently. I still see codebases that await them in sequence because that's how the tutorial was written. Switching to parallel cut a multi-tool agent I built from 3.2s to 1.4s on the tool layer alone.
+
+Speculative retrieval. Start your vector search before the model decides it needs one. For a known domain like ecommerce support, you can pre-fetch likely context based on the user's first message while the planning model is still thinking. If the model decides it didn't need it, you discarded a cheap call. If it did, you saved 400ms.
+
+Prompt caching. Anthropic and OpenAI both offer this now. If your system prompt is 4,000 tokens of brand voice and product info, caching it can shave 30-50% off time-to-first-token on repeat calls. For an agent that handles thousands of sessions a day, this is the cheapest 500ms you'll ever buy.
+
+## The optimizations that sound smart but aren't
+
+Switching to a smaller model is the obvious move that often backfires. Yes, the model is faster, but if it now needs two attempts or a clarifying turn to land the right answer, you've made things worse. Measure end-to-end task completion time, not single-call latency.
+
+Self-hosting open models for "speed" is another one. Unless you have serious infra muscle, a managed endpoint from someone like Together or Fireworks usually beats whatever you'll cobble together on your own GPUs, and the big providers are getting faster every quarter. I've stopped suggesting this to clients unless they have a clear compliance reason.
+
+Aggressive context trimming can save 200ms and cost you the answer. Token count and latency are related but not linearly. Past a point you're cutting muscle, not fat.
+
+## The honest tradeoff for marketing teams
+
+Here's what I keep telling marketing operators who want to ship a real-time agent: you cannot have best-model quality, full agentic behavior, deep retrieval, and sub-4-second response all at once. You can have three. Pick which one you'll compromise.
+
+For most lead-gen and support use cases, I'd compromise on "best model." A well-prompted mid-tier model with good retrieval and parallel tools beats a poorly orchestrated frontier model every time, and it does so inside the latency budget.
+
+If you're scoping an AI agent project this quarter, set the latency budget before you pick the model. Write it on the brief: time to first token under 800ms, full response under 4 seconds, voice variant under 1.5s. Then make every architecture decision answer to that number. The teams I've watched succeed treat latency as a product requirement, not a thing to optimize later. The ones still stuck in pilot treat it as a nice-to-have, and their bounce rates tell the story.
