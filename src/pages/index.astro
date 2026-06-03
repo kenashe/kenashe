@@ -39,8 +39,11 @@ type Project = {
   status: 'LIVE' | 'SHIPPED';
   dek: string;
   stack: string[];
-  shippedAt: string;
+  shippedAt?: string;
   metric?: string;
+  // Custom footer parts, rendered as `·`-separated meta with no "Shipped" key.
+  // Used when a build's receipt isn't a ship date (e.g. an event line).
+  footer?: string[];
 };
 
 // Days elapsed since an ISO date. Computed at build time — Vercel redeploys
@@ -71,6 +74,20 @@ const projects: Project[] = [
     stack: ['Python', 'Claude API', 'Mac Mini'],
     shippedAt: 'May 2026',
     metric: `${daysSince('2026-05-04')} days running`,
+  },
+  {
+    title: 'Sir Pitches-a-lot',
+    status: 'SHIPPED',
+    dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
+    stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
+    footer: ['Agent Battle Night', 'NY Tech Week', 'June 2026'],
+  },
+  {
+    title: 'Six-agent email response team',
+    status: 'SHIPPED',
+    dek: 'A coordinator plus sentiment, research, draft, and QA agents that turn customer support emails into reviewed replies.',
+    stack: ['Cassidy AI', 'Claude', 'ChatGPT'],
+    footer: ['Maven capstone', 'AI Build Lab', 'Feb 2026'],
   },
 ];
 
@@ -128,15 +145,30 @@ const personSchema = {
                 ))}
               </ul>
               <footer class="receipt-foot">
-                <span class="receipt-meta">
-                  <span class="receipt-meta-key">Shipped</span> {p.shippedAt}
-                </span>
-                {p.metric && (
+                {p.footer ? (
+                  p.footer.map((item, i) => (
+                    <>
+                      {i > 0 && (
+                        <span class="receipt-meta-sep" aria-hidden="true">
+                          ·
+                        </span>
+                      )}
+                      <span class="receipt-meta">{item}</span>
+                    </>
+                  ))
+                ) : (
                   <>
-                    <span class="receipt-meta-sep" aria-hidden="true">
-                      ·
+                    <span class="receipt-meta">
+                      <span class="receipt-meta-key">Shipped</span> {p.shippedAt}
                     </span>
-                    <span class="receipt-meta">{p.metric}</span>
+                    {p.metric && (
+                      <>
+                        <span class="receipt-meta-sep" aria-hidden="true">
+                          ·
+                        </span>
+                        <span class="receipt-meta">{p.metric}</span>
+                      </>
+                    )}
                   </>
                 )}
               </footer>
@@ -463,7 +495,14 @@ const personSchema = {
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-2) 18%, transparent);
   }
   .badge-shipped {
-    color: var(--muted);
+    /* Tailwind slate — muted, not the lime LIVE accent. */
+    color: #94a3b8; /* slate-400 */
+    border-color: rgb(100 116 139 / 0.2); /* slate-500/20 */
+    background-color: rgb(100 116 139 / 0.1); /* slate-500/10 */
+  }
+  .badge-shipped .badge-dot {
+    /* Static dot, no LIVE pulse/glow ring. */
+    background-color: #64748b; /* slate-500 */
   }
   .receipt-dek {
     font-family: var(--font-sans);
