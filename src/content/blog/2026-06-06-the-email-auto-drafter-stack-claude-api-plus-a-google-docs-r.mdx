@@ -1,0 +1,64 @@
+---
+title: "The email auto-drafter stack: Claude API plus a Google Docs retrieval layer"
+description: "A working architecture for an internal email drafting tool that combines a dynamic system prompt, Google Docs as a context source, and the Claude API. Notes on what to build, what to skip, and where this pattern actually pays off for sales and marketing operators."
+pubDate: 2026-06-06
+tags: ["claude-api", "rag", "email-automation"]
+draft: true
+---
+
+The most useful internal AI tools I've seen this year are not agents. They are not chat interfaces. They are small, opinionated drafters that sit inside an existing workflow (usually an inbox) and answer one question: given everything we already know about this customer and our product, what should the next reply look like?
+
+I want to walk through the architecture for one of these, because the pattern is replicable and most marketing ops teams could ship a version of it in a week.
+
+## The three pieces that actually matter
+
+The stack is boring on purpose:
+
+1. A dynamic system prompt generated from a short form (name, role, what you sell, tone).
+2. A retrieval layer that pulls from Google Docs and a handful of public URLs.
+3. The Claude API doing the drafting, called from a browser extension or inbox-adjacent UI.
+
+That's the whole thing. No vector database in v1. No agent loop. No tool calling beyond fetching docs. The temptation when you start building is to add orchestration. Resist it. The job is "draft a good email," not "autonomously manage a pipeline."
+
+## Why the system prompt has to be generated, not hardcoded
+
+A static system prompt is where these tools die. If five people on a sales team share one prompt, the drafts sound like nobody. They sound like a committee.
+
+The fix is a small form that produces the prompt on first use. Name, role (AE, CSM, SDR, marketer), product category, three bullets on positioning, two on tone. Maybe a paste-in of a recent email the user wrote that landed well. Run that through Claude once with an instruction like "produce a system prompt that captures this person's voice and role" and store the result.
+
+You end up with prompts that are 400 to 800 tokens, specific to the human, and weirdly good at preserving register. The CSM sounds like a CSM. The founder sounds like a founder. Same backend, different output.
+
+## Google Docs as the retrieval layer (and why that's enough)
+
+Marketing and sales teams already keep their good context in Google Docs. Battle cards, objection handling, pricing guidance, ICP notes, product FAQs. The instinct is to migrate all of that into a "proper" RAG system with chunking and embeddings and a vector store.
+
+For an email drafter, you usually don't need that. You need:
+
+- A list of doc IDs the user has marked as relevant.
+- A fetch step that pulls the doc text via the Google Docs API.
+- Optional URL fetching for public pages (your docs site, pricing page, changelog).
+- Everything concatenated into the user message, with the inbound email at the bottom.
+
+Claude's context window absorbs this without complaint. If you're sending 20k tokens of context per draft, you're spending maybe two cents per email. For a tool that saves an AE two hours a day, the math is not the constraint.
+
+You only need real retrieval (embeddings, ranking, chunking) once your context library outgrows what fits in a single call. Most teams never get there. They have ten docs that matter, not ten thousand.
+
+## Where the design has to be careful
+
+A few things I'd flag for anyone building this:
+
+**Draft, never send.** The tool should write into the reply box and stop. The moment you auto-send, every edge case becomes a liability. Drafting is the 90% value, sending is the 10% risk.
+
+**Show the sources.** When the draft references pricing or a feature, surface which doc that came from. Reps will lose trust the first time Claude invents a number. Letting them click through to the source doc rebuilds it.
+
+**Cache the system prompt, refresh context per email.** The voice prompt doesn't change. The relevant context does. Treat them as different layers so you're not regenerating the user's voice profile on every call.
+
+**Pattern matching on similar past emails.** If you can pull the three most similar previous threads (by subject line, account, or simple keyword match) and include them as examples, the draft quality jumps noticeably. This is the cheapest "personalization" upgrade you can ship.
+
+## The career angle nobody talks about
+
+The interesting second-order effect of building one of these is that the person who builds it stops being whatever their job title says and starts being something closer to a product designer. You spec a tool, get a working version running with Claude doing the heavy lifting, hand it to an engineer to harden, and ship it to your team. That loop didn't exist for non-engineers two years ago.
+
+If you're in marketing ops or sales ops and you've been waiting for permission to build internal tools, this is the wedge. An email drafter is small enough to prototype in a weekend and useful enough that people will actually adopt it.
+
+A practical starting point: pick one repeatable email type your team writes (renewal nudges, demo follow-ups, inbound qualification) and build the drafter only for that. Wire it to three or four Google Docs, write the system prompt by hand the first time, call the Claude API from a simple Chrome extension that drops the draft into Gmail. Ship it to two reps. The thing most builders miss is that adoption is not about model quality, it's about whether the draft appears in the box the rep is already looking at. If they have to leave the inbox, the tool is dead. If it shows up where their cursor already is, they will use it every day.
