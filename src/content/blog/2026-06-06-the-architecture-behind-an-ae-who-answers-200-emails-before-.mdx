@@ -1,0 +1,51 @@
+---
+title: "The architecture behind an AE who answers 200 emails before lunch"
+description: "A look at how a custom Claude-powered email drafter actually works under the hood: system prompt, Google Docs retrieval, pattern matching, and the specific reasons a non-engineer GTM operator can ship something like this in 2026."
+pubDate: 2026-06-06
+tags: ["claude-api", "rag", "sales-automation"]
+draft: true
+---
+
+There's a quiet shift happening in sales orgs. The best AEs I know aren't the ones with the slickest decks. They're the ones who built something. Usually small, usually ugly, usually a Claude API call wired to a Google Doc. But it saves them three hours a day, and nobody at the company has any idea it exists.
+
+I want to break down what that architecture actually looks like, because most of the "AI for sales" content out there stops at "use ChatGPT to draft emails." That's not the interesting part. The interesting part is the retrieval layer.
+
+## The three pieces that actually matter
+
+A useful AI email drafter has three components, and almost every consumer tool gets at least one of them wrong:
+
+1. A system prompt that encodes the rep's role, voice, and what they sell.
+2. A context retrieval layer that pulls live information from internal docs and the open web.
+3. Pattern matching against past emails so the drafts sound like the person, not like a model.
+
+Strip any one out and the output degrades fast. Most off-the-shelf inbox AI tools have piece one. A few have piece two through a half-built integrations menu. Almost none have piece three in any real form, which is why their drafts feel generic even when the input prompt is good.
+
+## Why Google Docs is the underrated piece
+
+People reach for Notion or a vector database when they hear "RAG." For a single AE managing 600 accounts, that's overengineering. Google Docs is where the actual answers live. Pricing exceptions. Competitive battle cards. The Slack message someone pasted into a doc three months ago. Product docs that haven't made it to the public site yet.
+
+Hook the Claude API to a Google Docs fetcher and you've solved 80% of the context problem. The other 20% is web fetching: pulling a live product page or a docs URL into the prompt at draft time. Both are simple. Both are what makes the drafts sound informed instead of generic.
+
+The model doesn't need to know everything. It needs to know the five documents relevant to the email it's about to write. Retrieval is just narrowing.
+
+## What "pattern matching" actually means in practice
+
+This is the piece I think people miss. A good drafter doesn't just generate a response. It generates a response that matches how you specifically write. That means feeding the model a handful of your previously sent emails, ideally clustered by intent: pricing questions, technical follow-ups, deal-stage nudges, intro replies.
+
+You can do this cheaply. Pull the last 50 sent emails. Cluster them by topic. When a new email comes in, classify it, grab three to five examples from the matching cluster, and stuff them into the prompt as few-shot examples. Claude is unreasonably good at copying tone when you do this. The drafts stop reading as AI-written almost immediately.
+
+The technical lift here is a few hundred lines of code. The judgment call is which emails to include as examples, and that's where the operator's taste matters more than the engineer's skill.
+
+## Where this breaks
+
+Two failure modes I'd watch for. First, retrieval grounding is only as good as the docs. If your internal documentation is wrong or out of date, the drafter will confidently reference wrong pricing or stale product capabilities. Garbage in, polished garbage out. You need a habit of fixing source docs the moment you spot an error in a draft.
+
+Second, the drafter is a draft tool, not a send tool. The minute you let it auto-send, you've turned a productivity multiplier into a liability generator. Every draft needs a human read before it ships. Two to three hours saved per day assumes you're reading and editing fast, not skipping that step.
+
+## The real unlock isn't the emails
+
+The emails are the visible output. The actual unlock is that a non-engineer GTM person can now design and partially build internal tools. Spec the workflow, get the API call working, hand off the last 20% of polish to an engineer. That collapses the loop between "I have a problem" and "I have a tool" from quarters to days.
+
+This is the part of the AI shift I think is underrated in sales orgs. It's not that AEs will write more emails. It's that the smart AEs will build the systems that decide what to write, and that skill stack didn't exist as a job description two years ago.
+
+If I were shipping this today, I'd start narrow: one rep, one product line, one document source, one email type (say, pricing follow-ups). Get the loop working end to end before adding clusters, web fetching, or a UI. The temptation will be to build the whole platform. Don't. The version that saves you two hours a day is uglier and smaller than you think, and the only way to find out which pieces actually matter is to use it on real inbound for two weeks and watch which drafts you rewrite from scratch. Those rewrites are your spec.
