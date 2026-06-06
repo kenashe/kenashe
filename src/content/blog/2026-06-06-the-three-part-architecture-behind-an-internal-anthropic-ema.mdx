@@ -1,0 +1,53 @@
+---
+title: "The three-part architecture behind an internal Anthropic email tool"
+description: "An Anthropic go-to-market architect built an internal email drafter called Class that runs on a system prompt, Google Docs context retrieval, and pattern matching. The structure is replicable, and it points to what AI-assisted sales tooling actually looks like when an operator builds it."
+pubDate: 2026-06-06
+tags: ["claude-api", "sales-automation", "ai-tooling"]
+draft: false
+---
+
+There is an internal tool at Anthropic called Class. Short for Claude drafts. A go-to-market person built it because he was drowning in 600 to 700 accounts and answering emails until 9pm. The tool reportedly saves him two to three hours a day.
+
+What caught my attention is not the time savings. It is the architecture. Three pieces, nothing exotic, and the whole thing maps cleanly onto what a sales or marketing operator could build this week. Worth pulling apart.
+
+## The three pieces
+
+Class runs on a system prompt, context retrieval from Google Docs and web URLs, and pattern matching against prior emails. That is it. No agent framework, no vector database with a clever name, no orchestration layer.
+
+The system prompt holds identity: who you are, your role, what you help customers with. The context retrieval pulls live information from docs you point it at, including your own product documentation and internal knowledge. The pattern matching gives it a sense of how you actually write to customers, so the drafts sound like you and not like a help center.
+
+When an email comes in, the tool fetches relevant context, loads it on top of the system prompt, and drafts a response. The AE reviews and sends.
+
+## Why this beats the obvious approach
+
+Most "AI email assistant" tools start with the inbox and bolt on a generic LLM. Class starts with the operator and bolts on the inbox. That inversion matters.
+
+If you start with the inbox, you get a tool that writes plausible-sounding email. If you start with the operator, you get a tool that writes email the operator would have written, using the same documentation the operator would have referenced, in roughly the same voice. The first is a toy. The second replaces a real chunk of the workday.
+
+The other thing this design gets right: context is fetched, not pre-indexed. You point it at a Google Doc or a URL and it pulls fresh content at draft time. No stale embeddings, no nightly re-ingestion job, no "why is it citing the old pricing page" debugging session. The cost is latency on each draft. For email, where you are reviewing the draft anyway, that tradeoff is correct.
+
+## What you would actually need to rebuild this
+
+A Claude API key. A way to read incoming email (Gmail API, or a simple "paste the thread in" interface to start). A small script that:
+
+1. Holds a system prompt describing the operator.
+2. On each new email, identifies which docs or URLs are relevant (you can hardcode this to start, or have Claude pick from a list).
+3. Fetches those docs at draft time.
+4. Includes 5 to 10 prior sent emails as pattern examples.
+5. Returns a draft.
+
+A weekend project for someone comfortable with the API. Half a day for someone who has shipped before. The hard part is not the code. The hard part is curating which docs to point it at, and being honest about which prior emails are actually good examples of your voice.
+
+## Where this breaks
+
+Not every email is a documentation question dressed up as a customer message. Class works because AE email volume skews toward "where do I find the answer and how do I phrase it." Pricing questions, integration questions, follow-ups on known objections. High repetition, high context-retrieval value.
+
+It would work worse on negotiation, escalations, executive relationship building, anything where the right move is to pick up the phone or write three careful sentences from scratch. If you build something like this, the failure mode to watch for is the operator stops thinking and starts sending. The draft is supposed to be a starting point. When it becomes the ending point, voice flattens and customers notice.
+
+## The career implication nobody talks about
+
+The person who built Class moved from AE to go-to-market architect. That title did not exist as a common role two years ago. It is now a path: operator who can specify a system clearly enough that an engineer can finish it, or who can build the first version themselves with Claude's help.
+
+This is the actual leverage shift. Not "AI writes my emails." It is "operators who understand the work can now design the tools that do the work." Engineering becomes the last 20 percent, not the first 80.
+
+If I were an AE, CSM, or marketer reading this today, I would not wait for IT to build me something. I would draft the system prompt this week, point a script at three Google Docs I reference most, and ship a v0 to myself by Friday. The first version will be mediocre. The third version, after you fix what annoyed you about the first two, is where the two hours a day actually show up. The catch most people miss: the quality of your output is bounded by the quality of the docs you point it at. If your internal knowledge is a mess, the drafter will sound confidently wrong. Clean the docs first, or at minimum, point it only at the ones you trust.
