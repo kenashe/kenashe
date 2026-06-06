@@ -1,0 +1,53 @@
+---
+title: "The lightweight RAG pattern hiding inside a good GTM email tool"
+description: "A working pattern for sales and GTM operators: combine a role-based system prompt, the Claude API, and Google Docs retrieval to build an internal email drafter that actually knows your product. Here's why this tiny stack beats most prompt-only approaches."
+pubDate: 2026-06-06
+tags: ["claude-api", "rag", "gtm-tools"]
+draft: false
+---
+
+Most "AI email assistants" fail the same way. They write smooth prose that says nothing specific about your product, your pricing, or the conversation you had with this account last Tuesday. The problem isn't the model. It's that the model has no context. You're asking it to draft a reply with one hand tied behind its back.
+
+The fix is unglamorous: a small retrieval layer on top of the Claude API, pointed at the docs you already have. Not a vector database. Not a six-figure platform contract. A focused internal tool that pulls from a handful of Google Docs and URLs at draft time. I've been studying patterns for this kind of thing for a while now, and I want to lay out the shape of it, because any operator with a willing engineer (or Claude Code) can ship a version of this in a weekend.
+
+## What the stack actually looks like
+
+Three pieces, that's it.
+
+The first is a role-based system prompt. Not "you are a helpful assistant." Something like "you are an account executive at [company]. You handle startup accounts. Your job is to write replies that move the deal forward, name specific product capabilities, and never overcommit on roadmap." You parameterize the role (AE, CSM, SE, founder) and the focus area, then generate the system prompt once per user.
+
+The second is context retrieval. At draft time, the tool fetches a defined set of sources: linked Google Docs (pricing, positioning, objection handling, ICP notes), specific URLs (your docs site, your changelog, the prospect's company page), and the email thread itself. Everything goes into the context window. With Claude's current context limits, you don't need clever chunking for most GTM use cases. You can just stuff the relevant docs in.
+
+The third is the draft endpoint. The Claude API gets the system prompt, the retrieved context, and the thread. It returns a draft. The human edits and sends.
+
+That's the whole architecture. The interesting work is in what you choose to retrieve and how you tag your internal docs so the right ones get pulled for the right thread.
+
+## Why this beats the prompt-engineering approach
+
+Most sales teams trying to use Claude or ChatGPT for email do it through the chat interface. They copy in the thread, paste their pitch deck text, paste a product one-pager, and ask for a draft. It works, sort of. But every rep does it slightly differently, every prompt drifts, and nobody is sharing the good context blocks.
+
+Centralizing the system prompt and the retrieval set turns the tribal knowledge of your best AE into a default. The rep who knows exactly which doc to quote when a prospect asks about SOC 2 stops being a bottleneck. The doc gets retrieved automatically. New hires write like senior reps on day one, at least in their first drafts.
+
+This is the part that gets undersold about RAG for internal tools. It's not really about giving the model more knowledge. It's about standardizing which knowledge gets used.
+
+## The Google Docs choice matters more than it sounds
+
+Picking Google Docs as the retrieval source (versus Notion, Confluence, a proper vector store) is a tradeoff, and I think it's the right one for early-stage GTM teams.
+
+Google Docs is where the actual work happens. Pricing memos, deal reviews, competitive notes, the messy ICP doc your founder updated at 1 AM. If you build retrieval against the docs that already exist, you don't need to migrate anything or maintain a parallel knowledge base. The docs stay live. The AE who updates the pricing doc on Tuesday gets a smarter drafter on Wednesday, with zero pipeline work in between.
+
+The catch: Google Docs as a knowledge source is only as good as your team's hygiene. Stale docs poison the drafts. Build in a "last updated" check and warn the user when a retrieved doc is older than, say, 90 days.
+
+## Where this pattern stops working
+
+Two failure modes are worth flagging before you build.
+
+First, the model will confidently draft replies that sound right but commit your company to things it shouldn't. Pricing exceptions, roadmap promises, SLAs. The system prompt has to include hard guardrails ("never quote a discount, never confirm a feature is shipping by a date"), and the human review step is non-negotiable. This is a draft tool, not an autoresponder.
+
+Second, the more accounts you cover, the more the "right context for this thread" problem matters. A flat set of always-retrieve docs works at 50 accounts. At 600, you need either an account-specific context pointer (link a doc per account) or some lightweight routing logic. Otherwise the model gets generic context and writes generic drafts.
+
+## What I'd ship first
+
+If I were building this Monday, I'd start with one rep, one role, five docs, and one email thread type (inbound demo requests). Get the draft quality good there. Measure time saved per email and edit distance between draft and sent version. Then expand the doc set and the thread types. Don't try to cover the full inbox on v1.
+
+The bigger point for anyone in marketing or sales ops watching the API tooling space mature: the gap between "I have an idea for an internal tool" and "I shipped it" has collapsed. Claude Code or a willing engineer can take a spec like the one above and have a working version running against your Google Workspace in a few days. The leverage isn't in the model anymore. It's in being the person on your team who can describe the workflow precisely enough that the tool gets built. That skill is undervalued right now, and it won't be for long.
