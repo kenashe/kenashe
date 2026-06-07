@@ -1,0 +1,53 @@
+---
+title: "The Email Drafter Build: Claude API Plus Google Docs as Lightweight RAG"
+description: "A working note on building a context-aware email drafter using the Claude API, Google Docs, and URL fetching. Covers the actual architecture, where it breaks for sales and marketing operators, and why this small build often beats fancier agent setups for daily inbox work."
+pubDate: 2026-06-07
+tags: ["claude-api", "rag", "sales-automation"]
+draft: false
+---
+
+The most useful AI build I've shipped this quarter is also the least impressive sounding: an email drafter that reads two Google Docs and a product URL before writing a reply. No agents. No vector database. No multi-step planning. Just context loaded into a Claude call, a system prompt, and a draft button.
+
+It saves me about two hours a day. Here's how it's wired.
+
+## The architecture, in plain terms
+
+There are four moving parts.
+
+One: a system prompt that defines who is writing (role, tone, what the person actually helps customers with). Mine is about 200 words. It names specific products, names the kinds of objections I get, and tells Claude to ask a clarifying question at the end if the inbound is ambiguous.
+
+Two: a context layer. This is the part most tutorials skip. I pull from two Google Docs (a positioning doc and an objection-handling doc) and one live URL (the current pricing page, because it changes). On each draft request, the system fetches those, concatenates them, and stuffs them into the user message under a `<context>` block.
+
+Three: the inbound email itself, plus the thread history if it exists.
+
+Four: a single call to Claude (Sonnet works fine for this, no need for Opus) that returns a draft. I review, edit, send.
+
+That's it. No retrieval ranking, no embeddings, no chunking. The context docs are small enough (under 8k tokens combined) that I just send the whole thing every time. Token costs are trivial compared to the time saved.
+
+## Why this beats a "real" RAG setup for inbox work
+
+I tried building a proper RAG pipeline first. Pinecone, embeddings, chunked Notion exports, the whole thing. It was worse.
+
+Two reasons. First, retrieval ranking introduced errors that were hard to debug. Claude would respond confidently using the wrong chunk and I'd only catch it on review. Second, the context I actually need for email replies is small and stable. It's not "the entire company knowledge base." It's three or four docs that change occasionally. Loading them whole is cheaper, more accurate, and easier to maintain than a retrieval system that needs reindexing.
+
+The general principle: if your context fits in the window, don't retrieve. Just load. RAG is for when you can't fit, not as a default architecture.
+
+## Where it breaks
+
+The drafter fails in three predictable ways.
+
+When the inbound email references a thread I don't have. If a customer says "per our call last Tuesday," Claude has no idea what happened on the call. It will confidently invent a plausible recap. I added a line to the system prompt telling it to flag missing context explicitly rather than guess, which helped but didn't fully fix it.
+
+When the Google Docs go stale. I had a pricing doc that was three months out of date and the drafter happily quoted old numbers. Now the pricing page comes from a live URL fetch, and I review the static docs monthly. This is the boring maintenance work nobody mentions when they sell you on AI productivity gains.
+
+When the customer's question is genuinely novel. The drafter is pattern-matching against context I gave it. Anything truly new gets a generic answer. For those, I write the reply myself and then add the pattern to the context doc so the next similar email handles itself.
+
+## The piece marketing operators miss
+
+If you're a marketer thinking about building something like this for outbound or nurture sequences, the leverage isn't in the API call. It's in the context docs.
+
+The drafter is only as good as what you give it. Most teams have no clean, current, voice-consistent reference docs. They have a brand guide written in 2022, a positioning deck made for a board meeting, and a Notion full of half-finished pages. Garbage context produces garbage drafts, and you'll blame the model.
+
+So before you write a single line of code, write the docs. One positioning page (what we do, who for, why we win). One voice doc with five before/after examples of bad versus good replies. One objections doc. That's the actual project. The Claude integration is the easy part.
+
+If you want to ship this in a weekend, here's the concrete play: build a tiny internal tool (Streamlit or a Cloudflare Worker, your call) that takes pasted email text, pulls two Google Docs via the Docs API, fetches one URL, calls Claude, and returns a draft into a textarea. Skip the Chrome extension, skip the Gmail integration, skip the auth headaches. Ship the ugly version first, use it for a week, and only then decide what's worth automating further. Most people over-engineer the wrapper and under-engineer the docs, and they end up with a beautiful UI generating mediocre replies. Flip that order.
