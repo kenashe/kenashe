@@ -1,0 +1,51 @@
+---
+title: "The email drafter pattern: system prompt plus doc retrieval beats fine-tuning"
+description: "A look at how operators are building internal 'draft this email' tools using the Claude API, a system prompt, and Google Docs as a context source. Why this lightweight RAG pattern wins over fancier setups for sales and customer-facing roles."
+pubDate: 2026-06-07
+tags: ["claude", "rag", "sales-ops"]
+draft: false
+---
+
+There's a quiet pattern emerging inside go-to-market teams. Account executives are building their own email drafting tools. Not buying them. Building them. The architecture is almost embarrassingly simple: a system prompt that defines the role, a context retrieval step that pulls from Google Docs and a few web URLs, and the Claude API doing the writing.
+
+I keep seeing variations of this and I think it's worth unpacking why this specific shape works better than the alternatives most teams reach for first.
+
+## The shape of the thing
+
+The pattern looks like this. You write a system prompt that encodes who the rep is, what they sell, and how they talk. You wire in a retrieval layer: a Google Docs integration for internal knowledge (pricing notes, objection handling, product quirks) plus the ability to fetch public URLs (your docs site, your pricing page, a competitor comparison). When an email comes in, the tool grabs the thread, pulls relevant context, and drafts a reply.
+
+That's it. No vector database. No fine-tune. No agent loop. Just a fat system prompt, a retrieval call, and Claude writing the draft.
+
+People I talk to who have built this report saving two to three hours a day. The drafts aren't perfect. They don't need to be. The rep edits and sends. The cycle time on a customer thread collapses.
+
+## Why this beats a fine-tune
+
+The obvious instinct when you have "lots of past emails and a tone you want to match" is to fine-tune. Don't. Here's why it loses:
+
+Fine-tunes encode style but not facts. The hard part of sales email is not tone. It's getting the technical answer right. Did the security review change last quarter? What's the actual SSO behavior on the Team plan? Is the integration with Salesforce GA or still beta? A fine-tune will confidently make this up. A retrieval step grounded on the actual doc won't.
+
+Fine-tunes also rot. Your product changes weekly. Your pricing page gets updated. The fine-tune is frozen on whatever data you had in March. The retrieval pattern reads the current doc every time. When the doc is wrong, you fix the doc, not the model.
+
+## Where to put the smarts
+
+The interesting design choice is what goes in the system prompt versus what goes in retrieved context. My rule of thumb:
+
+System prompt holds stable identity. Name, role, who the audience is, tone rules ("never promise dates," "always offer a call before a long answer"), output format. This is the stuff that should never change between threads.
+
+Retrieved context holds volatile facts. Product docs, pricing, the latest security posture, the customer's prior threads, the account notes from CRM. This is the stuff that changes faster than you can update a prompt.
+
+The teams I've seen get this wrong usually shove product facts into the system prompt and then wonder why the model is six months out of date. Or they retrieve tone examples and wonder why the writing sounds like a different person every email.
+
+## The Google Docs piece is doing more work than it looks like
+
+A direct Google Docs read is underrated. Most knowledge in a sales org already lives there. Battle cards, FAQs, the "how do we answer this" doc that the product marketer maintains. If your tool can read those docs at draft time, you've bypassed an entire RAG pipeline. No chunking strategy, no embedding model choice, no reindex job when a doc updates.
+
+The tradeoff: you're limited by what fits in the context window and by which docs you remembered to attach. For a rep handling a few hundred accounts, that's a fine constraint. For a support team fielding ten thousand tickets a day across a sprawling knowledge base, you'll want the embedding pipeline. Know which problem you have.
+
+## The career angle nobody talks about
+
+There's a second-order effect here that I think is the real story. The AE who builds this tool stops being just an AE. They start designing internal products. They learn to write system prompts well, to think about retrieval, to debug why a draft went sideways. Then they sit in conversations with engineering as a peer on the design, not a requester.
+
+I've watched two people in the last six months ride this exact arc into hybrid go-to-market-plus-build roles. The tool they built was the portfolio piece. The skill they accidentally developed (decomposing a workflow into prompt, context, output) is the new operator skill.
+
+If you're a marketing or sales operator reading this and you've been waiting for permission to start building: this is the wedge. Pick one workflow you do every day, write a system prompt for it, wire up a single retrieval source, and ship it to yourself by Friday. Don't try to make it a product. Don't add a UI beyond what you need. The version that saves you two hours a day is uglier and smaller than you think, and the thing you'll learn from getting it working is worth more than the hours it saves. The catch most people miss: the bottleneck isn't the model, it's whether your internal docs are actually written down. If they aren't, the first week of this project is just writing the doc the prompt will read.
