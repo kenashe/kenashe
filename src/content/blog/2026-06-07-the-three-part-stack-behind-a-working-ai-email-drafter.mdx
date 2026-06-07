@@ -1,0 +1,47 @@
+---
+title: "The three-part stack behind a working AI email drafter"
+description: "A breakdown of the architecture I'd use to build a context-aware email auto-drafter on the Claude API: system prompt, lightweight retrieval from Google Docs, and pattern matching against past replies. Built for marketers and AEs, not engineers."
+pubDate: 2026-06-07
+tags: ["claude-api", "ai-workflows", "email-automation"]
+draft: true
+---
+
+Most "AI email" tools are wrappers around a prompt box. You paste a thread, you get a draft, you edit it heavily because the model has no idea who your customer is, what you sold them last quarter, or what your pricing page actually says. The draft is generic because the inputs are generic.
+
+The interesting work right now is people building their own thin layers on top of the Claude API to fix exactly this. I've been studying one pattern that keeps showing up among GTM operators who got tired of waiting for vendors: a three-part stack of system prompt, document retrieval, and pattern matching. It's not RAG in the heavy enterprise sense. It's lighter, scrappier, and good enough to save a few hours a day.
+
+Here's how I'd put it together.
+
+## Part one: a system prompt that knows your job
+
+The system prompt is where most people give up too early. They write "You are a helpful AI assistant" and move on. That's the difference between a draft you send and a draft you rewrite.
+
+A working system prompt for an AE or CSM has four things in it: your name and title, the specific product or service you sell, the customer segment you handle, and a short description of your usual tone (technical, friendly, direct, whatever). Then a few non-negotiables: never quote pricing that isn't in the retrieved context, always end with a clear next step, never invent a feature.
+
+This is boring to write. It's also the single biggest lever on output quality. I'd build a small form for it so the prompt is regenerated cleanly any time the role changes. Hardcoding it in a script is fine until you want to share the tool with a teammate.
+
+## Part two: retrieval from where your knowledge actually lives
+
+The "context-aware" part of context-aware drafting is just: can the model see the same docs you would have opened if you wrote the email by hand?
+
+For most operators, that means Google Docs (sales playbooks, objection handling, ICP notes), a few web URLs (pricing page, docs site, recent blog posts), and maybe a Notion export. You don't need a vector database for this. You need a function that, given an email thread, picks the two or three most relevant documents and pastes their full text into the context window.
+
+Claude's context window is large enough that you can be lazy here. Just dump the relevant docs in. The retrieval logic can be embarrassingly simple: keyword match on the email subject and body against doc titles, or a small classifier prompt that picks from a list. You can graduate to embeddings later if it matters. It usually doesn't, at this scale.
+
+The Google Docs API piece is the one bit that takes real setup. OAuth, scopes, a service account if you're sharing across a team. Worth doing once.
+
+## Part three: pattern matching against your own replies
+
+This is the part most tutorials skip and it's the one that makes drafts sound like you.
+
+Pull the last 50 to 100 emails you've sent in a given category (renewal nudge, demo follow-up, pricing question) and store them. When a new email comes in, classify it, then pass two or three of your past replies into the prompt as examples. The model isn't being trained on them. It's just imitating the structure, length, and voice of how you actually write.
+
+This is what closes the gap between "AI draft" and "draft that reads like Ken wrote it." The model picks up that I open with a one-line acknowledgement, that I never use "circling back," that I bold the ask. You don't have to tell it any of that in the system prompt. The examples teach it.
+
+## What the architecture costs and what it returns
+
+Claude API calls at this volume are cheap. A few hundred drafts a day with reasonable context windows lands somewhere in the low double digits per month. The real cost is the few days to wire up the Google Docs integration and the discipline to maintain the pattern library.
+
+The return, for someone managing a few hundred accounts, is two or three hours back per day. That's not a productivity story. That's a "you get to keep your evenings" story.
+
+If you're a marketer or GTM operator looking at this and thinking you can't build it, the honest answer is: you probably can build 80% of it with Claude itself as your coding partner, and a senior engineer can finish the OAuth piece in an afternoon. The thing worth internalizing is that the architecture, system prompt plus retrieval plus pattern examples, is the same shape whether you're drafting sales emails, support replies, partner outreach, or investor updates. Once you've built it once for one workflow, the next one takes a weekend. The catch most readers will miss: the pattern library is the moat. Anyone can copy the system prompt. Your 500 past emails are what make the output yours.
