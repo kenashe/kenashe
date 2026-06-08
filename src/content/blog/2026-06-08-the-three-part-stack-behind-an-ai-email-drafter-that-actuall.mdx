@@ -1,0 +1,45 @@
+---
+title: "The three-part stack behind an AI email drafter that actually saves hours"
+description: "A working pattern for GTM operators who want Claude to draft customer emails with real context: a system prompt for role, Google Docs for knowledge retrieval, and pattern matching against past replies. Here's why this trio works when generic prompting fails."
+pubDate: 2026-06-08
+tags: ["claude", "gtm-tools", "ai-workflows"]
+draft: true
+---
+
+Most AI email tools fail the same way. They write fluent slop. The grammar is fine, the structure is fine, but the content sounds like it came from a stranger who has never read your docs, never seen your pricing, and has no idea what the customer asked last week.
+
+That gap, between "AI can write" and "AI can write like me, about my product, to this customer," is what blocks every GTM team I talk to from using Claude beyond toy demos. The fix isn't a better prompt. It's a three-part stack: a system prompt that pins your role, a retrieval layer that pulls real context, and pattern matching against your prior responses.
+
+## The system prompt does the identity work
+
+The system prompt is not where you put instructions like "write a helpful email." It's where you encode who is writing and what they are responsible for. Name, role, product surface area, tone defaults, what you escalate vs. handle yourself.
+
+For an AE managing 600 accounts, the system prompt might say: "You are drafting on behalf of Jared, a startup AE at Anthropic. You handle pricing questions up to enterprise tier, technical questions about rate limits and model routing, and you escalate security reviews to the solutions team." That single block changes every downstream draft. The model stops hedging. It stops adding "please consult your account representative" because it knows it is the account representative.
+
+This is the cheapest, highest-leverage piece. Most people skip straight to "make the email better" prompting and never write a real persona block.
+
+## Context retrieval is where the value compounds
+
+The second layer is the one that separates a demo from a tool people actually use. You need Claude to pull from your real knowledge before it drafts: product docs, pricing sheets, the customer's last three threads, internal Slack decisions, the Google Doc where someone wrote down the new enterprise discount policy on Tuesday.
+
+A Google Docs integration is the obvious starting point because that's where GTM teams already live. Web fetch is the second hook, useful for pulling your own public docs or a prospect's company page. The Claude API now handles this cleanly with tool use and file inputs, so the engineering lift is smaller than it was even six months ago.
+
+The non-obvious part: you don't want to dump every doc into context. You want a retrieval step that picks the right two or three docs per email. Otherwise you're paying for tokens and burying the signal. A simple keyword match on subject line plus customer account name gets you 80% of the way there before you need real embeddings.
+
+## Pattern matching is the secret sauce nobody talks about
+
+Here's the part that gets skipped. Tone and structure don't come from the system prompt. They come from examples.
+
+If you give Claude five real emails you sent last month, in response to similar questions, it will match your cadence: how you open, whether you use bullets, whether you sign off with "best" or just your name, how much you hedge on timelines. This is in-context learning doing exactly what it's good at.
+
+The implementation is boring. You store your sent folder, you tag emails by category (pricing, technical, renewal, intro), and at draft time you pull two or three exemplars that match the category. Append them to the prompt. The output gets dramatically more "you."
+
+I'd argue this is the single biggest lever between an AI draft you have to rewrite and one you can send with two edits.
+
+## Why this is a GTM person's project, not an engineer's
+
+The interesting career signal here: the people best positioned to build this are not senior engineers. They're the operators who know what a good reply looks like, which docs matter, and where the institutional knowledge actually lives. The Claude API is now approachable enough that a marketer or AE with a weekend and some patience can prototype the whole stack. The engineer comes in at the end to harden it.
+
+That inversion, where the domain expert designs the AI tool and engineering finishes it, is the actual shift. Not "AI replaces the AE." More like "the AE who builds their own tooling pulls away from the AE who waits for IT."
+
+If I were shipping this next week, I'd start narrow: one email category (say, pricing questions), one Google Doc as the source of truth, five exemplar replies. Get that loop working before adding categories. The trap most builders fall into is trying to handle every email type on day one, which means every draft is mediocre. A drafter that nails one category and politely punts on the others is more useful than one that hallucinates across all of them. Ship the wedge, then widen it.
