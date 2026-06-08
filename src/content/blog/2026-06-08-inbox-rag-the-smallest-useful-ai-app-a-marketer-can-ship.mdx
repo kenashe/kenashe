@@ -1,0 +1,53 @@
+---
+title: "Inbox RAG: the smallest useful AI app a marketer can ship"
+description: "A walkthrough of building a context-aware email drafter on the Claude API using Google Docs as the retrieval layer, and why this pattern is the right starter project for non-engineer operators learning to build."
+pubDate: 2026-06-08
+tags: ["claude-api", "rag", "email-automation"]
+draft: true
+---
+
+I've been thinking about what the right "first real app" looks like for a digital marketer or AE who wants to stop prompting and start building. Not a Zapier chain. Not a custom GPT. Something with an API key, a system prompt, and a retrieval step.
+
+The answer keeps landing in the same place: an email drafter that pulls from your own docs. Boring on paper. Genuinely useful in practice. And it teaches you the three primitives you need for everything else.
+
+## Why email is the right first project
+
+Email is the highest-volume writing task most operators do. If you're running a book of 200 to 700 accounts, you're spending three or four hours a day on replies, and most of those replies are pattern-matched against a finite set of docs: pricing, product specs, onboarding steps, objection handling, a handful of case studies.
+
+That's the shape of a retrieval problem. You're not generating from nothing. You're assembling a response from known sources, adjusted for the customer's context and your voice.
+
+Which means an email drafter is just RAG with a small surface area. The retrieval set is your sales wiki. The query is the inbound email. The output is a draft you edit before sending. Low stakes, high frequency, easy to evaluate (did I send it or did I rewrite it?).
+
+## The three primitives
+
+A working drafter has three pieces, and you can build a v1 in a weekend if you've ever touched a Python script.
+
+**System prompt as identity.** Name, role, what you sell, what you don't sell, tone rules, things to never promise. This is the layer that keeps Claude from sounding like Claude. The trick most people miss: the system prompt should include negative examples. "Do not offer discounts. Do not commit to timelines. Do not use the word 'leverage.'" Constraints do more work than instructions.
+
+**Context retrieval as memory.** This is where Google Docs earns its place. Your team already writes there. Pricing sheets, battle cards, FAQ docs, the Notion-style stuff that lives in Drive. The Claude API plus a Google Docs integration lets you pull doc contents into the request at runtime. For a v1, you don't even need a vector store. You can hardcode a list of doc IDs that always get included, plus a simple URL fetcher for whatever the customer asks about.
+
+When you outgrow that, you graduate to embeddings and chunking. But most operators never need to. A dozen well-written internal docs, fully loaded into the context window, will beat a sloppy vector DB every time.
+
+**Pattern matching as examples.** Few-shot beats zero-shot for tone. Pull five of your best historical replies, paste them into the prompt as examples, and the output gets noticeably closer to your real voice. This is the cheapest quality lift available and almost nobody does it.
+
+## What this teaches you that prompting doesn't
+
+Prompting in a chat window teaches you one skill: writing instructions. Building an app like this teaches you four:
+
+How to think about context windows as a budget. You can't dump everything in. You have to choose.
+
+How to separate the stable parts of a prompt (identity, rules) from the dynamic parts (this email, this customer, today's docs).
+
+How to evaluate output without a benchmark. You ship it, you edit it, you notice what you keep editing, and you fix the prompt or the doc. The eval loop is your inbox.
+
+How to talk to engineers. Once you've built a duct-taped v1, a senior engineer can productionize it in a fraction of the time it would have taken them to scope it from your description alone. The prototype is the spec.
+
+## Where it breaks
+
+Two failure modes are worth flagging.
+
+First, stale docs. If your pricing doc is six months out of date, your drafter will confidently quote old numbers. The retrieval layer inherits the quality of the source. A drafter is a forcing function to clean up your internal docs, which is annoying and also probably overdue.
+
+Second, over-trust. The point of a drafter is to draft. The moment people start one-clicking send without reading, you start sending hallucinated commitments to customers. Build it as a draft generator that puts text into the compose window. Never as an auto-sender. The human read is the eval.
+
+The operators who get the most out of this pattern treat it as a personal tool first, then a team tool. Build it for your own inbox. Use it for a month. Notice the edits you make. Tune the prompt and the doc set against your own behavior. Then offer it to one teammate, watch what they edit differently, and only then think about a shared version. The instinct to ship a "team productivity tool" on day one is what kills these projects. The right move is to be the first user, the first editor, and the first person whose hours come back. Two hours a day is a real number. Earn it for yourself before you try to scale it.
