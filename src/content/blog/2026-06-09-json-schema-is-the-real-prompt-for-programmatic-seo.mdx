@@ -1,0 +1,57 @@
+---
+title: "JSON Schema is the Real Prompt for Programmatic SEO"
+description: "Forcing GPT-4 into strict JSON outputs is the difference between a programmatic SEO build that ships 2,000 city pages in a week and one that dies in a Google Sheet. Here's how I structure the schema, the prompt, and the guardrails."
+pubDate: 2026-06-09
+tags: ["programmatic-seo", "gpt-4", "structured-outputs"]
+draft: true
+---
+
+Programmatic SEO has been around since long before LLMs. You take a template, plug in variables for city and service and modifier, hit publish on 5,000 pages. The hard part was always the content inside the template. You either wrote a thin paragraph that Google ignored, or you paid writers $30 a page and killed the unit economics.
+
+GPT-4 fixed the content problem. But almost everyone I see trying this is still doing it wrong. They prompt the model for a "landing page about plumbers in Tucson" and get a 600 word blob back. Then they spend three weeks parsing that blob into a template. The blob is the bug.
+
+The fix is to stop thinking of the prompt as the input. The JSON schema is the input. The prompt is just a wrapper.
+
+## Why the schema is the actual contract
+
+When you call GPT-4 with `response_format: { type: "json_schema" }` and a defined schema, you're not asking for content. You're asking for a filled form. The model has to return every field, in the right type, in the right shape. No prose drift. No "Here's a great landing page for you!" preamble. No markdown headings sneaking into a field that's supposed to be plain text.
+
+This matters because your Astro or Next.js template doesn't want a paragraph. It wants `hero_subhead` (string, max 140 chars), `local_proof_points` (array of 3 strings), `faq` (array of objects with `question` and `answer`), `meta_title` (string, max 60 chars), `meta_description` (string, max 155 chars). If any field is missing or malformed, the page breaks at build time. The schema is the contract between the model and your CMS.
+
+The prompt becomes almost boring: "Generate a landing page for {service} in {city}, {state}. Use the local context below." Then you pass the schema. The model does the rest.
+
+## The fields that actually move the needle
+
+I've shipped a few of these builds now, and the fields that separate a useful page from a doorway page are the ones that force local specificity. Generic "we serve the {city} area" copy ranks for nothing. So I bake the specificity into the schema.
+
+A few I always include:
+
+`local_landmarks_mentioned`: array of 2-3 actual neighborhoods, landmarks, or districts in the city. Forces the model to pull from training data about the place, not generate fluff.
+
+`local_pain_point`: a one-sentence problem specific to that geography. For HVAC in Phoenix it's monsoon damage. For roofing in Buffalo it's ice dams. The model knows this if you make it commit to a field.
+
+`regulatory_or_climate_note`: short string. Local code requirements, weather patterns, soil conditions. Whatever applies to the vertical.
+
+`comparison_to_nearby_city`: optional, but useful. "Unlike Mesa, Tempe has..." This single field has done more for my topical relevance than any other.
+
+You're using the schema to force the model to do research-style thinking on every call. Without these fields, it defaults to generic copy. With them, it has to commit to specifics or fail validation.
+
+## Where it breaks and how to catch it
+
+GPT-4 will sometimes hallucinate neighborhoods. It once gave me "Lake Heights" in a Midwest city that has no such neighborhood. For city pages at scale this is a real risk because no human is reading page 1,847.
+
+Two guardrails I run on every build:
+
+A second pass with a cheaper model (GPT-4o-mini works fine) that checks the `local_landmarks_mentioned` array against a static list of real neighborhoods for that city. I scrape these from Wikipedia or pull from a Census dataset upfront. If a landmark fails the check, the page gets flagged and held from build.
+
+A regex pass on `meta_title` and `meta_description` for length, because models lie about character counts. About 4% of outputs still exceed the limits even when the schema says max 60.
+
+Neither of these is exotic. Both are the kind of thing you skip on page 10 and regret on page 2,000.
+
+## The build loop
+
+My current setup: a Google Sheet of (city, state, service) tuples feeds a Node script. The script pulls local context from a pre-built JSON file (population, neighborhoods, climate notes), constructs the prompt, calls GPT-4 with the schema, validates the response, runs the hallucination check, and writes the result as an MDX file in an Astro content collection. Astro builds the pages on push to main. Total cost per page is around $0.04. Total time from tuple to deployed page is about 90 seconds.
+
+The interesting part is that 80% of the engineering is the schema and the validation. The prompt itself is 6 lines.
+
+If you're a marketer thinking about doing this, the move isn't to learn prompt engineering. It's to sit down with whoever builds your landing page template and write the schema together. Every field in your template becomes a field in the schema. Every field in the schema becomes a forcing function on the model. The catch most people miss: programmatic SEO at this scale only works if you treat the output as data, not content. The moment you start editing the prose by hand, you've lost the economics. Build the schema, trust the schema, and spend your time on the local context dataset that feeds it. That's where the actual differentiation lives.
