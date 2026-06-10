@@ -1,0 +1,64 @@
+---
+title: "Pokémon Logs Are the Best Test Case for Entity Extraction"
+description: "A messy stream of in-game text, levels, items, and battle outcomes is exactly the kind of non-conversational input that breaks naive summarization. Here's how I'd build a content engine for gaming creators that turns those raw logs into recap blogs without hallucinating the storyline."
+pubDate: 2026-06-10
+tags: ["content-automation", "prompt-engineering", "creator-tools"]
+draft: true
+---
+
+Most "AI content repurposing" demos work because the input is already structured. A podcast transcript has speakers, turns, topics. A webinar has slides. You can throw it at Claude or GPT-5 and get something passable on the first try.
+
+Gaming content is not that. A 12-hour Pokémon playthrough transcribed from screen OCR looks like this: `CHARMANDER: Lvl 5. SCRATCH. GROWL. VOLTORB: Lvl 11.` Then 400 lines later, `CHARIZARD: Lvl 78. CHAMPION BLUE used FULL RESTORE!` There is no narrator. No dialogue. Just state changes.
+
+If you want to build an automated recap blog for a Twitch streamer or a YouTube Let's Play channel, this is the actual input shape you're dealing with. And it's a much better stress test for an extraction pipeline than another podcast demo.
+
+## Why naive summarization fails here
+
+Drop that raw log into a single prompt asking for a "blog recap" and you get one of two failure modes. Either the model invents a narrative arc that didn't happen ("Red bravely faced his rival in a dramatic showdown"), or it produces a flat list of every Pokémon that appeared, which reads like a database dump.
+
+The issue is that the model has no anchor for what matters. A level 5 Charmander at the start and a level 78 Charizard at the end are the same entity. A wild Voltorb encounter is noise. The battle with Champion Blue is the climax. None of that is marked in the source.
+
+You can't fix this with a better single prompt. You need a pipeline.
+
+## The extraction layer comes first
+
+Before you write a single word of recap, you extract structured data. I'd run two passes.
+
+First pass: entity extraction. Pull every Pokémon mention with level, every item, every trainer battle, every location indicator. Output JSON. Use a cheap model here, probably GPT-5 mini or Haiku. You're not asking it to reason, just to tag.
+
+Second pass: event clustering. Group the entities into episodes. A trainer battle is an event with a start (opponent appears), middle (moves used), and end (win/loss, money earned). A level-up sequence for the starter is a progression arc. A new item acquisition is a beat.
+
+The output of this stage is not prose. It's a JSON object that looks something like:
+
+```
+{
+  "starter": "Charmander",
+  "final_form_level": 78,
+  "key_battles": [
+    {"opponent": "Team Rocket Grunt", "outcome": "win"},
+    {"opponent": "Champion Blue", "team": ["Blastoise", "Arcanine"], "outcome": "win"}
+  ],
+  "playtime": "50:09",
+  "trainer_id": 19657
+}
+```
+
+Now you have something a writer prompt can actually work with.
+
+## The recap prompt should never see the raw transcript
+
+This is the part most people get wrong. They try to give the model both the structured data and the original log "for context." Don't. The raw log is noise that will pull the model back toward listing every Voltorb encounter.
+
+The recap prompt gets the JSON only, plus a style guide for the creator. The model writes a 400-word post structured around the actual narrative beats: starter chosen, key power spikes, notable items, climax battle. Total playtime as a hook.
+
+You can run this same prompt with three different style guides and produce a recap for the creator's blog, a YouTube description, and a Twitter thread. Same source data, three outputs, zero re-extraction.
+
+## What this unlocks for gaming creators
+
+A streamer doing 4-hour sessions five times a week generates roughly 100 hours of footage a month. Nobody is writing recap blogs for that. Nobody is even writing decent video descriptions. The SEO opportunity sits there rotting because the input format is too hostile for human content teams and too messy for one-shot LLM workflows.
+
+A pipeline like the one above costs maybe $0.30 per stream in API fees and produces a recap blog, a description, a thumbnail title suggestion, and a "top moments" timestamp list. For a creator already running OBS with a transcription overlay or running OCR on VODs, the input is free.
+
+The real wedge is not the model. It's recognizing that the extraction step has to be separate from the generation step, and that you have to throw away most of the raw data before you write anything.
+
+If I were building this as a product tomorrow, I'd start with a single game franchise where the on-screen text follows predictable patterns. Pokémon, Final Fantasy, anything turn-based with menu states. Get the extraction schema dialed for one game, then expand. The temptation will be to build a "general gaming content engine" from day one. That's how you end up with a model that confidently writes that Red defeated Champion Blue using a Magikarp. Narrow the input, ship the recap, then widen.
