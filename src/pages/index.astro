@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import JsonLd from '../components/JsonLd.astro';
 import FormattedDate from '../components/FormattedDate.astro';
+import BuildCard from '../components/BuildCard.astro';
 import { fetchLatestSubstackPosts } from '../utils/substack';
 import {
   SITE_DESCRIPTION,
@@ -12,6 +13,7 @@ import {
   SUBSTACK_RSS_URL,
   SOCIAL,
 } from '../consts';
+import { projects } from '../data/builds';
 
 // Newsletter: real Substack posts at build time.
 // - If the fetch succeeds, render real posts.
@@ -34,77 +36,7 @@ const notes = allNotes
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   .slice(0, 3);
 
-type Project = {
-  title: string;
-  status: 'LIVE' | 'SHIPPED';
-  dek: string;
-  stack: string[];
-  shippedAt?: string;
-  metric?: string;
-  // Custom footer parts, rendered as `·`-separated meta with no "Shipped" key.
-  // Used when a build's receipt isn't a ship date (e.g. an event line).
-  footer?: string[];
-};
-
-// Days elapsed since an ISO date. Computed at build time — Vercel redeploys
-// frequently enough (the blog pipeline ships daily) that drift stays small.
-const daysSince = (iso: string) =>
-  Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
-
-const projects: Project[] = [
-  {
-    title: 'Geo-targeted affiliate site',
-    status: 'LIVE',
-    dek: 'Auto-detects each visitor\'s country and language, then serves the right offers in their language. Generated entirely from a spreadsheet.',
-    stack: ['Cloudflare', 'GitHub', 'HyperAgent', 'Claude Fable 5'],
-    shippedAt: 'Jun 2026',
-    metric: '13 markets, 4 languages',
-  },
-  {
-    title: 'AI blog automation',
-    status: 'LIVE',
-    dek: 'Autonomous pipeline that turns curated YouTube transcripts into auto-published working notes.',
-    stack: ['n8n', 'Claude Opus 4.7', 'Gemini 3.1 Pro', 'GPT-5.5'],
-    shippedAt: 'May 2026',
-    metric: '40-point QA gate',
-  },
-  {
-    title: 'kenashe.ai',
-    status: 'LIVE',
-    dek: 'This site. Built end-to-end with Claude Code, reviewed by Codex, shipped in a day.',
-    stack: ['Astro', 'Tailwind', 'MDX', 'Vercel'],
-    shippedAt: 'May 2026',
-  },
-  {
-    title: 'Daily email to myself',
-    status: 'LIVE',
-    dek: 'Morning brief at 6 AM: weather, tickers, a dad joke, and 300 words on a rotating topic.',
-    stack: ['Python', 'Claude API', 'Mac Mini'],
-    shippedAt: 'May 2026',
-    metric: `${daysSince('2026-05-04')} days running`,
-  },
-  {
-    title: 'Sir Pitches-a-lot',
-    status: 'SHIPPED',
-    dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
-    stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
-    footer: ['Agent Battle Night', 'NY Tech Week', 'June 2026'],
-  },
-  {
-    title: 'Six-agent email response team',
-    status: 'SHIPPED',
-    dek: 'A coordinator plus sentiment, research, draft, and QA agents that turn customer support emails into reviewed replies.',
-    stack: ['Cassidy AI', 'Claude', 'ChatGPT'],
-    footer: ['Maven capstone', 'AI Build Lab', 'Feb 2026'],
-  },
-  {
-    title: 'Personal assistant chatbot',
-    status: 'SHIPPED',
-    dek: 'A chat agent wired to Gemini that searches email and answers questions on weather, the forecast, and local news.',
-    stack: ['n8n', 'Gemini', 'Gmail', 'Weather + news APIs'],
-    footer: ['Personal build', 'Dec 2025'],
-  },
-];
+const liveProjects = projects.filter((p) => p.status === 'LIVE');
 
 const personSchema = {
   '@context': 'https://schema.org',
@@ -141,55 +73,10 @@ const personSchema = {
     <section aria-labelledby="building-heading" class="block">
       <div class="block-head">
         <h2 id="building-heading">Building</h2>
+        <a href="/building/" class="block-link">All builds →</a>
       </div>
       <ul class="receipts">
-        {
-          projects.map((p) => (
-            <li class={`receipt receipt-${p.status.toLowerCase()}`}>
-              <div class="receipt-head">
-                <h3 class="receipt-title">{p.title}</h3>
-                <span class={`badge badge-${p.status.toLowerCase()}`}>
-                  <span class="badge-dot" aria-hidden="true" />
-                  {p.status}
-                </span>
-              </div>
-              <p class="receipt-dek">{p.dek}</p>
-              <ul class="receipt-stack" aria-label="Stack">
-                {p.stack.map((s) => (
-                  <li>{s}</li>
-                ))}
-              </ul>
-              <footer class="receipt-foot">
-                {p.footer ? (
-                  p.footer.map((item, i) => (
-                    <>
-                      {i > 0 && (
-                        <span class="receipt-meta-sep" aria-hidden="true">
-                          ·
-                        </span>
-                      )}
-                      <span class="receipt-meta">{item}</span>
-                    </>
-                  ))
-                ) : (
-                  <>
-                    <span class="receipt-meta">
-                      <span class="receipt-meta-key">Shipped</span> {p.shippedAt}
-                    </span>
-                    {p.metric && (
-                      <>
-                        <span class="receipt-meta-sep" aria-hidden="true">
-                          ·
-                        </span>
-                        <span class="receipt-meta">{p.metric}</span>
-                      </>
-                    )}
-                  </>
-                )}
-              </footer>
-            </li>
-          ))
-        }
+        {liveProjects.map((p) => <BuildCard project={p} />)}
       </ul>
     </section>
 
@@ -449,126 +336,6 @@ const personSchema = {
     margin: 0;
     display: grid;
     gap: 1rem;
-  }
-  .receipt {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1.5rem 1.5rem 1.25rem;
-    transition:
-      border-color 200ms ease,
-      transform 200ms ease;
-  }
-  .receipt:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
-  .receipt-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 0.65rem;
-  }
-  .receipt-title {
-    font-family: var(--font-display);
-    font-size: clamp(1.25rem, 2.4vw, 1.625rem);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    color: var(--fg);
-    margin: 0;
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45em;
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 0.3rem 0.55rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    white-space: nowrap;
-    background-color: var(--bg);
-  }
-  .badge-dot {
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 999px;
-    background-color: currentColor;
-  }
-  .badge-live {
-    color: var(--accent-2);
-    border-color: color-mix(in oklab, var(--accent-2) 35%, var(--border));
-  }
-  .badge-live .badge-dot {
-    background-color: var(--accent-2);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-2) 18%, transparent);
-  }
-  .badge-shipped {
-    /* Tailwind slate — muted, not the lime LIVE accent. */
-    color: #94a3b8; /* slate-400 */
-    border-color: rgb(100 116 139 / 0.2); /* slate-500/20 */
-    background-color: rgb(100 116 139 / 0.1); /* slate-500/10 */
-  }
-  .badge-shipped .badge-dot {
-    /* Static dot, no LIVE pulse/glow ring. */
-    background-color: #64748b; /* slate-500 */
-  }
-  .receipt-dek {
-    font-family: var(--font-sans);
-    font-size: 1rem;
-    line-height: 1.55;
-    color: var(--fg);
-    margin: 0 0 1.25rem;
-    max-width: 44rem;
-  }
-  .receipt-stack {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-  .receipt-stack li {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--muted);
-    background-color: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.25rem 0.55rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .receipt-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.6rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-  }
-  .receipt-meta {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--fg);
-    font-variant-numeric: tabular-nums;
-  }
-  .receipt-meta-key {
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-right: 0.4rem;
-  }
-  .receipt-meta-sep {
-    color: var(--border);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
   }
 
   .principles {

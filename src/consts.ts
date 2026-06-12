@@ -15,6 +15,7 @@ export const DEFAULT_OG_IMAGE = '/og-default.svg';
 export const NAV: { label: string; href: string }[] = [
   { label: 'The Lab', href: '/blog/' },
   { label: 'Newsletter', href: 'https://newsletter.kenashe.ai' },
+  { label: 'Building', href: '/building/' },
   { label: 'About', href: '/about/' },
 ];
 
