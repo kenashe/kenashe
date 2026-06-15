@@ -1,0 +1,63 @@
+---
+title: "Content decay analysis works better as a Claude prompt than a dashboard"
+description: "Identifying which blog posts are quietly losing traffic is one of the most tedious SEO jobs in marketing. Pairing a GA4 export with Claude 3.5 Sonnet turns a half-day audit into a 20-minute conversation, and the output is more useful than any decay dashboard I've built."
+pubDate: 2026-06-15
+tags: ["seo", "claude", "ga4"]
+draft: false
+---
+
+I have spent years building content decay dashboards. Looker Studio, Sheets, even a custom Retool thing once. They all do the same job: flag posts where organic traffic is trending down over the last 90 or 180 days so you can refresh them.
+
+The dashboards work. The problem is they stop at "here is a list." You still have to open each URL, read it, look at the SERP, figure out why it decayed, and decide what to do. That is the actual work. And it eats a full day every month.
+
+Two months ago I started piping the GA4 export straight into Claude 3.5 Sonnet instead. The audit is now a 20-minute job and the recommendations are sharper than mine were.
+
+## The setup is dumber than you think
+
+There is no MCP server, no custom integration. Just an export.
+
+In GA4 I run a Pages and screens report filtered to organic traffic, 180 days, with a comparison to the prior 180 days. I export to CSV. Usually 200 to 800 rows depending on the site.
+
+Then I open Claude, attach the CSV, and paste a prompt that does three things: defines what "decay" means for this site (I usually go with a 25 percent drop in sessions period over period, minimum 100 sessions in the prior period to filter noise), asks for a ranked list of decaying URLs, and asks Claude to cluster them by likely cause.
+
+That last part is where it gets interesting.
+
+## Claude clusters causes, not just URLs
+
+A normal decay report gives you 40 URLs sorted by percentage drop. Useless. You cannot fix 40 things.
+
+Claude, given the URL slugs and the traffic pattern, will group them. On a recent audit for a SaaS client, it returned five clusters:
+
+Posts about a feature the company quietly deprecated last year (8 URLs). Comparison posts where a new competitor entered the SERP (6 URLs). Tutorials for an older version of a tool (11 URLs). Posts cannibalized by a newer hub page on the same site (4 URLs). Genuine seasonality (everything else).
+
+I did not give it the deprecation context. It inferred it from the slug patterns plus the fact that all 8 dropped at the same time. That kind of pattern recognition across a CSV is exactly what humans are bad at and what an LLM with a long context window is good at.
+
+I verified the clusters. It got 4 out of 5 right. The "cannibalized" one was actually a Google update.
+
+## Where it falls apart
+
+Claude cannot see the page. It is guessing causes from slugs, titles, and traffic shape. If you have descriptive URLs you get good results. If your slugs are all `/blog/post-12847` you get nothing.
+
+It also has no SERP data. So when it says "likely competitor entered the market" it is inferring from traffic shape, not actually checking. I run those hypotheses through a quick Ahrefs check before acting.
+
+And it will hallucinate cause categories that sound plausible but are wrong. The fix is asking it to rate confidence per cluster. Anything below 70 percent confidence I treat as a hypothesis, not a finding.
+
+## The prompt structure that works
+
+The prompt I land on after a lot of iteration has four parts.
+
+First, context: what the site is, who it serves, what topics it covers. Two paragraphs. This anchors the analysis.
+
+Second, the decay definition. Be explicit. "Decay equals a 25 percent or greater drop in organic sessions comparing the last 180 days to the prior 180 days, with a minimum threshold of 100 sessions in the prior period."
+
+Third, the task: "Cluster decaying URLs by likely cause. For each cluster, give a confidence score, list URLs, and recommend an action: refresh, consolidate, redirect, or leave alone."
+
+Fourth, the format. Markdown table per cluster, with a summary at the top. Without this you get prose, which is harder to act on.
+
+## Why this beats the dashboard
+
+A dashboard tells you what changed. Claude tells you what changed and gives you a working hypothesis about why. The hypothesis is sometimes wrong. But a wrong hypothesis I can verify in five minutes is more useful than no hypothesis at all.
+
+The other thing: dashboards are static. The Claude conversation is iterative. When I see a cluster I want to dig into, I ask follow-up questions. "Of the 11 tutorial posts, which ones still have backlinks worth preserving?" It does not actually know about backlinks but it can flag which ones I should manually check, based on traffic patterns and slug authority signals.
+
+If you are still running monthly content audits in a spreadsheet, try this for one site. Pull the GA4 export, write the prompt once, save it as a project, run it monthly. The first audit takes an hour because you are still learning what to ask. The third one takes 15 minutes. The output is a prioritized work queue for your writers, not a list of URLs that makes everyone feel guilty. The catch most people will miss: the quality of the clustering depends entirely on how informative your URL slugs are. If yours are garbage, fix that before you bother with the AI part.
