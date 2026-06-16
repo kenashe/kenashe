@@ -1,0 +1,58 @@
+---
+title: "Scraping the Meta Ad Library with GPT-4 Vision to Reverse-Engineer Hook Patterns"
+description: "A working note on building a small pipeline that pulls competitor ads from the Meta Ad Library, runs them through GPT-4 Vision, and outputs structured copy frameworks and visual hook patterns you can actually act on in your next creative brief."
+pubDate: 2026-06-16
+tags: ["gpt-4-vision", "competitor-research", "paid-social"]
+draft: false
+---
+
+I spent a weekend wiring up something I'd been putting off for months: a script that grabs competitor ads from the Meta Ad Library, screenshots them, and asks GPT-4 Vision to tell me what's actually working. Not "what does this ad say." More like "what hook pattern is this, what's the visual contrast doing, and how does it map to a copy framework I can brief out."
+
+It works better than I expected. It also fails in ways worth writing down.
+
+## What the pipeline actually does
+
+The flow is dumb on purpose. Five steps:
+
+1. Pull the public Ad Library page for a competitor (Meta's URL structure is stable enough).
+2. Screenshot each active ad creative, save the primary text alongside.
+3. Send the image plus copy to GPT-4 Vision with a structured prompt asking for hook type, visual technique, claim structure, and CTA pattern.
+4. Force the output into JSON with predefined enums (hook = "stat," "question," "callout," "PAS," "problem-agitate," etc.).
+5. Dump everything into a Google Sheet with one row per ad.
+
+The enum part is the trick. If you let the model freelance, you get 40 unique labels across 80 ads and the data is useless. Lock it to 8-10 categories and patterns emerge fast. After about 60 ads from one brand, you can see they're running maybe three real hook structures with 20 variations on each.
+
+## Where Vision actually earns its keep
+
+Reading the copy is easy. Any LLM does that. The Vision part matters for things like:
+
+- Is the product hero or background?
+- Is there text burned into the image, and does it match or contradict the primary text?
+- Face vs. no face. Eye contact direction. UGC-style framing vs. studio.
+- Color contrast against a typical Instagram feed (saturated brand colors vs. desaturated lifestyle).
+
+I asked it to score "thumb-stop quotient" on a 1-5 scale with a rubric. The scores are noisy on any single ad, but the averages across a brand's library line up with what an experienced media buyer would tell you after scrolling for ten minutes. That's the whole point. Compress ten minutes of expert pattern-matching into a structured table.
+
+## The failure modes I hit
+
+A few things broke that are worth flagging if you build this:
+
+GPT-4 Vision invents text it can't read. If the image text is low resolution or stylized, it will confidently transcribe something close-but-wrong. I added a confidence field and a flag for "if you can't read it cleanly, say so." Helped about 60%. Not a fix.
+
+It overfits to obvious frameworks. Every ad becomes "Problem-Agitate-Solve" because that's what the training data taught it copywriting looks like. I had to add a "none / not a recognizable framework" option and explicitly tell it most ads don't follow a clean framework. The distribution got more honest after that.
+
+The Ad Library blocks aggressive scraping. I'm using Playwright with realistic pacing (3-5 seconds between requests) and rotating sessions. Don't try to pull 500 ads in 10 minutes. You'll get throttled and the data quality drops because the page state gets weird.
+
+Video ads need to be sampled as frames. I grab frames at 0s, 1s, 3s, and final. The first 1 second is what matters 90% of the time. If your model can't tell you what's happening at the 1-second mark, the rest doesn't help.
+
+## What I actually do with the output
+
+This is the part most "AI competitor analysis" posts skip. Having a sheet of categorized ads is not a deliverable. What I do:
+
+Cluster by hook type and look at what the brand is spending on. The Ad Library shows you which ads have been running longest. Long-running ads are winners. Cross-reference long-running ads with hook type, and you have a real signal about what's working for that specific brand in that specific category.
+
+Then I write a creative brief that explicitly references the pattern, not the ad. Not "make something like this Ridge Wallet ad." More like "we need three concepts in the stat-driven-callout pattern, with face-forward UGC framing, and high-saturation product hero." That brief goes to a designer or a video editor. Or sometimes to another model.
+
+The interesting second-order effect: once you have 200 competitor ads tagged this way across your category, you can ask the model "what patterns are underused in this category." That's where it gets useful for actually differentiating, not just copying.
+
+The catch most people will miss when they try this: the value isn't in the AI doing the analysis. The value is in the schema you force it into. A bad enum gives you a worse output than just scrolling the library yourself. Spend the first afternoon arguing with yourself about categories before you write a single line of code, and the pipeline becomes worth building. Skip that step and you've built an expensive way to generate vibes.
