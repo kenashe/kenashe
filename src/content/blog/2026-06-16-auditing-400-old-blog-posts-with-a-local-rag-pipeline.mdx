@@ -1,0 +1,70 @@
+---
+title: "Auditing 400 Old Blog Posts With a Local RAG Pipeline"
+description: "A working note on using local RAG to flag outdated SEO claims, stale stats, and content gaps across a legacy blog archive, with notes on what worked, what broke, and where the manual review still has to happen."
+pubDate: 2026-06-16
+tags: ["rag", "seo", "content-audit"]
+draft: false
+---
+
+Most of the AI-for-SEO content I see is about generating new posts. That market is saturated and the output is mostly slop. The more interesting problem sits on the other side: what do you do with the 400 posts you already published between 2019 and 2023, half of which reference algorithm updates that no longer exist, tools that got acquired, or stats from studies that have since been revised?
+
+I spent last weekend building a local RAG pipeline to audit a client archive. Here are the working notes.
+
+## Why local, why RAG, why not just GPT
+
+I tested three approaches before settling.
+
+Approach one was pasting URLs into a chat model and asking it to flag outdated claims. It hallucinated. It "remembered" posts saying things they didn't say. Useless.
+
+Approach two was a long-context dump, feeding 50 posts at a time into Gemini with a 1M context window. Better, but expensive at scale, and the model still drifted on which claim came from which post when I asked for citations.
+
+Approach three: chunk every post, embed locally with `nomic-embed-text` via Ollama, store in a Chroma instance running on my laptop, and query with a structured prompt that forces the model to quote the source chunk before making a judgment. This worked. Total cost: zero, after the initial setup. Total time to index 400 posts: about 18 minutes.
+
+The local part matters because client content is often under NDA, and I don't want to push five years of someone's blog into a third-party vector store with unclear retention policies.
+
+## The actual pipeline
+
+The stack is intentionally boring:
+
+1. Scrape the sitemap, pull each post's HTML, strip to markdown with `trafilatura`.
+2. Chunk by heading (not by token count). A 500-token chunk that splits mid-claim is worse than a 1200-token chunk that keeps a section intact.
+3. Embed with `nomic-embed-text`. I tried `bge-small` and `mxbai-embed-large` first. Nomic gave noticeably better retrieval on SEO-specific jargon.
+4. Store in Chroma with metadata: publish date, last-updated date, URL, primary keyword.
+5. Run a fixed set of audit queries against the index. Each query targets one type of staleness.
+
+The audit queries are where the actual work is. Examples:
+
+- "Claims about Google's algorithm that reference RankBrain, Hummingbird, or BERT as current."
+- "Recommendations to use tools that were acquired or shut down after 2023." (I maintain a small list: Moz Local sold, ContentKing folded into Conductor, etc.)
+- "Statistics about mobile traffic, voice search, or CTR cited with a source year before 2022."
+- "Advice about meta keywords, exact-match domains, or AMP as a ranking factor."
+
+For each query, the pipeline retrieves the top 15 chunks, then a local Llama 3.1 8B model classifies each chunk as `outdated`, `still_valid`, or `needs_human_review`, and quotes the offending sentence.
+
+## What it caught that I would have missed
+
+The interesting failures were not the obvious ones. I expected it to find references to Google+ and dead tools. It did, but I could grep for those.
+
+What it actually caught:
+
+A 2021 post that recommended "thin content" pruning based on a Search Console report structure that Google changed in 2023. The advice was still mostly correct but the screenshots and step-by-step were wrong.
+
+Six posts that cited a BrightEdge stat about organic driving 53% of traffic. That study is from 2019. There's a newer 2024 version with a different number. The model flagged the year mismatch and suggested the updated source.
+
+A whole cluster of posts about featured snippets that didn't mention AI Overviews at all. Not technically outdated, but a content gap the audit surfaced as a side effect: every post on snippet optimization needed an AIO addendum.
+
+That last one is the gap analysis half of the workflow. Once you have everything embedded, you can ask the inverse question: "Which topics in this archive have zero coverage of [new development]?" The retrieval scores tell you where the holes are.
+
+## Where it breaks
+
+The classifier is wrong about 20% of the time, almost always in the direction of false positives. It will flag "Google's E-A-T guidelines" as outdated because E-E-A-T exists now, even when the post is making a point that applies to both. You cannot ship its output directly. You review every flag.
+
+It also struggles with conditional claims. "If you're running a local business, citations still matter" gets flagged if the model has been primed to look for outdated local SEO advice. The retrieval is fine, the judgment is brittle.
+
+And chunking by heading falls apart on posts written without H2s. About 8% of the archive needed manual chunk boundaries.
+
+## What I'd build next
+
+The pipeline outputs a CSV: URL, flagged claim, suggested action, confidence. I hand that to a writer with a two-hour budget per ten posts. That ratio, RAG flags plus human review, is the part nobody talks about when they sell "AI content audits" as a one-click product. The AI does the retrieval and the first-pass triage. A human does the judgment. Neither half works alone.
+
+If you're running an agency or sitting on a content library you haven't touched in two years, the build is genuinely a weekend. Ollama, Chroma, a Python script, and a list of audit queries specific to your vertical. The hard part is not the RAG, it's writing the queries that catch the staleness patterns particular to your niche. Spend more time on the prompts than on the stack. And whatever you do, do not let the model write the updates. Let it find the problems. You write the fix.
