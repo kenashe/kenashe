@@ -1,0 +1,53 @@
+---
+title: "Entity gap patching: the pSEO maintenance loop most teams skip"
+description: "A working note on using LLM entity extraction to keep programmatic SEO pages competitive without rewriting them. The job isn't generating more pages, it's patching semantic gaps in the pages you already have before rankings decay."
+pubDate: 2026-06-19
+tags: ["programmatic-seo", "llm-workflows", "content-ops"]
+draft: false
+---
+
+Programmatic SEO has a maintenance problem nobody wants to talk about. You ship 4,000 pages, half of them rank, and then six months later traffic drifts down because the SERPs evolved and your templates didn't. Most teams respond by generating more pages. That's the wrong move. The right move is a quiet entity-extraction loop that patches the pages you already have.
+
+Here's how I've been thinking about it.
+
+## The decay pattern
+
+When a pSEO page slips from position 4 to position 9, the cause is usually not a Google update. It's that two or three competing pages added coverage of entities your template never included. A "best CRM for solar installers" page that ranked in 2025 probably didn't mention NEM 3.0, lead-to-PTO timelines, or specific integrations with Aurora or Enerflo. By 2026, the top three results do. Google's ranking systems read those as topical completeness signals. Your page reads as thin.
+
+You don't need to rewrite the page. You need to detect what's missing and inject it.
+
+## The loop, in five steps
+
+The workflow I keep coming back to looks like this:
+
+1. Pull the top 10 ranking URLs for each target query in your pSEO set. SerpAPI or DataForSEO both work fine. Cost is about $0.003 per query at volume.
+2. Scrape the main content from each URL. Trafilatura handles this cleanly for most templates.
+3. Run an LLM entity extraction pass on each competitor page. I've been using GPT-5-mini for this with a strict JSON schema: entities, entity types (product, regulation, person, metric, integration), and a one-sentence context for each.
+4. Run the same extraction on your own page. Diff the two sets.
+5. For every entity in the competitor union that's missing from your page, decide: inject, ignore, or flag for human review.
+
+The diff is where the value sits. You're not asking an LLM "is this page good?" You're asking a deterministic question: which named things do the top-ranking pages discuss that mine doesn't?
+
+## Why entity diffs beat "content scoring"
+
+The Clearscope / Surfer / MarketMuse category trained a generation of SEOs to chase keyword densities and topic scores. Those tools optimize for a black-box grade. Entity extraction optimizes for something a human can actually read and approve: a list of specific things missing from a page.
+
+I can look at a diff that says "your page about Shopify apps for jewelry brands doesn't mention Klaviyo flows, GIA certificate handling, or Loop returns" and make a call in three seconds. I cannot do that with a "content score of 73 vs target 85."
+
+The other advantage: entities are atomic. You can write a short paragraph about each one and slot it into a designated section of the template. No need to regenerate the whole page. No risk of nuking the parts that already work.
+
+## Where the workflow breaks
+
+Two failure modes show up consistently.
+
+The first is entity hallucination during extraction. If you don't constrain the model to a schema and a "extract only what is explicitly named in this text" instruction, it will helpfully invent plausible entities. I run a verification pass that re-reads the source HTML and rejects any entity not found as a substring or close variant. Slow, but it kills the false positives.
+
+The second is injection that breaks page coherence. Dropping a paragraph about NEM 3.0 into a CRM comparison page sounds fine in theory. In practice, if your template has a rigid structure (intro, comparison table, FAQ), there's no natural home for a regulatory note. The fix is to design templates with flex slots from day one: a "context" section above the table and an expandable FAQ that can absorb new entries without restructuring.
+
+## What I'd build first
+
+If I were standing this up for a client tomorrow, I'd start with the 200 pages getting the most impressions but ranking 5-15. That's where the leverage is highest. Pages at position 1-3 don't need help. Pages at 30+ usually have structural problems no entity patch will fix.
+
+Run the loop monthly. Log every injection with a timestamp and the source URL that triggered it. After 90 days you'll have a dataset showing which entity types correlate with ranking recovery, and you can start prioritizing the extractions that actually move positions instead of the ones that just look thorough.
+
+The catch most operators miss: this only works if your CMS lets you target updates at the section level via API. If updating a pSEO page means opening a Webflow editor or filing a ticket, the loop dies in week two. Before you write a single line of extraction code, confirm you can PATCH a single field on a single page programmatically. If you can't, fix that first. Everything else is downstream of it.
