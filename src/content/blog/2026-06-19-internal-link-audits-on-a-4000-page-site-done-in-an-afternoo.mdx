@@ -1,0 +1,49 @@
+---
+title: "Internal link audits on a 4,000-page site, done in an afternoon"
+description: "A working note on how I rebuilt our legacy internal link audit process using Claude 3.5 Sonnet and a small Python script. What the model is good at, where it falls apart, and the prompt structure that made the output trustworthy enough to ship."
+pubDate: 2026-06-19
+tags: ["claude", "seo", "python"]
+draft: false
+---
+
+The site I was looking at had about 4,000 indexed URLs. Most of them were old. Some were genuinely useful but orphaned. Most pointed nowhere helpful, or pointed to the homepage out of habit. The classic legacy content problem: years of writing, no link discipline.
+
+I used to handle this with Screaming Frog plus a spreadsheet and a lot of squinting. This time I tried a different stack: a crawl, a Python script, and Claude 3.5 Sonnet doing the part that actually requires reading.
+
+## What the script does before the model sees anything
+
+The model is expensive when you let it read everything. So the Python layer does the boring work first.
+
+I crawled the site, pulled the URL, title, H1, meta description, the first 1,500 characters of body copy, and every internal link with its anchor text. Stored as JSON, one file per page. Then I built a simple index: a flat list of `{url, title, summary}` for every page on the site. The summary is just the first 200 characters of the body, cleaned.
+
+That index becomes the candidate pool. When I audit page A, Claude doesn't get all 4,000 pages. It gets page A in full, plus the index, plus the existing outbound links from A. Roughly 60k tokens for a big site, well inside the window.
+
+The prompt asks for three things: which existing internal links on this page are weak (wrong anchor, wrong target, or pointing to a near-dead page), which new internal links should be added with anchor text suggestions, and a confidence score per recommendation.
+
+## Where Sonnet earns its money
+
+Reading topical relevance across thousands of titles and summaries is exactly the task. It's pattern matching at scale with light reasoning. On a page about "first-party data strategy," it correctly flagged that a 2021 post on cookie deprecation should be linked, suggested an anchor ("the deprecation timeline that kept slipping"), and noted that the existing link to a generic "analytics 101" page was probably wasted.
+
+It also caught things I would have missed. One page had four outbound links, three of which pointed to URLs that 301'd to a consolidated hub. Sonnet noticed the redirect chain because I'd included HTTP status in the page metadata. I would not have checked that manually on every page.
+
+The confidence scoring helped more than I expected. Anything 0.9 or above I trusted on a skim. Anything below 0.7 I either rejected or hand-checked. The 0.7 to 0.9 band was where the real review work happened, and that band was small enough to handle.
+
+## Where it falls apart
+
+Two failure modes showed up consistently.
+
+First, Sonnet will hallucinate plausible-sounding URLs if your index has any gaps. If a page is in your sitemap but failed to crawl, the model will sometimes invent a URL that fits the pattern. I added a validation step: every recommended URL has to exist in the index, or it gets dropped. About 3% of suggestions were filtered this way. Not catastrophic, but enough that you cannot skip the check.
+
+Second, the model is bad at deciding when *not* to add a link. Ask it for new internal link opportunities and it will find them. Always. Even when the page is already well-linked and adding another would dilute the existing structure. I had to put a hard cap in the prompt: "Suggest a maximum of 3 new links, and only if they meaningfully add value. It is correct and expected to suggest zero." That last sentence mattered. Without it, every page got three suggestions whether it needed them or not.
+
+## The cost math
+
+Sonnet ran me about $0.30 per page audited at this prompt size. For 4,000 pages that's $1,200, which is a lot until you compare it to the agency quote I had on file for the same project: $18,000 and six weeks. I audited the top 600 pages by traffic first, which is where 90% of the value lives anyway. Total cost: $180. Time: one afternoon to write the script, one overnight run, two days of human review.
+
+The deliverable was a CSV with page URL, recommended action, target URL, suggested anchor, confidence, and reasoning. The reasoning column is what made it shippable. A junior on the team could action the high-confidence rows without needing to re-derive why.
+
+## What I'd change next time
+
+I'd add a second pass that looks at the link graph holistically rather than page by page. Per-page audits are good at local decisions but miss things like "this orphan page is being recommended as a link target from twelve other pages, so let's prioritize fixing it first." That's a graph problem, not a reading problem, and you don't need an LLM for it. NetworkX would do it in twenty lines.
+
+If you're a marketer sitting on a legacy site and waiting for budget to do this properly, the practitioner move is to stop waiting. Run it on your top 200 pages by organic traffic this week. The script is maybe 150 lines. The real skill isn't the code, it's writing the prompt so the model knows when zero suggestions is the right answer, and building the validation layer that catches the hallucinated URLs before they reach a CSV someone might actually ship. Skip either of those and you've just automated a slightly faster way to publish bad links.
