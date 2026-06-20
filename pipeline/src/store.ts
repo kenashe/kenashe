@@ -3,7 +3,7 @@
 // Store interface: JSONFileStore for dev, PostgresStore (pgvector) for production.
 import fs from 'node:fs';
 import path from 'node:path';
-import pg from 'pg';
+import * as pg from 'pg';
 import { env } from './config.ts';
 import type { Vec, SparseVec } from './types.ts';
 

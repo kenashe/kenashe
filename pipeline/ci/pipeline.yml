@@ -1,17 +1,18 @@
 name: Content Pipeline
 
-# OFF until you flip it on: set repo variable PIPELINE_ENABLED=true (Settings >
-# Secrets and variables > Actions > Variables). Until then schedule/manual no-op.
+# OFF until you flip it on: set repo variable PIPELINE_ENABLED=true
+# (Settings > Secrets and variables > Actions > Variables tab).
+# Run manually from the Actions tab (choose a mode) or let the daily cron run it.
 on:
   workflow_dispatch:
     inputs:
       mode:
         description: "run mode"
         type: choice
-        options: [shadow, live]
+        options: [shadow, backfill, live]
         default: shadow
   schedule:
-    - cron: "0 13 * * *" # 13:00 UTC daily
+    - cron: "0 13 * * *" # 13:00 UTC daily (runs in shadow until you switch the default to live)
 
 concurrency:
   group: content-pipeline
@@ -22,7 +23,7 @@ jobs:
     if: ${{ vars.PIPELINE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write # allow the pipeline to commit posts
+      contents: write # lets the pipeline commit posts on a live run
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,8 +33,11 @@ jobs:
           node-version: "22"
       - name: Install
         working-directory: pipeline
-        run: npm ci
-      - name: Run
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        working-directory: pipeline
+        run: npm run typecheck
+      - name: Run (${{ github.event.inputs.mode || 'shadow' }})
         working-directory: pipeline
         env:
           STORE_BACKEND: postgres
@@ -46,7 +50,12 @@ jobs:
           VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGES_ENABLED: "1"
           GIT_BRANCH: master
         run: |
-          if [ "${{ github.event.inputs.mode }}" = "live" ]; then npm run run:once; else npm run run:shadow; fi
+          MODE="${{ github.event.inputs.mode || 'shadow' }}"
+          echo "Running in mode: $MODE"
+          if [ "$MODE" = "backfill" ]; then npm run backfill;
+          elif [ "$MODE" = "live" ]; then npm run run:once;
+          else npm run run:shadow; fi

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import YAML from 'yaml';
+import { parse as parseYaml } from 'yaml';
 import type { SourceConfig } from './types.ts';
 
 export const env = {
@@ -42,6 +42,6 @@ export const GATE = {
 
 export function loadSources(): SourceConfig[] {
   const p = path.resolve(import.meta.dirname, '../config/sources.yaml');
-  const doc = YAML.parse(fs.readFileSync(p, 'utf8')) as { sources?: SourceConfig[] };
+  const doc = parseYaml(fs.readFileSync(p, 'utf8')) as { sources?: SourceConfig[] };
   return doc.sources ?? [];
 }
