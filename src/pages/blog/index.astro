@@ -20,6 +20,12 @@ for (const p of posts) {
 const tags = [...tagCounts.entries()].sort(
   (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
 );
+
+// Show the most-used tags inline; the long tail collapses behind a toggle and
+// lives on dedicated, crawlable pages at /blog/tags/<tag>/.
+const TOP_TAGS = 14;
+const primaryTags = tags.slice(0, TOP_TAGS);
+const extraTags = tags.slice(TOP_TAGS);
 ---
 
 <BaseLayout
@@ -59,11 +65,28 @@ const tags = [...tagCounts.entries()].sort(
               >
                 All <span class="count">({posts.length})</span>
               </button>
-              {tags.map(([tag, count]) => (
+              {primaryTags.map(([tag, count]) => (
                 <button class="filter" type="button" data-filter={tag} aria-pressed="false">
                   {tag} <span class="count">({count})</span>
                 </button>
               ))}
+              {extraTags.map(([tag, count]) => (
+                <button
+                  class="filter filter-extra"
+                  type="button"
+                  data-filter={tag}
+                  aria-pressed="false"
+                  hidden
+                >
+                  {tag} <span class="count">({count})</span>
+                </button>
+              ))}
+              {extraTags.length > 0 && (
+                <button class="tag-more" type="button" id="tag-more" aria-expanded="false">
+                  +{extraTags.length} more
+                </button>
+              )}
+              <a class="tag-alltags" href="/blog/tags/">All tags →</a>
             </nav>
           )}
 
@@ -159,6 +182,23 @@ const tags = [...tagCounts.entries()].sort(
       }
     });
   });
+
+  // Collapse the long tail of tag filters behind a toggle (progressive
+  // enhancement — the full set also lives at /blog/tags/).
+  const moreBtn = document.getElementById('tag-more');
+  if (moreBtn) {
+    const extras = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.filters .filter-extra'),
+    );
+    moreBtn.addEventListener('click', () => {
+      const expanded = moreBtn.getAttribute('aria-expanded') === 'true';
+      extras.forEach((el) => {
+        el.hidden = expanded;
+      });
+      moreBtn.setAttribute('aria-expanded', String(!expanded));
+      moreBtn.textContent = expanded ? `+${extras.length} more` : 'Show fewer';
+    });
+  }
 </script>
 
 <style>
@@ -290,6 +330,37 @@ const tags = [...tagCounts.entries()].sort(
   }
   .filter[data-active] .count {
     color: color-mix(in oklab, var(--accent) 65%, var(--muted));
+  }
+  .filter-extra[hidden] {
+    display: none;
+  }
+  .tag-more,
+  .tag-alltags {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0.3rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition:
+      color 150ms ease,
+      border-color 150ms ease;
+  }
+  .tag-more:hover {
+    color: var(--fg);
+  }
+  .tag-alltags {
+    color: color-mix(in oklab, var(--accent) 80%, var(--muted));
+  }
+  .tag-alltags:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
   }
 
   /* Card grid */

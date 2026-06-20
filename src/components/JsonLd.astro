@@ -4,7 +4,14 @@ interface Props {
 }
 
 const { data } = Astro.props;
-const json = JSON.stringify(data);
+// Escape characters that could break out of the <script> context or inject
+// markup. JSON-LD is read as data (not executed as JS), so escaping <, >, and &
+// is sufficient — content flows in from AI-generated titles/descriptions, where
+// a stray "</script>" or "<" must not terminate the block.
+const json = JSON.stringify(data)
+  .replace(/</g, '\\u003c')
+  .replace(/>/g, '\\u003e')
+  .replace(/&/g, '\\u0026');
 ---
 
 <script type="application/ld+json" is:inline set:html={json} />
