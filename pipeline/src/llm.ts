@@ -73,3 +73,20 @@ export async function embed(text: string, model = 'text-embedding-3-small'): Pro
   const j = (await res.json()) as any;
   return j.data[0].embedding as number[];
 }
+
+// Batched embeddings (chunked) for ingest + dedup. One call per up-to-96 inputs.
+export async function embedMany(texts: string[], model = 'text-embedding-3-small'): Promise<number[][]> {
+  const out: number[][] = [];
+  for (let i = 0; i < texts.length; i += 96) {
+    const chunk = texts.slice(i, i + 96).map((t) => t.slice(0, 8000) || ' ');
+    const res = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key('OPENAI_API_KEY')}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model, input: chunk }),
+    });
+    if (!res.ok) throw new Error(`embeddings ${res.status}: ${await res.text()}`);
+    const j = (await res.json()) as any;
+    for (const d of j.data) out.push(d.embedding as number[]);
+  }
+  return out;
+}

@@ -65,9 +65,32 @@ async function hackernews(src: SourceConfig): Promise<Item[]> {
     .map((h) => base(src, { id: `hn:${h.objectID}`, url: h.url ?? `https://news.ycombinator.com/item?id=${h.objectID}`, title: strip(h.title), text: strip(h.story_text ?? h.title), publishedAt: iso(h.created_at) }));
 }
 
-// TODO(prod): implement. github via GET /repos/{r}/releases; reddit via /r/{sub}/top.json
-async function githubReleases(_src: SourceConfig): Promise<Item[]> { return []; }
-async function reddit(_src: SourceConfig): Promise<Item[]> { return []; }
+async function githubReleases(src: SourceConfig): Promise<Item[]> {
+  const repos = (src.repos as string[] | undefined) ?? [];
+  const headers = process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {};
+  const out: Item[] = [];
+  for (const repo of repos) {
+    try {
+      const rels = (await getJson(`https://api.github.com/repos/${repo}/releases?per_page=2`, headers)) as any[];
+      for (const r of rels) {
+        if (r.draft || r.prerelease) continue;
+        out.push(base(src, { id: `gh:${repo}:${r.id}`, url: r.html_url, title: `${repo} ${r.tag_name ?? r.name ?? ''}`.trim(), text: strip(r.body ?? r.name ?? repo), publishedAt: iso(r.published_at) }));
+      }
+    } catch (e) { console.warn(`[github] ${repo}: ${(e as Error).message}`); }
+  }
+  return out;
+}
+
+async function reddit(src: SourceConfig): Promise<Item[]> {
+  const sub = String(src.subreddit);
+  const min = Number(src.minUpvotes ?? 100);
+  const j = await getJson(`https://www.reddit.com/r/${sub}/top.json?t=day&limit=30`);
+  return (j.data?.children ?? [])
+    .map((c: any) => c.data)
+    .filter((d: any) => (d.ups ?? 0) >= min && !d.over_18 && !d.stickied)
+    .slice(0, 15)
+    .map((d: any) => base(src, { id: `reddit:${d.id}`, url: `https://www.reddit.com${d.permalink}`, title: strip(d.title), text: strip(d.selftext || d.title), publishedAt: iso(new Date((d.created_utc ?? 0) * 1000).toISOString()) }));
+}
 
 const CONNECTORS: Record<string, (s: SourceConfig) => Promise<Item[]>> = {
   rss, youtube, arxiv, hackernews, github_releases: githubReleases, reddit,

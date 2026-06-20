@@ -3,6 +3,7 @@
 // Store interface: JSONFileStore for dev, PostgresStore (pgvector) for production.
 import fs from 'node:fs';
 import path from 'node:path';
+import pg from 'pg';
 import { env } from './config.ts';
 import type { Vec, SparseVec } from './types.ts';
 
@@ -55,15 +56,44 @@ export class JSONFileStore implements Store {
   }
 }
 
-// TODO(prod): implement with `pg` + pgvector. Schema in pipeline/db/schema.sql.
-// covered.vec stored as vector(1536); dedup via `ORDER BY vec <=> $1 LIMIT 1`.
+// Postgres + pgvector store. Embeddings stored as vector(1536); see db/schema.sql.
 export class PostgresStore implements Store {
-  constructor(private url: string) {}
-  async loadCovered(): Promise<CoveredEntry[]> { throw new Error('PostgresStore: TODO (see db/schema.sql)'); }
-  async addCovered(): Promise<void> { throw new Error('PostgresStore: TODO'); }
-  async filterUnseen(): Promise<string[]> { throw new Error('PostgresStore: TODO'); }
-  async markSeen(): Promise<void> { throw new Error('PostgresStore: TODO'); }
-  async recordRun(): Promise<void> { throw new Error('PostgresStore: TODO'); }
+  private pool: pg.Pool;
+  constructor(url: string) {
+    this.pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: 3 });
+  }
+  async loadCovered(): Promise<CoveredEntry[]> {
+    const { rows } = await this.pool.query('select slug, title, published_at, embedding::text as embedding from covered');
+    return rows.map((r: any) => ({
+      slug: r.slug,
+      title: r.title,
+      publishedAt: new Date(r.published_at).toISOString(),
+      vec: JSON.parse(r.embedding) as number[], // pgvector text form "[..]" is valid JSON
+    }));
+  }
+  async addCovered(e: CoveredEntry): Promise<void> {
+    if (!Array.isArray(e.vec)) throw new Error('PostgresStore needs dense embeddings — set OPENAI_API_KEY');
+    await this.pool.query(
+      'insert into covered(slug, title, published_at, embedding) values ($1, $2, $3, $4::vector) on conflict (slug) do nothing',
+      [e.slug, e.title, e.publishedAt.slice(0, 10), `[${e.vec.join(',')}]`],
+    );
+  }
+  async filterUnseen(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await this.pool.query('select id from items where id = any($1)', [ids]);
+    const seen = new Set(rows.map((r: any) => r.id));
+    return ids.filter((id) => !seen.has(id));
+  }
+  async markSeen(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.pool.query(
+      `insert into items(id) values ${ids.map((_, i) => `($${i + 1})`).join(',')} on conflict (id) do nothing`,
+      ids,
+    );
+  }
+  async recordRun(report: unknown): Promise<void> {
+    await this.pool.query('insert into runs(started_at, report) values (now(), $1)', [JSON.stringify(report)]);
+  }
 }
 
 export function getStore(): Store {

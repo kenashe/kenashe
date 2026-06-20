@@ -6,6 +6,7 @@ import { env, loadSources } from './config.ts';
 import { getStore } from './store.ts';
 import { ingest } from './ingest.ts';
 import { LexicalEmbedder, cluster, isCovered } from './core.ts';
+import { embedMany } from './llm.ts';
 import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
 import { addImages } from './images.ts';
@@ -39,10 +40,16 @@ async function main(): Promise<void> {
   report.ingested = items.length;
   const memory = await store.loadCovered();
 
-  // DEV embedder (lexical, dep-free). PROD: swap to llm.embed() for semantic vectors.
-  const emb = new LexicalEmbedder();
-  emb.fit([...items.map((i) => `${i.title} ${i.text}`), ...memory.map((m) => m.title)]);
-  const itemsV = items.map((i) => ({ item: i, vec: emb.embed(i.text, i.title) as Vec }));
+  // Embeddings: semantic (OpenAI) when a key is present, else the lexical dev fallback.
+  let itemsV: { item: Item; vec: Vec }[];
+  if (process.env.OPENAI_API_KEY) {
+    const vecs = await embedMany(items.map((i) => `${i.title}\n\n${i.text.slice(0, 6000)}`));
+    itemsV = items.map((i, idx) => ({ item: i, vec: vecs[idx] as Vec }));
+  } else {
+    const emb = new LexicalEmbedder();
+    emb.fit([...items.map((i) => `${i.title} ${i.text}`), ...memory.map((m) => m.title)]);
+    itemsV = items.map((i) => ({ item: i, vec: emb.embed(i.text, i.title) as Vec }));
+  }
 
   const groups = cluster(itemsV, env.clusterSim);
   const stories: Story[] = groups.map((g) => ({

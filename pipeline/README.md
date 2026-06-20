@@ -30,11 +30,16 @@ Shadow mode degrades gracefully without provider keys (connectors that need keys
 - `config/sources.yaml` — the source registry (edit freely; tiers + weights).
 - `src/config.ts` — model assignments (`MODELS`), tier counts, gate thresholds (`GATE`), image counts (`IMAGES`), thresholds via env.
 
-## Production TODOs (marked in code)
-- `store.ts` `PostgresStore` — implement against `db/schema.sql` (pgvector nearest-neighbour).
-- `run.ts` — swap `LexicalEmbedder` for `llm.embed()` so dedup/cluster use **semantic** vectors (sharper than the dev lexical proxy).
-- `ingest.ts` — implement `github_releases` and `reddit` connectors (others are live).
-- One-time backfill: embed the existing published posts into `covered`.
+## Production wiring (implemented)
+- `store.ts` `PostgresStore` — pgvector-backed covered memory, seen-items, run logs.
+- `run.ts` — semantic embeddings (`embedMany`) when `OPENAI_API_KEY` is set; lexical fallback otherwise.
+- `ingest.ts` — all connectors live (rss, youtube, arxiv, hackernews, github_releases, reddit).
+- `npm run backfill` — one-time: embeds existing published posts into `covered` so dedup works from run 1.
+
+## Remaining to go live
+- `psql "$DATABASE_URL" -f db/schema.sql` (create tables), then `npm run backfill`.
+- Copy `pipeline/ci/pipeline.yml` to `.github/workflows/pipeline.yml` and commit it (PATs can't push workflow files).
+- Set GitHub secrets + repo variable `PIPELINE_ENABLED=true`; run in **shadow** ~5 days, then **live**.
 
 ## Why this fixes the old bugs
 - **Slugs:** `publish.ts` `cleanSlug()` removes apostrophes (no more `vibe-checks-don`) and truncates on a word boundary (no more `…own-wo`).
