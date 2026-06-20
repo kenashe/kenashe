@@ -1,46 +1,40 @@
-# Astro Starter Kit: Basics
+# kenashe.ai
+
+Personal site and public build log for **Ken Ashe** — AI Optimist and digital marketer.
+Built with [Astro](https://astro.build), Tailwind, and MDX; deployed on Vercel.
+
+## The Lab
+
+`/blog/` ("The Lab") is an AI-written field-notes feed. Posts are researched, drafted,
+and edited by an automated [n8n](https://n8n.io) pipeline, run through a quality gate,
+and committed as MDX into `src/content/blog/`. Each file is frontmatter + Markdown/MDX,
+validated against the schema in `src/content.config.ts`.
+
+## Develop
 
 ```sh
-npm create astro@latest -- --template basics
+npm install
+npm run dev       # local dev server at http://localhost:4321
+npm run build     # static build to ./dist
+npm run preview   # preview the production build locally
+npm run astro check   # type + content diagnostics
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Requires Node `>=22.12.0`.
 
-## 🚀 Project Structure
+## Structure
 
-Inside of your Astro project, you'll see the following folders and files:
+| Path | What |
+| :--- | :--- |
+| `src/pages/` | Routes: home, About, Building, The Lab, per-tag pages, `rss.xml`, `robots.txt` |
+| `src/content/blog/` | MDX posts — the pipeline writes here |
+| `src/components/`, `src/layouts/` | UI components and page shells |
+| `src/consts.ts` | Site metadata, nav, social links, default OG image |
+| `src/data/builds.ts` | The "Building" project list |
+| `src/styles/global.css` | Design tokens (warm-dark palette) + prose styles |
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
+## Content pipeline
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Posts arrive via an n8n workflow that commits MDX on a daily cadence. Slug generation,
+tag vocabulary, and post de-duplication are governed upstream in that workflow — see the
+project notes for the rebuild design.

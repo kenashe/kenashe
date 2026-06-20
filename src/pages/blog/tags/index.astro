@@ -1,0 +1,124 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+const posts = await getCollection('blog', ({ data }) =>
+  import.meta.env.PROD ? !data.draft : true,
+);
+
+const counts = new Map<string, number>();
+for (const p of posts) {
+  for (const t of p.data.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+}
+const tags = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+---
+
+<BaseLayout
+  title="All tags"
+  description="Browse every topic in The Lab by tag."
+>
+  <div class="page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/blog/"><span aria-hidden="true">←</span> The Lab</a>
+    </nav>
+
+    <header class="page-header">
+      <p class="page-mark" aria-hidden="true">// tags</p>
+      <h1>All tags</h1>
+      <p class="tagline">{tags.length} topics across The Lab.</p>
+    </header>
+
+    {
+      tags.length > 0 && (
+        <ul class="tag-cloud">
+          {tags.map(([tag, count]) => (
+            <li>
+              <a href={`/blog/tags/${tag}/`}>
+                {tag} <span class="count">{count}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .page-header {
+    margin-bottom: 2.5rem;
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .page-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0 0 0.75rem;
+    color: var(--fg);
+  }
+  .tagline {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .tag-cloud {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .tag-cloud a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    text-decoration: none;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    transition: color 150ms ease, border-color 150ms ease;
+  }
+  .tag-cloud a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .tag-cloud .count {
+    font-variant-numeric: tabular-nums;
+    color: color-mix(in oklab, var(--accent) 60%, var(--muted));
+  }
+</style>
