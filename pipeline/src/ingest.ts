@@ -67,7 +67,7 @@ async function hackernews(src: SourceConfig): Promise<Item[]> {
 
 async function githubReleases(src: SourceConfig): Promise<Item[]> {
   const repos = (src.repos as string[] | undefined) ?? [];
-  const headers = process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {};
+  const headers: Record<string, string> = process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {};
   const out: Item[] = [];
   for (const repo of repos) {
     try {
