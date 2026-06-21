@@ -29,13 +29,13 @@ async function altText(role: string, intent: string): Promise<string> {
   catch { return intent.slice(0, 120); }
 }
 
-export async function addImages(draft: DraftPost, repoRoot: string, shadow: boolean): Promise<void> {
+export async function addImages(draft: DraftPost, repoRoot: string, _shadow: boolean): Promise<void> {
   const dir = path.join(repoRoot, 'src/assets/blog', draft.slug);
   const relFromMdx = (file: string) => path.relative('src/content/blog', `src/assets/blog/${draft.slug}/${file}`);
   const write = (file: string, buf: Buffer) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, file), buf); };
   const images: ImageAsset[] = [];
 
-  const heroBuf = shadow ? null : await genImage(heroImagePrompt(draft.title, draft.description), '1536x1024');
+  const heroBuf = await genImage(heroImagePrompt(draft.title, draft.description), '1536x1024');
   if (heroBuf) { write('hero.png', heroBuf); images.push({ role: 'hero', path: `src/assets/blog/${draft.slug}/hero.png`, alt: await altText('hero', draft.title) }); }
 
   let i = 0;
@@ -44,7 +44,7 @@ export async function addImages(draft: DraftPost, repoRoot: string, shadow: bool
   for (const m of draft.body.matchAll(PLACEHOLDER)) {
     parts.push(draft.body.slice(last, m.index ?? 0));
     last = (m.index ?? 0) + m[0].length;
-    const buf = shadow ? null : await genImage(inlineImagePrompt(m[1].trim()), '1024x1024');
+    const buf = await genImage(inlineImagePrompt(m[1].trim()), '1024x1024');
     if (buf) {
       i += 1;
       const file = `inline-${i}.png`;
