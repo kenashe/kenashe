@@ -10,7 +10,7 @@ import { embedMany } from './llm.ts';
 import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
 import { addImages } from './images.ts';
-import { writePost, commitAndPush, triggerDeploy } from './publish.ts';
+import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
 import type { Item, Story, RunReport, Vec } from './types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../');
@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   const store = getStore();
   const report: RunReport = { startedAt: new Date().toISOString(), shadow, ingested: 0, stories: 0, deduped: 0, selected: 0, published: [], drafted: [], skipped: [], errors: [] };
 
-  const items = await ingest(loadSources(), store);
+  const items = await ingest(loadSources(), store, { skipSeen: shadow });
   report.ingested = items.length;
   const memory = await store.loadCovered();
 
@@ -94,6 +94,8 @@ async function main(): Promise<void> {
   if (!shadow && (report.published.length || report.drafted.length)) {
     commitAndPush(repoRoot, `pipeline: ${report.published.length} posts, ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
     await triggerDeploy();
+  } else if (shadow && report.drafted.length) {
+    commitToBranch(repoRoot, 'pipeline-shadow', `shadow preview: ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
   }
   await store.recordRun(report);
   await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nPublished ${report.published.length} (${flagships.length} flagship), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);

@@ -75,6 +75,15 @@ export function commitAndPush(repoRoot: string, message: string): void {
   execSync(`git push origin ${env.gitBranch}`, { cwd: repoRoot, stdio: 'inherit' });
 }
 
+// Shadow preview: commit drafted files to a throwaway branch (force-pushed each run)
+// so they can be read on GitHub without publishing to master.
+export function commitToBranch(repoRoot: string, branch: string, message: string): void {
+  execSync(`git checkout -B ${branch}`, { cwd: repoRoot, stdio: 'inherit' });
+  execSync('git add -A', { cwd: repoRoot, stdio: 'inherit' });
+  execSync(`git -c user.name="kenashe pipeline" -c user.email="pipeline@users.noreply.github.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
+  execSync(`git push -f origin ${branch}`, { cwd: repoRoot, stdio: 'inherit' });
+}
+
 export async function triggerDeploy(): Promise<void> {
   if (!env.vercelHook) return;
   await fetch(env.vercelHook, { method: 'POST' });

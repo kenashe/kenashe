@@ -96,14 +96,15 @@ const CONNECTORS: Record<string, (s: SourceConfig) => Promise<Item[]>> = {
   rss, youtube, arxiv, hackernews, github_releases: githubReleases, reddit,
 };
 
-export async function ingest(sources: SourceConfig[], store: Store): Promise<Item[]> {
+export async function ingest(sources: SourceConfig[], store: Store, opts: { skipSeen?: boolean } = {}): Promise<Item[]> {
   const all: Item[] = [];
   for (const src of sources) {
     try {
-      const items = await CONNECTORS[src.type]?.(src) ?? [];
+      const items = (await CONNECTORS[src.type]?.(src)) ?? [];
       all.push(...items.filter((i) => i.id && i.title));
     } catch (e) { console.warn(`[ingest] ${src.name}: ${(e as Error).message}`); }
   }
+  if (opts.skipSeen) return all; // shadow: process everything, leave the seen-table untouched (repeatable)
   const unseen = new Set(await store.filterUnseen(all.map((i) => i.id)));
   const fresh = all.filter((i) => unseen.has(i.id));
   await store.markSeen(fresh.map((i) => i.id));
