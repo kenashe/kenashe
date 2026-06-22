@@ -69,10 +69,13 @@ Output JSON: {"originality":N,"voice_match":N,"factual_defensibility":N,"reader_
 Thresholds are applied by the caller per tier; still set verdict "publish" if total>=30 and no critical fails, else "queue_for_review".`;
 
 // Strict, on-brand house style for generated images. Warm-dark editorial; bans AI cliches.
-export function heroImagePrompt(title: string, desc: string): string {
-  return `Editorial Open Graph hero, 1200x630, for an AI essay titled "${title}". ${desc}
-House style (strict): warm near-black background #16130E, off-white #F3EEE3, single amber accent #FFB300. Confident, restrained, conceptual — NOT literal. Generous negative space.
-HARD BANS: glowing orbs, neon brains, circuit-board textures, robots, floating holograms, sci-fi, stock-photo people, any baked-in text or logos.`;
+// gpt-image-1 renders any quoted/explicit text, so we NEVER pass the title and we forbid
+// all text. The description is mood/theme only, interpreted abstractly.
+export function heroImagePrompt(_title: string, desc: string): string {
+  return `An abstract, editorial cover image for a serious technology essay. Interpret this theme purely visually, and do not depict any of these words: ${desc}
+Style: sophisticated and minimal, like a high-end design-studio or magazine cover. Abstract geometric forms and considered composition with generous negative space. NOT icon clip-art, NOT a literal depiction of objects, NOT a diagram.
+Palette (strict): warm near-black background (#16130E), warm off-white (#F3EEE3), and a single amber (#FFB300) accent used sparingly.
+ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, or typography anywhere in the image. No glowing orbs, neon brains, circuit boards, robots, holograms, sci-fi, or stock-photo people.`;
 }
 
 export function inlineImagePrompt(intent: string): string {
