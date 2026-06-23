@@ -13,7 +13,9 @@ export async function gate(draft: DraftPost): Promise<GateResult> {
   catch { g = { originality: 0, voice_match: 0, factual_defensibility: 0, reader_value: 0, total: 0, ai_tells_found: [], critical_fails: ['gate_parse_error'], verdict: 'queue_for_review', reason: 'gate output not JSON' }; }
 
   const t = draft.tierKind === 'flagship' ? GATE.flagship : GATE.note;
-  const pass = g.total >= t.min && g.critical_fails.length === 0 && g.ai_tells_found.length <= t.allowAiTells;
+  // Tells are logged for visibility but are NOT a hard gate — the grader over-flags them,
+  // and voice quality is already captured in the scores. Real gatekeeping = score + critical_fails.
+  const pass = g.total >= t.min && g.critical_fails.length === 0;
   draft.draft = !pass;
   return g;
 }

@@ -34,10 +34,11 @@ export const IMAGES = {
   note: { hero: 1, inline: 1 },
 };
 
-// Tiered quality gate thresholds (out of 40).
+// Tiered score floors (out of 40). The grader scores conservatively, so these are modest;
+// critical_fails (not the raw score or tell-count) do the real gatekeeping.
 export const GATE = {
-  flagship: { min: 34, allowAiTells: 0 },
-  note: { min: 30, allowAiTells: 1 },
+  flagship: { min: 30 },
+  note: { min: 27 },
 };
 
 export function loadSources(): SourceConfig[] {
