@@ -83,8 +83,8 @@ ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, or typogra
 }
 
 export function inlineImagePrompt(intent: string): string {
-  return `Clean editorial visual for an AI article: ${intent}.
-Warm near-black #16130E background, off-white #F3EEE3, amber #FFB300 accent. If a diagram, make it crisp and legible with clear labels. No clutter, no AI-art cliches, no stock people, no fake logos.`;
+  return `Clean editorial visual for an AI article, composed for a WIDE landscape frame: ${intent}.
+Warm near-black #16130E background, off-white #F3EEE3, amber #FFB300 accent. If a diagram, make it crisp and legible with clear labels. CRITICAL: keep every shape, label, and word fully inside the canvas with generous margins on all sides — nothing cropped, clipped, or touching an edge; lay any left-to-right flow out horizontally with comfortable spacing. No clutter, no AI-art cliches, no stock people, no fake logos.`;
 }
 
 export function altTextUser(role: string, intent: string): string {
