@@ -75,15 +75,18 @@ async function main(): Promise<void> {
   const selected: Story[] = [...flagships, ...notes];
   report.selected = selected.length;
 
+  let gatePass = 0;
   for (const story of selected) {
     try {
       const draft = await synthesize(story);
-      await gate(draft); // sets draft.draft based on tier threshold
+      const g = await gate(draft); // sets draft.draft based on tier threshold
+      if (!draft.draft) gatePass += 1; // gate verdict, before the shadow override
+      const why = `${g.verdict} ${g.total}/40${g.critical_fails.length ? ` fails=[${g.critical_fails.join('; ')}]` : ''}${g.ai_tells_found.length ? ` tells=${g.ai_tells_found.length}` : ''} :: ${g.reason}`;
       await addImages(draft, repoRoot, shadow);
       if (shadow) draft.draft = true; // shadow never publishes
       writePost(repoRoot, draft);
       if (draft.draft) {
-        report.drafted.push({ slug: draft.slug, reason: shadow ? 'shadow' : 'below gate' });
+        report.drafted.push({ slug: draft.slug, reason: why });
       } else {
         report.published.push({ slug: draft.slug, tier: draft.tierKind });
         await store.addCovered({ slug: draft.slug, title: draft.title, publishedAt: draft.pubDate, vec: story.vec });
@@ -98,7 +101,7 @@ async function main(): Promise<void> {
     commitToBranch(repoRoot, 'pipeline-shadow', `shadow preview: ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
   }
   await store.recordRun(report);
-  await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nPublished ${report.published.length} (${flagships.length} flagship), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);
+  await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nGate passed ${gatePass}/${report.selected}. Published ${report.published.length} (${flagships.length} flagship), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);
   console.log(JSON.stringify(report, null, 2));
 }
 
