@@ -48,18 +48,18 @@ export const projects: Project[] = [
     metric: `${daysSince('2026-05-04')} days running`,
   },
   {
-    title: 'Sir Pitches-a-lot',
-    status: 'SHIPPED',
-    dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
-    stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
-    footer: ['June 2026', 'Agent Battle Night', 'NY Tech Week'],
-  },
-  {
     title: 'Agent website redesign',
     status: 'SHIPPED',
     dek: 'Used HyperAgent to rebuild a live business site and deploy it to GitHub Pages with a custom domain, agent-driven end to end.',
     stack: ['HyperAgent', 'GitHub Pages', 'Web3Forms'],
     footer: ['Jun 2026', 'LuckyDomains.io'],
+  },
+  {
+    title: 'Sir Pitches-a-lot',
+    status: 'SHIPPED',
+    dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
+    stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
+    footer: ['June 2026', 'Agent Battle Night', 'NY Tech Week'],
   },
   {
     title: 'AI blog automation v1',
