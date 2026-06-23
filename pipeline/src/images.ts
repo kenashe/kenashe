@@ -44,7 +44,7 @@ export async function addImages(draft: DraftPost, repoRoot: string, _shadow: boo
   for (const m of draft.body.matchAll(PLACEHOLDER)) {
     parts.push(draft.body.slice(last, m.index ?? 0));
     last = (m.index ?? 0) + m[0].length;
-    const buf = await genImage(inlineImagePrompt(m[1].trim()), '1536x1024');
+    const buf = await genImage(inlineImagePrompt(m[1].trim(), draft.slug), '1536x1024');
     if (buf) {
       i += 1;
       const file = `inline-${i}.png`;

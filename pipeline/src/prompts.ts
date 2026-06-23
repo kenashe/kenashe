@@ -43,8 +43,8 @@ export function synthesisUser(story: Item[], tier: TierKind): string {
 Write a ${tier.toUpperCase()} post (${len}) synthesizing the sources below into one original take.
 
 Insert exactly ${imgN} inline image placeholder(s) on their own line where a visual would help, formatted:
-{{IMAGE:inline:short description of the ideal visual, e.g. "diagram: how the three stages connect"}}
-Prefer a diagram or data chart over decoration.
+{{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
+Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.
 
 Output ONLY MDX with this frontmatter then the body:
 ---
@@ -150,9 +150,18 @@ Composition: balanced and confident with a clear focal point and breathing room,
 ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, watermarks, or typography anywhere in the image. Avoid AI-art cliches: no glowing orbs, neon brains, circuit boards, humanoid robots, holograms, sci-fi HUDs, or stock-photo people.`;
 }
 
-export function inlineImagePrompt(intent: string): string {
-  return `Clean editorial visual for an AI article, composed for a WIDE landscape frame: ${intent}.
-Warm near-black #16130E background, off-white #F3EEE3, amber #FFB300 accent. If a diagram, make it crisp and legible with clear labels. CRITICAL: keep every shape, label, and word fully inside the canvas with generous margins on all sides — nothing cropped, clipped, or touching an edge; lay any left-to-right flow out horizontally with comfortable spacing. No clutter, no AI-art cliches, no stock people, no fake logos.`;
+// Inline visuals share the hero's art direction + palette for the SAME post, so the two
+// images read as one series. Same medium, same colors, text hard-banned (gpt-image-1 garbles
+// any text, and fake labels/numbers on an AI-drawn "chart" are a factual-integrity risk).
+export function inlineImagePrompt(intent: string, slug: string): string {
+  const dir = heroDirectionForSlug(slug);
+  return `A second editorial visual for an AI / technology essay, in the SAME series as the article's hero so the two share one look. Depict this idea as a clear conceptual visual: ${intent}
+
+ART DIRECTION (match the hero): ${dir.style}
+PALETTE (match the hero): ${dir.palette}
+
+Composed for a wide 3:2 landscape frame with a clear focal point and generous margins; keep every element fully inside the canvas, nothing cropped or touching an edge.
+ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, watermarks, or typography anywhere in the image. No AI-art cliches, no stock-photo people, no fake logos.`;
 }
 
 export function altTextUser(role: string, intent: string): string {
