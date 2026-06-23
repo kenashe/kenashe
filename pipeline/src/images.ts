@@ -35,7 +35,7 @@ export async function addImages(draft: DraftPost, repoRoot: string, _shadow: boo
   const write = (file: string, buf: Buffer) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, file), buf); };
   const images: ImageAsset[] = [];
 
-  const heroBuf = await genImage(heroImagePrompt(draft.title, draft.description), '1536x1024');
+  const heroBuf = await genImage(heroImagePrompt(draft.title, draft.description, draft.tags, draft.slug), '1536x1024');
   if (heroBuf) { write('hero.png', heroBuf); images.push({ role: 'hero', path: `src/assets/blog/${draft.slug}/hero.png`, alt: await altText('hero', draft.title) }); }
 
   let i = 0;

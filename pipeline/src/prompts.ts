@@ -72,14 +72,82 @@ List AI tells in ai_tells_found. CRITICAL FAILS in critical_fails (flag only gen
 Output JSON: {"originality":N,"voice_match":N,"factual_defensibility":N,"reader_value":N,"total":N,"ai_tells_found":[],"critical_fails":[],"verdict":"publish"|"queue_for_review","reason":"..."}.
 Thresholds are applied by the caller per tier; still set verdict "publish" if total>=30 and no critical fails, else "queue_for_review".`;
 
-// Strict, on-brand house style for generated images. Warm-dark editorial; bans AI cliches.
-// gpt-image-1 renders any quoted/explicit text, so we NEVER pass the title and we forbid
-// all text. The description is mood/theme only, interpreted abstractly.
-export function heroImagePrompt(_title: string, desc: string): string {
-  return `An abstract, editorial cover image for a serious technology essay. Interpret this theme purely visually, and do not depict any of these words: ${desc}
-Style: sophisticated and minimal, like a high-end design-studio or magazine cover. Abstract geometric forms and considered composition with generous negative space. NOT icon clip-art, NOT a literal depiction of objects, NOT a diagram.
-Palette (strict): warm near-black background (#16130E), warm off-white (#F3EEE3), and a single amber (#FFB300) accent used sparingly.
-ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, or typography anywhere in the image. No glowing orbs, neon brains, circuit boards, robots, holograms, sci-fi, or stock-photo people.`;
+// Curated hero art directions. Each post gets ONE direction, chosen deterministically
+// from its slug, so a single post's hero is internally consistent while the FEED looks
+// varied (different medium + palette per post). Palettes are intentionally freed from the
+// site's warm-dark brand scheme — the brand identity lives in the nav/type/cards, the hero
+// is allowed to roam. They stay curated (named palettes, not random) so output stays tasteful.
+// gpt-image-1 renders any text it's handed, so every direction hard-bans typography; the
+// subject is grounded via theme/metaphor, never by printing words.
+export interface HeroDirection {
+  id: string;
+  style: string; // medium + treatment
+  palette: string; // curated, brand-independent
+}
+
+export const HERO_DIRECTIONS: HeroDirection[] = [
+  {
+    id: 'editorial',
+    style:
+      'A painterly editorial conceptual illustration, like the cover of a serious technology magazine. Build one clear visual metaphor for the theme with depth, texture, and considered composition. Representational forms welcome; keep it conceptual, not literal clip-art.',
+    palette: 'Deep indigo and slate with a warm orange accent; soft paper grain.',
+  },
+  {
+    id: 'flat-vector',
+    style:
+      'A clean flat-vector illustration: bold geometric shapes, crisp edges, confident negative space, modern and graphic. Flat shading only, no photorealism.',
+    palette: 'Teal, warm cream, and coral in flat fields of color.',
+  },
+  {
+    id: 'isometric-riso',
+    style:
+      'An isometric vignette with a risograph print texture: visible grain, slight ink misregistration, limited spot colors. Tactile and crafted. Build a small isometric scene that evokes the theme.',
+    palette: 'Sage green, rust, and bone; two or three spot inks.',
+  },
+  {
+    id: 'cinematic-still',
+    style:
+      'A moody cinematic still-life or macro photograph: dramatic directional light, shallow depth of field, real materials (glass, metal, paper, stone). Evoke the theme through objects and light, never through people.',
+    palette: 'Natural muted tones with one decisive accent and deep shadow.',
+  },
+  {
+    id: 'bauhaus',
+    style:
+      'A bold constructivist / Bauhaus-inspired geometric composition: strong diagonals, circles, arcs and bars, dynamic asymmetric balance, generous negative space. Abstract but purposeful.',
+    palette: 'A confident set of cobalt, vermilion, black, and bone.',
+  },
+];
+
+// Stable hash so a given slug always maps to the same direction (reproducible builds).
+// FNV-1a + an avalanche finalizer: slugs share a long date prefix, and weaker hashes
+// (e.g. *31) cluster badly over a small modulus, so we mix hard before taking mod N.
+export function heroDirectionForSlug(slug: string): HeroDirection {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < slug.length; i += 1) {
+    h ^= slug.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  return HERO_DIRECTIONS[(h >>> 0) % HERO_DIRECTIONS.length];
+}
+
+// Hero image: rotates art direction per post (variety across the feed) and grounds the
+// visual in the post's actual subject (title + description + tags). Text is hard-banned.
+export function heroImagePrompt(title: string, desc: string, tags: string[], slug: string): string {
+  const dir = heroDirectionForSlug(slug);
+  const subject = [title, desc].filter(Boolean).join('. ');
+  const topics = (tags ?? []).slice(0, 4).join(', ');
+  return `A striking hero image for a serious AI / technology essay. It sits at the top of the article and doubles as the social card, so it must look intentional and editorial, never generic stock AI art.
+
+THEME TO EVOKE (interpret as concept/metaphor; do NOT print any of these words): ${subject}${topics ? `\nRelated topics: ${topics}` : ''}
+
+ART DIRECTION: ${dir.style}
+PALETTE: ${dir.palette}
+
+Composition: balanced and confident with a clear focal point and breathing room, designed for a wide 3:2 landscape frame.
+ABSOLUTELY NO text, letters, words, numbers, captions, labels, logos, watermarks, or typography anywhere in the image. Avoid AI-art cliches: no glowing orbs, neon brains, circuit boards, humanoid robots, holograms, sci-fi HUDs, or stock-photo people.`;
 }
 
 export function inlineImagePrompt(intent: string): string {
