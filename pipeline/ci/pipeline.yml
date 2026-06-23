@@ -1,8 +1,9 @@
 name: Content Pipeline
 
-# OFF until you flip it on: set repo variable PIPELINE_ENABLED=true
+# Gated by repo variable PIPELINE_ENABLED=true
 # (Settings > Secrets and variables > Actions > Variables tab).
-# Run manually from the Actions tab (choose a mode) or let the daily cron run it.
+# The daily cron publishes LIVE. Manual runs (Actions tab) default to shadow so you
+# can preview to the pipeline-shadow branch before anything goes live.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +13,7 @@ on:
         options: [shadow, backfill, live]
         default: shadow
   schedule:
-    - cron: "0 13 * * *" # 13:00 UTC daily (runs in shadow until you switch the default to live)
+    - cron: "0 13 * * *" # 13:00 UTC daily — scheduled runs publish LIVE; manual runs default to shadow
 
 concurrency:
   group: content-pipeline
@@ -37,7 +38,7 @@ jobs:
       - name: Typecheck
         working-directory: pipeline
         run: npm run typecheck
-      - name: Run (${{ github.event.inputs.mode || 'shadow' }})
+      - name: Run (${{ github.event_name == 'schedule' && 'live' || github.event.inputs.mode || 'shadow' }})
         working-directory: pipeline
         env:
           STORE_BACKEND: postgres
@@ -54,8 +55,14 @@ jobs:
           IMAGES_ENABLED: "1"
           GIT_BRANCH: master
         run: |
-          MODE="${{ github.event.inputs.mode || 'shadow' }}"
-          echo "Running in mode: $MODE"
+          # Scheduled (cron) runs always publish live — that's the daily auto-publish.
+          # Manual runs use the dropdown choice (default shadow) so you can test safely.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MODE="live"
+          else
+            MODE="${{ github.event.inputs.mode || 'shadow' }}"
+          fi
+          echo "Running in mode: $MODE (event: ${{ github.event_name }})"
           if [ "$MODE" = "backfill" ]; then npm run backfill;
           elif [ "$MODE" = "live" ]; then npm run run:once;
           else npm run run:shadow; fi
