@@ -55,7 +55,7 @@ export const projects: Project[] = [
     footer: ['June 2026', 'Agent Battle Night', 'NY Tech Week'],
   },
   {
-    title: 'Agent-built site rebuild',
+    title: 'Agent website redesign',
     status: 'SHIPPED',
     dek: 'Used HyperAgent to rebuild a live business site and deploy it to GitHub Pages with a custom domain, agent-driven end to end.',
     stack: ['HyperAgent', 'GitHub Pages', 'Web3Forms'],
