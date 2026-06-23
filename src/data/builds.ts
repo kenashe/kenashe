@@ -17,20 +17,20 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'AI blog automation v2',
+    status: 'LIVE',
+    dek: "Scans the day's AI sources, clusters them into distinct stories, and auto-publishes only the drafts that clear an editorial quality gate. No human in the loop.",
+    stack: ['GitHub Actions', 'Claude Opus 4.8', 'GPT-5.5', 'pgvector'],
+    shippedAt: 'Jun 2026',
+    metric: 'runs daily',
+  },
+  {
     title: 'Geo-targeted affiliate site',
     status: 'LIVE',
     dek: "Auto-detects each visitor's country and language, then serves the right offers in their language. Generated entirely from a spreadsheet.",
     stack: ['Cloudflare', 'GitHub', 'HyperAgent', 'Claude Fable 5'],
     shippedAt: 'Jun 2026',
     metric: '58 markets, 26 languages',
-  },
-  {
-    title: 'AI blog automation',
-    status: 'LIVE',
-    dek: 'Autonomous pipeline that turns curated YouTube transcripts into auto-published blog posts.',
-    stack: ['n8n', 'Claude Opus 4.7', 'Gemini 3.1 Pro', 'GPT-5.5'],
-    shippedAt: 'May 2026',
-    metric: '40-point QA gate',
   },
   {
     title: 'kenashe.ai',
@@ -53,6 +53,13 @@ export const projects: Project[] = [
     dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
     stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
     footer: ['Agent Battle Night', 'NY Tech Week', 'June 2026'],
+  },
+  {
+    title: 'AI blog automation v1',
+    status: 'SHIPPED',
+    dek: 'Autonomous pipeline that turns curated YouTube transcripts into auto-published blog posts.',
+    stack: ['n8n', 'Claude Opus 4.7', 'Gemini 3.1 Pro', 'GPT-5.5'],
+    footer: ['May 2026', '40-point QA gate'],
   },
   {
     title: 'Six-agent email response team',
