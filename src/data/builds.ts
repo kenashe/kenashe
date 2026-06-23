@@ -52,14 +52,14 @@ export const projects: Project[] = [
     status: 'SHIPPED',
     dek: 'An agent with one job: pitch Ashe Brands to prospective clients. Built in an afternoon, pitched a real target live.',
     stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
-    footer: ['Agent Battle Night', 'NY Tech Week', 'June 2026'],
+    footer: ['June 2026', 'Agent Battle Night', 'NY Tech Week'],
   },
   {
     title: 'Agent-built site rebuild',
     status: 'SHIPPED',
     dek: 'Used HyperAgent to rebuild a live business site and deploy it to GitHub Pages with a custom domain, agent-driven end to end.',
     stack: ['HyperAgent', 'GitHub Pages', 'Web3Forms'],
-    footer: ['LuckyDomains.io', 'Jun 2026'],
+    footer: ['Jun 2026', 'LuckyDomains.io'],
   },
   {
     title: 'AI blog automation v1',
@@ -73,13 +73,13 @@ export const projects: Project[] = [
     status: 'SHIPPED',
     dek: 'A coordinator plus sentiment, research, draft, and QA agents that turn customer support emails into reviewed replies.',
     stack: ['Cassidy AI', 'Claude', 'ChatGPT'],
-    footer: ['Maven capstone', 'AI Build Lab', 'Feb 2026'],
+    footer: ['Feb 2026', 'Maven capstone', 'AI Build Lab'],
   },
   {
     title: 'Personal assistant chatbot',
     status: 'SHIPPED',
     dek: 'A chat agent wired to Gemini that searches email and answers questions on weather, the forecast, and local news.',
     stack: ['n8n', 'Gemini', 'Gmail', 'Weather + news APIs'],
-    footer: ['Personal build', 'Dec 2025'],
+    footer: ['Dec 2025', 'Personal build'],
   },
 ];
