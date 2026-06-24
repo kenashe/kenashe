@@ -71,7 +71,7 @@ export function writePost(repoRoot: string, draft: DraftPost): string {
 
 export function commitAndPush(repoRoot: string, message: string): void {
   execSync('git add -A', { cwd: repoRoot, stdio: 'inherit' });
-  execSync(`git -c user.name="kenashe pipeline" -c user.email="pipeline@users.noreply.github.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
+  execSync(`git -c user.name="Ken Ashe" -c user.email="kenashe@gmail.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
   execSync(`git push origin ${env.gitBranch}`, { cwd: repoRoot, stdio: 'inherit' });
 }
 
@@ -80,7 +80,7 @@ export function commitAndPush(repoRoot: string, message: string): void {
 export function commitToBranch(repoRoot: string, branch: string, message: string): void {
   execSync(`git checkout -B ${branch}`, { cwd: repoRoot, stdio: 'inherit' });
   execSync('git add -A', { cwd: repoRoot, stdio: 'inherit' });
-  execSync(`git -c user.name="kenashe pipeline" -c user.email="pipeline@users.noreply.github.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
+  execSync(`git -c user.name="Ken Ashe" -c user.email="kenashe@gmail.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
   execSync(`git push -f origin ${branch}`, { cwd: repoRoot, stdio: 'inherit' });
 }
 
