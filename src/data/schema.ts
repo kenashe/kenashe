@@ -15,7 +15,7 @@ export const personKenAshe = {
   '@id': 'https://kenashe.ai/#ken-ashe',
   name: 'Ken Ashe',
   url: 'https://kenashe.ai/',
-  image: 'https://kenashe.ai/images/ken-ashe.jpg',
+  image: 'https://kenashe.ai/images/ken-ashe.jpeg',
   jobTitle: ['Digital Marketer', 'AI Operator', 'Founder'],
   description: 'Digital marketer, CPA, PMP, and AI operator building with AI in public.',
   sameAs: [
