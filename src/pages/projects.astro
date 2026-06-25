@@ -1,12 +1,53 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BuildCard from '../components/BuildCard.astro';
-import { projects } from '../data/builds';
+import { projects, type Project } from '../data/builds';
 
-const live = projects.filter((p) => p.status === 'LIVE');
-const shipped = projects.filter((p) => p.status === 'SHIPPED');
+const description =
+  'The AI systems Ken Ashe has shipped and runs in public: one flagship build documented in depth, plus a selection of smaller builds.';
 
-const description = 'Every project Ken Ashe has shipped or is running live. Built with AI tools, in public.';
+// Tiered model (redesign spec §5), rendered in the original restrained look.
+// Flagship A = the autonomous blog: LIVE, fully autonomous (earned), six-tool
+// stack per §7. Its full case-study page + embedded build log are a later
+// phase, so it links to its live output (the blog) and flags the write-up as
+// in progress - no fabricated case study, no dead link.
+const flagship = {
+  title: 'Autonomous AI blog',
+  status: 'LIVE' as const,
+  outcome:
+    "Scans the day's AI sources, clusters them into distinct stories, and auto-publishes only the drafts that clear an editorial quality gate. No human in the loop.",
+  stack: ['GitHub Actions', 'n8n', 'Claude Opus 4.8', 'GPT-5.5', 'Gemini 3.1 Pro', 'pgvector'],
+  liveHref: '/blog/',
+  liveLabel: 'Read the autonomous blog',
+};
+
+// Card tier (§5/§6): curated, shipped-only, non-clickable, one fixed template
+// (the existing BuildCard). Exactly the set Ken picked, sourced from builds.ts.
+// The two autonomous-blog entries are the flagship, so they're excluded here.
+// Affiliate site is function-led with no domain; LuckyDomains.io named on the
+// redesign card.
+const CARD_TITLES = [
+  'Geo-targeted affiliate site',
+  'kenashe.ai',
+  'Daily email to myself',
+  'Agent website redesign',
+  'Sir Pitches-a-lot',
+  'Six-agent email response team',
+  'Personal assistant chatbot',
+];
+// Order the card grid by build date, newest first (oldest last). A build's date
+// is its ship date (LIVE) or the leading date in its footer (SHIPPED); parsed to
+// a year*12+month ordinal so "Jun 2026" and "June 2026" compare correctly.
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const buildOrdinal = (p: Project): number => {
+  const s = (p.shippedAt ?? p.footer?.[0] ?? '').toLowerCase();
+  const month = MONTHS.findIndex((m) => s.includes(m));
+  const year = s.match(/\d{4}/)?.[0];
+  return month < 0 || !year ? 0 : Number(year) * 12 + month;
+};
+const cards = CARD_TITLES.map((t) => projects.find((p) => p.title === t))
+  .filter((p): p is Project => p !== undefined)
+  .sort((a, b) => buildOrdinal(b) - buildOrdinal(a));
 ---
 
 <BaseLayout title="Projects" description={description}>
@@ -14,20 +55,40 @@ const description = 'Every project Ken Ashe has shipped or is running live. Buil
     <header class="page-header">
       <p class="page-mark" aria-hidden="true">// projects</p>
       <h1>Projects</h1>
-      <p class="tagline">Everything shipped or running live.</p>
+      <p class="tagline">
+        One flagship build documented in depth, plus a selection of the smaller things I've
+        shipped. Receipts only: everything here is real and live.
+      </p>
     </header>
 
-    <section aria-labelledby="live-heading">
-      <h2 id="live-heading" class="group-heading">Live</h2>
-      <ul class="receipts">
-        {live.map((p) => <BuildCard project={p} />)}
-      </ul>
+    <section aria-labelledby="flagship-heading">
+      <h2 id="flagship-heading" class="group-heading">Case study</h2>
+      <article class="flagship">
+        <div class="flagship-head">
+          <h3 class="flagship-title">{flagship.title}</h3>
+          <span class="badge badge-live">
+            <span class="badge-dot" aria-hidden="true"></span>
+            {flagship.status}
+          </span>
+        </div>
+        <p class="flagship-dek">{flagship.outcome}</p>
+        <ul class="flagship-stack" aria-label="Stack">
+          {flagship.stack.map((s) => <li>{s}</li>)}
+        </ul>
+        <footer class="flagship-foot">
+          <a class="flagship-link" href={flagship.liveHref}>
+            {flagship.liveLabel}
+            <span aria-hidden="true">→</span>
+          </a>
+          <span class="flagship-soon">Case study and build log in progress</span>
+        </footer>
+      </article>
     </section>
 
-    <section aria-labelledby="shipped-heading" class="group-shipped">
-      <h2 id="shipped-heading" class="group-heading">Shipped</h2>
+    <section aria-labelledby="more-heading" class="more">
+      <h2 id="more-heading" class="group-heading">More builds</h2>
       <ul class="receipts">
-        {shipped.map((p) => <BuildCard project={p} />)}
+        {cards.map((p) => <BuildCard project={p} />)}
       </ul>
     </section>
   </div>
@@ -64,6 +125,7 @@ const description = 'Every project Ken Ashe has shipped or is running live. Buil
     line-height: 1.45;
     color: var(--muted);
     margin: 0;
+    max-width: 40rem;
   }
   .group-heading {
     font-family: var(--font-sans);
@@ -76,7 +138,7 @@ const description = 'Every project Ken Ashe has shipped or is running live. Buil
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--rule);
   }
-  .group-shipped {
+  .more {
     margin-top: 3rem;
   }
   .receipts {
@@ -85,5 +147,117 @@ const description = 'Every project Ken Ashe has shipped or is running live. Buil
     margin: 0;
     display: grid;
     gap: 1rem;
+  }
+
+  /* Flagship: larger, richer card. Same warm-dark idiom as BuildCard (border +
+     hover), just more weight + a "case study" treatment. No ornaments. */
+  .flagship {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2rem 2rem 1.6rem;
+    transition: border-color 200ms ease;
+  }
+  .flagship:hover {
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  }
+  .flagship-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .flagship-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.65rem, 3.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+    color: var(--fg);
+    margin: 0;
+  }
+  .flagship-dek {
+    font-family: var(--font-sans);
+    font-size: clamp(1.0625rem, 1.5vw, 1.2rem);
+    line-height: 1.5;
+    color: var(--fg);
+    margin: 0 0 1.4rem;
+    max-width: 44rem;
+  }
+  .flagship-stack {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .flagship-stack li {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.55rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .flagship-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .flagship-link {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .flagship-link:hover {
+    color: var(--fg);
+  }
+  .flagship-soon {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* Status badge - matches BuildCard's warm-dark LIVE badge. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+    background-color: var(--bg);
+    flex-shrink: 0;
+  }
+  .badge-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background-color: currentColor;
+  }
+  .badge-live {
+    color: var(--accent-2);
+    border-color: color-mix(in oklab, var(--accent-2) 35%, var(--border));
+  }
+  .badge-live .badge-dot {
+    background-color: var(--accent-2);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-2) 18%, transparent);
   }
 </style>

@@ -35,7 +35,7 @@ export const projects: Project[] = [
   {
     title: 'kenashe.ai',
     status: 'LIVE',
-    dek: 'This site. Built end-to-end with Claude Code, reviewed by Codex, shipped in a day.',
+    dek: 'This site. Originally built end-to-end with Claude Code, reviewed by Codex, shipped in a day.',
     stack: ['Astro', 'Tailwind', 'MDX', 'Vercel'],
     shippedAt: 'May 2026',
   },
