@@ -9,7 +9,7 @@ export async function GET(context: APIContext) {
   return rss({
     title: 'Blog - Ken Ashe',
     description:
-      'AI-written field notes from a marketer building with AI in public. Every post clears a 40-point quality gate and often a human review.',
+      'Practical guides, product tests, and ideas to help builders turn AI into real outcomes, published by an autonomous system Ken Ashe built and operates.',
     site: context.site!,
     items: posts.map((post) => ({
       title: post.data.title,
