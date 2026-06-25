@@ -4,7 +4,7 @@ export const SITE_DESCRIPTION = 'Digital marketer. Building with AI.';
 export const AUTHOR = 'Ken Ashe';
 export const NEWSLETTER_URL = 'https://newsletter.kenashe.ai';
 
-// Platform-stable Substack RSS URL — works regardless of custom domain config.
+// Platform-stable Substack RSS URL - works regardless of custom domain config.
 export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 
 // 1200x630 social card. JPEG/PNG render across all OG + Twitter consumers;
@@ -12,7 +12,7 @@ export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
 export const NAV: { label: string; href: string }[] = [
-  { label: 'The Lab', href: '/blog/' },
+  { label: 'Blog', href: '/blog/' },
   { label: 'Newsletter', href: 'https://newsletter.kenashe.ai' },
   { label: 'Building', href: '/building/' },
   { label: 'About', href: '/about/' },
