@@ -48,9 +48,9 @@ export const projects: Project[] = [
     metric: `${daysSince('2026-05-04')} days running`,
   },
   {
-    title: 'Agent website redesign',
+    title: 'Agent-driven site design and deployment',
     status: 'LIVE',
-    dek: 'Used HyperAgent to rebuild a live business site and deploy it to GitHub Pages with a custom domain, agent-driven end to end.',
+    dek: 'Used HyperAgent to build a live business site and deploy it to GitHub Pages with a custom domain, agent-driven end-to-end.',
     stack: ['HyperAgent', 'GitHub Pages', 'Web3Forms'],
     footer: ['Jun 2026', 'LuckyDomains.io'],
   },
