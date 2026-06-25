@@ -12,9 +12,9 @@ export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
 export const NAV: { label: string; href: string }[] = [
+  { label: 'Projects', href: '/projects/' },
   { label: 'Blog', href: '/blog/' },
-  { label: 'Newsletter', href: 'https://newsletter.kenashe.ai' },
-  { label: 'Building', href: '/building/' },
+  { label: 'Newsroom', href: '/newsroom/' },
   { label: 'About', href: '/about/' },
 ];
 
