@@ -1,53 +1,161 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import BuildCard from '../components/BuildCard.astro';
-import { projects } from '../data/builds';
+import { projects, type Project } from '../data/builds';
 
-const live = projects.filter((p) => p.status === 'LIVE');
-const shipped = projects.filter((p) => p.status === 'SHIPPED');
+const description =
+  'The AI systems Ken Ashe has shipped and runs in public: one flagship build documented in depth, plus the smaller projects behind it.';
 
-const description = 'Every project Ken Ashe has shipped or is running live. Built with AI tools, in public.';
+// Projects = the strongest credibility page (spec v2.2 §5). Two tiers stacked by
+// significance: a clickable flagship (depth) above a non-clickable card grid
+// (volume). Hierarchy is meant to be obvious from layout alone.
+
+// FLAGSHIP TIER (§5 + §7). Flagship A = the autonomous blog: status LIVE, fully
+// autonomous (earned, v2.2), written up retrospectively. The full case-study
+// page + embedded build log land in a later phase (§18 Phase 3); until then the
+// flagship links to its live output (the blog) and flags the write-up as in
+// progress. No fabricated case study, no dead link. Stack is the flat combined
+// v1+v2 list per §7.
+const flagship = {
+  label: 'Case study',
+  title: 'Autonomous AI blog',
+  status: 'LIVE' as const,
+  outcome:
+    "Scans the day's AI sources, clusters them into distinct stories, and auto-publishes only the drafts that clear an editorial quality gate. No human in the loop.",
+  stack: ['GitHub Actions', 'n8n', 'Claude Opus 4.8', 'GPT-5.5', 'Gemini 3.1 Pro', 'pgvector'],
+  receipts: ['Runs daily', 'Fully autonomous', 'Editorial QA gate'],
+  liveHref: '/blog/',
+  liveLabel: 'Read the autonomous blog',
+};
+
+// CARD TIER (§5 + §6): curated, shipped-only, non-clickable, one fixed template.
+// Exactly the set Ken picked, sourced from builds.ts (no fabrication). The two
+// autonomous-blog entries are the flagship, so they are excluded here. The
+// affiliate site is included by Ken's override, function-led with no domain
+// name exposed.
+const CARD_TITLES = [
+  'Geo-targeted affiliate site',
+  'kenashe.ai',
+  'Daily email to myself',
+  'Agent website redesign',
+  'Sir Pitches-a-lot',
+  'Six-agent email response team',
+  'Personal assistant chatbot',
+];
+const cards = CARD_TITLES.map((t) => projects.find((p) => p.title === t)).filter(
+  (p): p is Project => p !== undefined,
+);
+
+// Receipt line: a build's custom footer when present, else its ship date + metric.
+const receipt = (p: Project): string =>
+  p.footer?.length ? p.footer.join(' · ') : [p.shippedAt, p.metric].filter(Boolean).join(' · ');
 ---
 
 <BaseLayout title="Projects" description={description}>
-  <div class="page">
+  <div class="motif-bar" aria-hidden="true"></div>
+
+  <div class="page section-inner">
     <header class="page-header">
-      <p class="page-mark" aria-hidden="true">// projects</p>
+      <p class="eyebrow" aria-hidden="true">// projects</p>
       <h1>Projects</h1>
-      <p class="tagline">Everything shipped or running live.</p>
+      <p class="tagline">
+        The AI systems I've shipped and run in public. One flagship build documented in depth,
+        and the smaller projects that show the range. Receipts only: everything here is real and
+        live.
+      </p>
     </header>
 
-    <section aria-labelledby="live-heading">
-      <h2 id="live-heading" class="group-heading">Live</h2>
-      <ul class="receipts">
-        {live.map((p) => <BuildCard project={p} />)}
-      </ul>
+    <!-- FLAGSHIP TIER -->
+    <section class="tier" aria-labelledby="flagship-h">
+      <div class="tier-head">
+        <p class="eyebrow">Flagship</p>
+        <h2 id="flagship-h" class="tier-title">Built in depth, in public</h2>
+      </div>
+
+      <article class="flagship card">
+        <p class="flagship-label">{flagship.label}</p>
+        <div class="flagship-titlerow">
+          <h3 class="flagship-title">{flagship.title}</h3>
+          <span class="status status-live">{flagship.status}</span>
+        </div>
+        <p class="flagship-outcome">{flagship.outcome}</p>
+
+        <ul class="stack" aria-label="Stack">
+          {flagship.stack.map((s) => <li>{s}</li>)}
+        </ul>
+
+        <ul class="receipt-chips" aria-label="Receipts">
+          {flagship.receipts.map((r) => <li>{r}</li>)}
+        </ul>
+
+        <div class="flagship-links">
+          <a class="flagship-cta" href={flagship.liveHref}>
+            {flagship.liveLabel}
+            <span aria-hidden="true">→</span>
+          </a>
+          <span class="flagship-soon">
+            <span class="soon-mark" aria-hidden="true">//</span> Full case study &amp; build log in
+            progress
+          </span>
+        </div>
+      </article>
     </section>
 
-    <section aria-labelledby="shipped-heading" class="group-shipped">
-      <h2 id="shipped-heading" class="group-heading">Shipped</h2>
-      <ul class="receipts">
-        {shipped.map((p) => <BuildCard project={p} />)}
+    <!-- CARD TIER -->
+    <section class="tier" aria-labelledby="more-h">
+      <div class="tier-head">
+        <p class="eyebrow">More builds</p>
+        <h2 id="more-h" class="tier-title">Shipped and running</h2>
+      </div>
+
+      <ul class="card-grid">
+        {
+          cards.map((p) => (
+            <li class="card proj-card">
+              <div class="proj-head">
+                <h3 class="proj-title">{p.title}</h3>
+                <span class={`status status-${p.status.toLowerCase()}`}>{p.status}</span>
+              </div>
+              <p class="proj-dek">{p.dek}</p>
+              <ul class="stack" aria-label="Stack">
+                {p.stack.map((s) => (
+                  <li>{s}</li>
+                ))}
+              </ul>
+              <p class="proj-receipt">{receipt(p)}</p>
+            </li>
+          ))
+        }
       </ul>
     </section>
   </div>
 </BaseLayout>
 
 <style>
-  .page {
-    max-width: 52rem;
+  .motif-bar {
+    height: 5px;
+    background: var(--grad);
+  }
+  .section-inner {
+    max-width: 64rem;
     margin: 0 auto;
-    padding: 4rem 1.5rem 0;
+    padding: 0 1.5rem;
   }
-  .page-header {
-    margin-bottom: 3rem;
+  .page {
+    padding-top: 4.5rem;
+    padding-bottom: 1rem;
   }
-  .page-mark {
+  .eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    color: var(--accent);
-    letter-spacing: 0.12em;
-    margin: 0 0 1.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--teal-blue);
+    margin: 0 0 0.85rem;
+  }
+
+  /* Page header */
+  .page-header {
+    margin-bottom: 1rem;
   }
   .page-header h1 {
     font-family: var(--font-display);
@@ -55,35 +163,255 @@ const description = 'Every project Ken Ashe has shipped or is running live. Buil
     font-weight: 800;
     letter-spacing: -0.035em;
     line-height: 1;
-    margin: 0 0 1rem;
+    margin: 0 0 1.1rem;
     color: var(--fg);
   }
   .tagline {
     font-family: var(--font-sans);
-    font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
-    line-height: 1.45;
+    font-size: clamp(1.0625rem, 1.7vw, 1.25rem);
+    line-height: 1.5;
     color: var(--muted);
     margin: 0;
+    max-width: 42rem;
   }
-  .group-heading {
-    font-family: var(--font-sans);
-    font-size: 0.8125rem;
+
+  /* Tiers */
+  .tier {
+    padding: 3.5rem 0;
+  }
+  .tier-head {
+    margin-bottom: 1.75rem;
+  }
+  .tier-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--fg);
+    margin: 0;
+  }
+
+  /* Shared card base + corner motif */
+  .card {
+    position: relative;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 46px 46px 0;
+    border-color: transparent color-mix(in oklab, var(--accent-2) 22%, var(--surface)) transparent
+      transparent;
+  }
+
+  /* Status badges */
+  .status {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
-    margin: 0 0 1.25rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--rule);
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid;
+    white-space: nowrap;
   }
-  .group-shipped {
-    margin-top: 3rem;
+  .status-live {
+    color: #0e7a37;
+    background-color: #e6f6ec;
+    border-color: #b7e3c6;
   }
-  .receipts {
+  .status-shipped {
+    color: var(--accent);
+    background-color: #eaf1fd;
+    border-color: #a9c6f5;
+  }
+
+  /* Stack chips (shared) */
+  .stack {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .stack li {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.24rem 0.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Flagship card (depth tier) */
+  .flagship {
+    padding: 2.25rem 2.25rem 2rem;
+  }
+  .flagship::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background: var(--grad);
+  }
+  .flagship-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--teal-blue);
+    margin: 0 0 0.7rem;
+  }
+  .flagship-titlerow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     gap: 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .flagship-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: var(--fg);
+    margin: 0;
+  }
+  .flagship-outcome {
+    font-family: var(--font-sans);
+    font-size: clamp(1.0625rem, 1.5vw, 1.2rem);
+    line-height: 1.5;
+    color: var(--fg);
+    margin: 0 0 1.4rem;
+    max-width: 46rem;
+  }
+  .flagship .stack {
+    margin-bottom: 1.1rem;
+  }
+  .receipt-chips {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .receipt-chips li {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--dark-blue);
+    background-color: color-mix(in oklab, var(--accent-2) 12%, var(--surface));
+    border: 1px solid color-mix(in oklab, var(--accent-2) 30%, var(--border));
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+  }
+  .flagship-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    padding-top: 1.35rem;
+    border-top: 1px solid var(--border);
+  }
+  .flagship-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--surface);
+    background: var(--grad);
+    border-radius: 9px;
+    padding: 0.62rem 1.15rem;
+    text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .flagship-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+    color: var(--surface);
+  }
+  .flagship-soon {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+  .soon-mark {
+    color: var(--accent-2);
+  }
+
+  /* Card tier (volume) */
+  .card-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  }
+  .proj-card {
+    padding: 1.5rem 1.5rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .proj-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.85rem;
+    margin-bottom: 0.6rem;
+  }
+  .proj-title {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    color: var(--fg);
+    margin: 0;
+  }
+  .proj-dek {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0 0 1.1rem;
+  }
+  .proj-card .stack {
+    margin-bottom: 1.1rem;
+  }
+  .proj-receipt {
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin: auto 0 0;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
   }
 </style>
