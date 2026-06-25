@@ -1,0 +1,56 @@
+---
+title: "Self-distillation can make models better on the first try and worse on the fifth"
+description: "A new arXiv paper argues that on-policy self-distillation can improve first-try accuracy while quietly collapsing the range of answers a model explores, which matters for agents, code generation, and any workflow that depends on multiple attempts to find a different path."
+pubDate: 2026-06-25
+tags: ["self-distillation", "model-training", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-06-25-self-distillation-can-make-models-better-on-the-first-try-and-worse-on-the-fifth/hero.png
+  alt: "Self-distillation can make models better on the first try and worse on the fifth"
+---
+
+A model that gets better at pass@1 can still get worse as a tool.
+
+That is the useful warning in “On-Policy Self-Distillation with Sampled Demonstrations Reduces Output Diversity,” posted to arXiv in both cs.AI and cs.LG. The researchers study a training setup where a model acts as both teacher and student. The teacher is conditioned on a correct demonstration, then gives dense token-level feedback on the student’s own rollouts.
+
+The headline result is not that this fails. It often works. The self-distilled models matched or exceeded reinforcement learning on average performance in the paper’s controlled graph path-finding task and science QA benchmarks.
+
+The catch: the models became less diverse. Not just stylistically less diverse. Functionally and semantically less diverse. Their pass@k curves flattened, meaning extra samples stopped buying much extra accuracy.
+
+That matters because a lot of real AI systems are built on the opposite assumption: sample more, search more, retry with variation, then pick the best.
+
+## Pass@1 is not the whole product
+
+Pass@1 is seductive because it maps cleanly to demos and dashboards. Ask a question. Get one answer. Score it.
+
+But many useful workflows depend on breadth. A coding agent may need several possible fixes. A planning agent may need alternate routes. A research assistant may need to surface competing hypotheses, not the single most model-shaped answer. A science QA system that answers average benchmark questions well may still fail when the problem requires a strategy outside its favorite pattern.
+
+The arXiv researchers trace the diversity loss to the mechanics of sampled-demonstration self-distillation. The teacher evaluates a student rollout while conditioned on a sampled correct rollout. That sounds reasonable. Give the model an example of success, then teach it to move toward success.
+
+But the feedback is not neutral. It flows through the model’s own existing biases. Their theoretical analysis says the optimal self-distillation policy tilts the base distribution using a pointwise conditional mutual information score between the student rollout and the correct demonstration used as context.
+
+Plain English: if the model already prefers one kind of correct answer, this training can make that preference stronger.
+
+![two branching solution trees, one keeping many thin paths open and the other collapsing into one thick dominant path](../../assets/blog/2026-06-25-self-distillation-can-make-models-better-on-the-first-try-and-worse-on-the-fifth/inline-1.png)
+
+## The quiet difference from RL
+
+The paper draws an important contrast with ideal on-policy reinforcement learning. In the researchers’ framing, ideal RL preserves probability ratios among equally correct rollouts. If two answers are both right, RL should not necessarily crush one just because it was less likely under the base model.
+
+Self-distillation can do exactly that. It can amplify existing gaps among correct solutions and concentrate probability mass on already-dominant modes.
+
+That is the part builders should pay attention to. This is not “distillation bad.” Distillation is still one of the most practical ways to make models cheaper, faster, and more consistent. The issue is what kind of consistency you are buying.
+
+If your product rewards one clean answer, maybe the trade is fine. Customer support macros. Structured extraction. Classification. First-draft writing in a tight house style. Plenty of systems want less variation.
+
+If your product relies on exploration, the same training recipe can be a tax. Agents that use best-of-N sampling. Code repair loops. Math solvers. Scientific assistants. Any workflow where the second, third, or tenth attempt is supposed to be meaningfully different.
+
+## Diversity needs its own eval
+
+The paper’s most practical contribution is the reminder that average accuracy can hide mode collapse. A model can look better on the main score and worse under the operating pattern you actually use.
+
+So pass@k should not be treated as a decorative metric. If you run multiple rollouts in production, measure whether they still add value after training. Track functional diversity, not just wording changes. Check out-of-distribution tasks that require different strategies. Compare self-distilled models against RL or other training methods on the shape of the pass@k curve, not only the endpoint.
+
+Also watch your demonstrations. If the teacher is conditioned on one sampled correct answer, you may be teaching the model that “correct” means “correct in this familiar way.” More demonstrations may help, but only if they cover genuinely different solution modes. Rephrased sameness will not fix functional collapse.
+
+Practitioner’s take: if I were training an agent model with self-distillation, I would run a before-and-after eval with 1, 4, 8, and 16 samples per task, then inspect whether new samples produce new strategies or just louder echoes. Use self-distillation where consistency is the product. Be careful where exploration is the product. The catch most teams miss is that “better first answer” can quietly break the retry loop they were counting on.

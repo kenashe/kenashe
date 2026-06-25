@@ -1,0 +1,52 @@
+---
+title: "Multimodal models still change answers when you shuffle the evidence"
+description: "Facet-Probe shows that frontier and open-weight multimodal models are not order-invariant, with answer flips across option order, evidence chunks, document rank, image sets, and mixed modalities. That is a reliability problem for builders, not just a benchmark footnote."
+pubDate: 2026-06-25
+tags: ["multimodal-ai", "evals", "reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-06-25-multimodal-models-still-change-answers-when-you-shuffle-the-evidence/hero.png
+  alt: "Multimodal models still change answers when you shuffle the evidence"
+---
+
+A good model should not change its mind because you showed the same evidence in a different harmless order.
+
+That sounds basic. It is also not what current multimodal large language models do.
+
+A new Facet-Probe audit, posted under both cs.CL and cs.LG, tested 18 frontier and open-weight MLLMs for order sensitivity. The setup is simple in spirit: keep the task evidence the same, shuffle parts that should not matter, and see whether the model gives a different answer.
+
+The authors looked across five facets: multiple-choice option order, evidence-chunk order, document-rank order, image-set order, and mixed-modality ordering. They also used a Bayesian item-response model to separate ordering effects from per-facet bias, plus a same-ordering control to estimate how much answer movement came from decoder randomness rather than the shuffle itself.
+
+The result is ugly. None of the 18 models were order-invariant. Screened per-facet panel-mean flip rates ran from 24% to 50%. Capability helped, but did not solve it. The best model still flipped on 13.4% of trials.
+
+That is not a tiny edge case.
+
+## Benchmarks usually hide this failure mode
+
+Most benchmarks score one canonical version of each item. One question. One ordering. One answer.
+
+That is convenient. It is also a blind spot.
+
+If a vision-language model answers correctly when the relevant image is first, but fails when the same image is third, the benchmark may never notice. If a document QA system changes its answer when the same snippets are reordered, a single benchmark pass can make it look more stable than it is. Same for multiple-choice tests where answer position leaks into behavior.
+
+Facet-Probe is useful because it treats invariance as a first-class reliability property. Not "can the model solve the item once?" but "does the model solve the same item under harmless presentation changes?"
+
+![the same pile of documents, images, and answer cards being rearranged into several different orders, all feeding into on](../../assets/blog/2026-06-25-multimodal-models-still-change-answers-when-you-shuffle-the-evidence/inline-1.png)
+
+That distinction matters for applied systems. Real inputs do not arrive in benchmark order. Retrieval systems change ranking. Users upload screenshots in messy sequences. Agents assemble context from tool calls, files, browser pages, and memory. The same task may be packaged differently every run.
+
+If the model is order-sensitive, your app inherits that instability.
+
+## Prompt fixes are not enough
+
+The Facet-Probe authors also tested mitigation on Gemini. Their finding was narrow and practical: training-free prompt changes were modality-conditional, and fixes did not transfer cleanly from text to visual reasoning.
+
+That matches what I see in product work. Prompting can patch a behavior in one workflow. It can reduce a symptom. But it often fails when the input shape changes, when images enter the mix, or when the model has to reconcile text and visual evidence together.
+
+The audit also included a same-ordering control at temperature 0 for Gemini, which is important. Otherwise critics could say, "Maybe the model is just nondeterministic." The authors found substantial ordering excess over the same-input decoder-noise floor in verified cells. Translation: the shuffles themselves are moving answers, not just sampling noise.
+
+That is the real finding. Order sensitivity is not only a decoding artifact. It looks more like a model behavior issue, and likely a training or architecture issue.
+
+The paper proposes cross-ordering flip rate as a standard reporting axis for MLLMs. I like that. Accuracy alone is too flattering. A model that scores well but changes answers under benign reordering is not as reliable as the headline number suggests.
+
+Practitioner's Take: If you are building with multimodal models, add shuffle tests to your eval suite this week. Reorder answer options, retrieved chunks, image uploads, and mixed text-image context, then measure answer flips separately from accuracy. Do not assume a prompt that stabilizes text QA will stabilize visual reasoning. The catch most teams miss: retrieval ranking changes and file ordering bugs can look like model quality problems, when the deeper issue is that the model never learned to treat irrelevant order as irrelevant.

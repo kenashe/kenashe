@@ -1,0 +1,56 @@
+---
+title: "When Models Quietly Unlearn: The Natural Ungrokking Problem"
+description: "A new pre-registered study shows language models can learn a rule mid-training, then silently lose it with no signal in the loss curve, and the corpus alone decides which rules survive. Here is what that means for anyone training or fine-tuning models."
+pubDate: 2026-06-25
+tags: ["pretraining", "interpretability", "model-behavior"]
+draft: false
+image:
+  src: ../../assets/blog/2026-06-25-when-models-quietly-unlearn-the-natural-ungrokking-problem/hero.png
+  alt: "When Models Quietly Unlearn: The Natural Ungrokking Problem"
+---
+
+There is a moment in a pretraining run where a small model figures something out. Feed it "Sue cried because" and it correctly resolves the next pronoun to "she." It does this not just for names it saw, but for held-out probes too. By step 925 it scores 0.94 on that generalization test. The rule is learned. The model gets it.
+
+Then it forgets. By step 3,500 the same model scores near zero on the same probes. Not because the evidence left the training data. The evidence is still there. The model just stopped applying the rule. And the loss curve shows nothing. No bump, no plateau, no warning. The number that everyone watches during training kept going down while a real capability quietly died.
+
+That is the finding in "Natural Ungrokking: Asymmetric Control of Which Rules Survive Pretraining," posted across arXiv's cs.AI, cs.CL, and cs.LG. The authors call this within-run reversal natural ungrokking, and the part that should make practitioners uncomfortable is how predictable, how invisible, and how irreversible it turns out to be.
+
+## Grokking in reverse, with no tell
+
+You have probably heard of grokking: a model trains for a long time looking like it memorized the data, then suddenly snaps into generalization. Ungrokking is the mirror image. The model generalizes, then collapses back into something dumber.
+
+The mechanism here is not decay or noise. The authors describe it as displacement. A competing surface pattern out-competes the real rule. Think of it as two hypotheses fighting for the same prediction slot, and the cheaper, shallower one wins because the corpus rewards it more often. They measured this directly: the log-probability margin between the rule and its competitor crosses zero within 100 training steps of the behavioral collapse. So the behavior does not erode gradually. It tips.
+
+![two rising paths that cross, one continuing up while the other bends downward, against a smooth descending background li](../../assets/blog/2026-06-25-when-models-quietly-unlearn-the-natural-ungrokking-problem/inline-1.png)
+
+The reason this matters operationally is the "no trace in the loss curve" part. Loss is an average over everything the model predicts. A single rule, even an important one, is a tiny slice of that average. So a rule can be born and buried inside a run and your dashboards stay green the entire time. If your only instrument is the loss curve, you are flying blind to a whole class of capability changes.
+
+## The corpus decides, and one statistic predicts it
+
+The headline result is that which rules survive is predictable from a single corpus statistic: how often the training stream shows the rule "winning." Support frequency. How frequently the data actually rewards the correct pattern over its competitors.
+
+The authors ran this across two corpora, three compute budgets, and three random seeds. Support frequency decided a rule's fate every time. The data-to-parameter ratio mattered too, but only as a modulator: it set how deeply a doomed rule fell, not whether it fell. The fate was set by the data.
+
+They did not stop at toy models. The same emerge-then-collapse dynamic shows up in public Pythia checkpoints, the open suite people actually study. And the collapse depth was ordered by model scale exactly as their account predicted. That is the part that takes this from "interesting in a sandbox" to "this is happening in models you have downloaded."
+
+![a stream of flowing particles where the denser regions reinforce a structure and the sparser regions let it dissolve](../../assets/blog/2026-06-25-when-models-quietly-unlearn-the-natural-ungrokking-problem/inline-2.png)
+
+I want to be careful here. This is a small-model study at its core, with a clean confirmation on Pythia. It does not prove that frontier-scale models silently lose rules at the same rate or in the same way. But the pre-registration is doing real work. The authors locked every confirmatory threshold and prediction before reading the data those predictions governed. That is rare in this field, and it is the main reason I take the predictive claim seriously rather than treating it as a post-hoc story.
+
+## The asymmetry is the scary part
+
+Here is the finding I keep coming back to. Control over a rule's fate is asymmetric.
+
+You can destroy a rule on demand. Flip the supporting evidence to counter-evidence in the training stream and the rule dies, with a clean monotone dose-response across two unrelated rules. More counter-evidence, more death. Predictable, controllable, reversible-looking.
+
+Except it is not reversible. Inject support back in, and nothing happens. Not at the natural level that originally sustained the rule. Not at 10x. The authors pushed it to 450 times the level that naturally keeps the rule alive and bought no recovery. The door swings one way.
+
+That breaks a comfortable assumption a lot of us carry: that capabilities are roughly a function of what is in the data, so if the data supports a behavior, you can get the behavior back by feeding more of it. This says no. Once displacement wins, the model has settled into a different configuration, and flooding the corpus with the old evidence does not undo it. Killing is cheap. Resurrection is not for sale.
+
+## What this changes for people who train and fine-tune
+
+If you train models, the practical lesson is that loss is not a capability monitor. It never was, but this gives you a concrete failure it cannot see. You need behavioral probes that run continuously through training, targeting the specific rules and capabilities you care about, not just an aggregate eval at the end. The rule that died here lived for thousands of steps and then vanished, and only a held-out probe caught it.
+
+For fine-tuning and continued pretraining, the asymmetry is the warning. If a data mix that is heavy on shallow surface patterns can displace a learned rule, and you cannot buy it back later, then the order and composition of your data is not a knob you can freely re-tune. Damage may be one-directional. Test before you commit to a mix, because "we'll just add more of the good data later" might not work.
+
+The catch most readers will miss: this is not about catastrophic forgetting in the usual sense, where a new task overwrites an old one. The evidence for the rule never left. The corpus kept supporting it and the model abandoned it anyway, because a competitor was cheaper to predict more often. So the fix is not "add more examples." It is making sure the right pattern wins the local competition often enough during training, which is a question about data structure and frequency, not raw volume. Watch your probes, not your loss, and assume some doors only open once.
