@@ -10,7 +10,7 @@ export type Project = {
   footer?: string[];
 };
 
-// Days elapsed since an ISO date. Computed at build time — Vercel redeploys
+// Days elapsed since an ISO date. Computed at build time - Vercel redeploys
 // frequently enough (the blog pipeline ships daily) that drift stays small.
 export const daysSince = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));

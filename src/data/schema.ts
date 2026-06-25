@@ -2,12 +2,12 @@
 //
 // `personKenAshe` is the load-bearing entity for cross-domain triangulation
 // (KenAshe.ai <-> Lucky Domains). It MUST stay byte-identical everywhere it
-// appears — on KenAshe.ai (homepage, about, news/site-launch) and, as an
+// appears - on KenAshe.ai (homepage, about, news/site-launch) and, as an
 // identical copy, on Lucky Domains. Define it once here and import it; never
 // inline a second, hand-written copy that could drift.
 //
 // Source of truth: entity-schema-linking-spec-final.md
-// ("Shared node — Ken Ashe Person"). Do not reorder keys, add/remove fields,
+// ("Shared node - Ken Ashe Person"). Do not reorder keys, add/remove fields,
 // or edit values.
 
 export const personKenAshe = {

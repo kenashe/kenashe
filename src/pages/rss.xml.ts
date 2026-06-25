@@ -7,7 +7,7 @@ export async function GET(context: APIContext) {
   posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
   return rss({
-    title: 'The Lab — Ken Ashe',
+    title: 'Blog - Ken Ashe',
     description:
       'AI-written field notes from a marketer building with AI in public. Every post clears a 40-point quality gate and often a human review.',
     site: context.site!,

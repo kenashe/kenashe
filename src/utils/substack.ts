@@ -29,7 +29,7 @@ function isAllowedLink(link: string): boolean {
 
 // Strip HTML tags from a string. The result MUST only be rendered as plain
 // text (e.g. `{value}` interpolation in Astro), never via `set:html`. We
-// intentionally do NOT decode HTML entities here — decoding `&lt;script&gt;`
+// intentionally do NOT decode HTML entities here - decoding `&lt;script&gt;`
 // after tag-stripping would reintroduce literal markup. Leaving entities
 // encoded keeps the output safe under Astro's default HTML escaping; the
 // cost is that legitimate entities (`&amp;`, etc.) display verbatim.
