@@ -1,4 +1,4 @@
-# Hi, I'm Ken 
+# Hi, I'm Ken Ashe
 
 ### AI application builder | CPA | PMP | Building with AI in public
 
