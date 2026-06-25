@@ -1,0 +1,378 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const description =
+  'Contact Ken Ashe for general inquiries, media and press, or speaking. Reach out for interviews, podcasts, and AI commentary.';
+
+// Reuses the Lucky Domains Web3Forms access key (public client-side token), so
+// submissions route through the same Web3Forms inbox. Mirrors the proven LD
+// form pattern: JS fetch to Web3Forms with inline status, plus a no-JS POST
+// fallback and a honeypot.
+const WEB3FORMS_KEY = '78e7aac4-b264-47c3-b006-c42db75d9889';
+
+const interviewTopics = [
+  'Building with AI in public',
+  'Practical AI for operators and non-engineers',
+  'AI agents and workflow automation',
+  'AI-assisted website development',
+  'AI coding tools in real projects',
+  'Marketing operations automation',
+];
+---
+
+<BaseLayout title="Contact" description={description}>
+  <article class="page">
+    <header class="page-header">
+      <p class="page-mark" aria-hidden="true">// contact</p>
+      <h1>Contact</h1>
+      <p class="intro">
+        For general inquiries, media and press, or speaking. For interviews and comment I'm
+        usually quick to respond. Prefer email? Reach me at
+        <a href="mailto:hello@kenashe.ai">hello@kenashe.ai</a>.
+      </p>
+    </header>
+
+    <section class="media-note" aria-labelledby="media-note-h">
+      <h2 id="media-note-h" class="group-heading">For media and podcasts</h2>
+      <p class="media-lead">
+        Available for interviews, podcast appearances, speaking, and AI commentary on:
+      </p>
+      <ul class="topics" aria-label="Interview topics">
+        {interviewTopics.map((t) => <li>{t}</li>)}
+      </ul>
+      <p class="media-kit-link">
+        Bios, headshot, and fast facts are in the <a href="/newsroom/#media-kit">media kit</a>.
+      </p>
+    </section>
+
+    <form
+      id="contact-form"
+      class="form"
+      action="https://api.web3forms.com/submit"
+      method="POST"
+      novalidate
+    >
+      <input type="hidden" name="access_key" value={WEB3FORMS_KEY} />
+      <input type="hidden" name="subject" value="New inquiry from kenashe.ai" />
+      <input type="hidden" name="from_name" value="KenAshe.ai website" />
+      <input
+        type="checkbox"
+        name="botcheck"
+        class="hp"
+        tabindex="-1"
+        autocomplete="off"
+        aria-hidden="true"
+      />
+
+      <div class="row">
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required placeholder="Your name" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            placeholder="you@example.com"
+          />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="inquiry_type">Inquiry type</label>
+          <select id="inquiry_type" name="inquiry_type">
+            <option>General</option>
+            <option>Media or press</option>
+            <option>Speaking</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="organization">Organization or publication <span class="opt">(optional)</span></label>
+          <input id="organization" name="organization" type="text" autocomplete="organization" placeholder="Where you're writing from" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="topic">Topic</label>
+          <input id="topic" name="topic" type="text" placeholder="What's this about?" />
+        </div>
+        <div class="field">
+          <label for="deadline">Deadline <span class="opt">(for media)</span></label>
+          <input id="deadline" name="deadline" type="text" placeholder="e.g. EOD Friday" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" required placeholder="A sentence or two about what you need."></textarea>
+      </div>
+
+      <button type="submit" class="submit">
+        Send message
+        <span aria-hidden="true">→</span>
+      </button>
+      <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </article>
+</BaseLayout>
+
+<script is:inline>
+  (function () {
+    var form = document.getElementById('contact-form');
+    if (!form) return;
+    var statusEl = document.getElementById('form-status');
+    var btn = form.querySelector('button[type=submit]');
+    function setStatus(msg, kind) {
+      if (!statusEl) return;
+      statusEl.textContent = msg;
+      statusEl.dataset.kind = kind || '';
+    }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (form.botcheck && form.botcheck.checked) return; // honeypot tripped
+      var data = new FormData(form);
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.label = btn.textContent;
+        btn.textContent = 'Sending...';
+      }
+      setStatus('Sending...', '');
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: data,
+      })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (json) {
+          if (json.success) {
+            form.reset();
+            setStatus("Thanks. Your message is on its way and I'll reply to the email you gave.", 'ok');
+          } else {
+            setStatus(
+              'Something went wrong. Please email hello@kenashe.ai directly.',
+              'err',
+            );
+          }
+        })
+        .catch(function () {
+          setStatus('Something went wrong. Please email hello@kenashe.ai directly.', 'err');
+        })
+        .finally(function () {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.label || 'Send message';
+          }
+        });
+    });
+  })();
+</script>
+
+<style>
+  .page {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .page-header {
+    margin-bottom: 2.5rem;
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1.5rem;
+  }
+  .page-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    margin: 0 0 1.25rem;
+    color: var(--fg);
+  }
+  .intro {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+    max-width: 36rem;
+  }
+  .intro a {
+    color: var(--accent);
+  }
+
+  .group-heading {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* Media note */
+  .media-note {
+    margin-bottom: 2.75rem;
+  }
+  .media-lead {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    color: var(--fg);
+    margin: 0 0 0.85rem;
+  }
+  .topics {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .topics li {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--fg);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+  }
+  .media-kit-link {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .media-kit-link a {
+    color: var(--accent);
+  }
+
+  /* Form */
+  .form {
+    display: block;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1.1rem;
+  }
+  .field label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .opt {
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--muted);
+    opacity: 0.8;
+  }
+  .field input,
+  .field select,
+  .field textarea {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    color: var(--fg);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.7rem 0.8rem;
+    width: 100%;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .field textarea {
+    min-height: 8rem;
+    resize: vertical;
+  }
+  .field input::placeholder,
+  .field textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.7;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  /* Honeypot - visually hidden */
+  .hp {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+  }
+
+  .submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--bg);
+    background-color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    padding: 0.7rem 1.3rem;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      border-color 150ms ease;
+  }
+  .submit:hover {
+    background-color: var(--fg);
+    border-color: var(--fg);
+    color: var(--bg);
+  }
+  .submit:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+  .form-status {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 1rem 0 0;
+    color: var(--muted);
+  }
+  .form-status[data-kind='ok'] {
+    color: var(--accent-2);
+  }
+  .form-status[data-kind='err'] {
+    color: var(--accent);
+  }
+
+  @media (max-width: 34rem) {
+    .row {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+  }
+</style>

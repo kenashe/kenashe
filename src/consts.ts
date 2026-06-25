@@ -12,6 +12,7 @@ export const NAV: { label: string; href: string }[] = [
   { label: 'Blog', href: '/blog/' },
   { label: 'Newsroom', href: '/newsroom/' },
   { label: 'About', href: '/about/' },
+  { label: 'Contact', href: '/contact/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [
