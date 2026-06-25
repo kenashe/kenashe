@@ -2,10 +2,6 @@ export const SITE_URL = 'https://kenashe.ai';
 export const SITE_TITLE = 'Ken Ashe | AI Optimist';
 export const SITE_DESCRIPTION = 'Digital marketer. Building with AI.';
 export const AUTHOR = 'Ken Ashe';
-export const NEWSLETTER_URL = 'https://newsletter.kenashe.ai';
-
-// Platform-stable Substack RSS URL - works regardless of custom domain config.
-export const SUBSTACK_RSS_URL = 'https://newsletter.kenashe.ai/feed';
 
 // 1200x630 social card. JPEG/PNG render across all OG + Twitter consumers;
 // SVG does not (notably Facebook/LinkedIn), so the card ships as a raster.
