@@ -5,7 +5,7 @@ import BaseLayout from './BaseLayout.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { readingTime } from '../utils/reading-time';
-import { SITE_URL, AUTHOR } from '../consts';
+import { SITE_URL, AUTHOR, DEFAULT_OG_IMAGE } from '../consts';
 
 interface Props {
   id: string;
@@ -23,11 +23,17 @@ const { id, title, description, pubDate, updatedDate, image, tags, draft, body }
 const { minutes } = readingTime(body ?? '');
 const url = new URL(`/blog/${id}/`, SITE_URL).toString();
 
+// Article image for schema / rich results: the post's hero when present, else the
+// default OG card. Absolute URL so crawlers can fetch it; the hero's src is the
+// full-resolution imported asset, which suits Google's Article image guidance.
+const articleImage = new URL(image ? image.src.src : DEFAULT_OG_IMAGE, SITE_URL).toString();
+
 const articleSchema = {
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: title,
   description,
+  image: articleImage,
   datePublished: pubDate.toISOString(),
   dateModified: (updatedDate ?? pubDate).toISOString(),
   author: { '@type': 'Person', name: AUTHOR, url: SITE_URL },
