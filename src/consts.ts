@@ -9,9 +9,8 @@ export const DEFAULT_OG_IMAGE = '/og-default.png';
 
 export const NAV: { label: string; href: string }[] = [
   { label: 'Projects', href: '/projects/' },
-  { label: 'Blog', href: '/blog/' },
-  { label: 'Newsroom', href: '/newsroom/' },
   { label: 'About', href: '/about/' },
+  { label: 'Blog', href: '/blog/' },
   { label: 'Contact', href: '/contact/' },
 ];
 
