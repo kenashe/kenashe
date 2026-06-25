@@ -8,5 +8,5 @@ Welcome to my GitHub! I'm an AI application builder who ships agents, automation
 
 ## 📫 Let's Connect
 
-*   **LinkedIn:** [linkedin.com/in/kenashe/]
-*   **Website:** [kenashe.ai]
+*   **LinkedIn:** [linkedin.com/in/kenashe/](https://www.linkedin.com/in/kenashe/)
+*   **Website:** [kenashe.ai](https://kenashe.ai/)
