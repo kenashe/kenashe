@@ -35,9 +35,19 @@ const CARD_TITLES = [
   'Six-agent email response team',
   'Personal assistant chatbot',
 ];
-const cards = CARD_TITLES.map((t) => projects.find((p) => p.title === t)).filter(
-  (p): p is Project => p !== undefined,
-);
+// Order the card grid by build date, newest first (oldest last). A build's date
+// is its ship date (LIVE) or the leading date in its footer (SHIPPED); parsed to
+// a year*12+month ordinal so "Jun 2026" and "June 2026" compare correctly.
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const buildOrdinal = (p: Project): number => {
+  const s = (p.shippedAt ?? p.footer?.[0] ?? '').toLowerCase();
+  const month = MONTHS.findIndex((m) => s.includes(m));
+  const year = s.match(/\d{4}/)?.[0];
+  return month < 0 || !year ? 0 : Number(year) * 12 + month;
+};
+const cards = CARD_TITLES.map((t) => projects.find((p) => p.title === t))
+  .filter((p): p is Project => p !== undefined)
+  .sort((a, b) => buildOrdinal(b) - buildOrdinal(a));
 ---
 
 <BaseLayout title="Projects" description={description}>
