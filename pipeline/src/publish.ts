@@ -70,9 +70,34 @@ export function writePost(repoRoot: string, draft: DraftPost): string {
 }
 
 export function commitAndPush(repoRoot: string, message: string): void {
-  execSync('git add -A', { cwd: repoRoot, stdio: 'inherit' });
-  execSync(`git -c user.name="Ken Ashe" -c user.email="kenashe@gmail.com" commit -m ${JSON.stringify(message)}`, { cwd: repoRoot, stdio: 'inherit' });
-  execSync(`git push origin ${env.gitBranch}`, { cwd: repoRoot, stdio: 'inherit' });
+  const git = (cmd: string) => execSync(cmd, { cwd: repoRoot, stdio: 'inherit' });
+  const ident = 'git -c user.name="Ken Ashe" -c user.email="kenashe@gmail.com"';
+  git('git add -A');
+  git(`${ident} commit -m ${JSON.stringify(message)}`);
+  // The daily run can overlap with a manual merge to the same branch, which makes a
+  // plain push fail as a non-fast-forward and drops the whole batch (the runner is
+  // ephemeral). The pipeline only ADDS new post files, so rebasing onto the latest
+  // remote is effectively conflict-free; rebase and retry a few times before failing.
+  const branch = env.gitBranch;
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      git(`git push origin ${branch}`);
+      return;
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+      console.warn(`[publish] push attempt ${attempt}/${maxAttempts} rejected; rebasing onto origin/${branch} and retrying`);
+      git(`git fetch origin ${branch}`);
+      try {
+        git(`${ident} rebase origin/${branch}`);
+      } catch (rebaseErr) {
+        // Additive-only changes should never conflict; if they somehow do, abort the
+        // half-finished rebase and fail loudly rather than force-push over real work.
+        try { git('git rebase --abort'); } catch { /* no rebase in progress */ }
+        throw rebaseErr;
+      }
+    }
+  }
 }
 
 // Shadow preview: commit drafted files to a throwaway branch (force-pushed each run)
