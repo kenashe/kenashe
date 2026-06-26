@@ -23,11 +23,11 @@ function rankScore(items: Item[]): number {
   return weight + tier1 + corroboration;
 }
 
-async function notify(text: string): Promise<void> {
+async function notify(text: string, markdown = true): Promise<void> {
   if (!env.telegram.token || !env.telegram.chat) { console.log('[digest]\n' + text); return; }
   await fetch(`https://api.telegram.org/bot${env.telegram.token}/sendMessage`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: env.telegram.chat, text, parse_mode: 'Markdown' }),
+    body: JSON.stringify({ chat_id: env.telegram.chat, text, ...(markdown ? { parse_mode: 'Markdown' } : {}) }),
   }).catch(() => {});
 }
 
@@ -105,4 +105,13 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(async (e) => {
+  console.error(e);
+  // A hard failure (rejected push, DB/LLM outage, etc.) lands here AFTER the success
+  // digest at the end of main() has been skipped — so the run would otherwise fail
+  // silently. Send a plain-text failure ping (no Markdown, so a messy error string
+  // can't break Telegram parsing) before exiting non-zero.
+  const detail = e instanceof Error ? (e.stack ?? e.message) : String(e);
+  await notify(`🚨 The Lab daily FAILED (${new Date().toISOString()})\n\n${detail.slice(0, 1500)}`, false);
+  process.exit(1);
+});
