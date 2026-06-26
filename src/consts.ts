@@ -10,7 +10,6 @@ export const DEFAULT_OG_IMAGE = '/og-default.png';
 export const NAV: { label: string; href: string }[] = [
   { label: 'Building', href: '/building/' },
   { label: 'Blog', href: '/blog/' },
-  { label: 'Contact', href: '/contact/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [
