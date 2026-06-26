@@ -8,8 +8,7 @@ export const AUTHOR = 'Ken Ashe';
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
 export const NAV: { label: string; href: string }[] = [
-  { label: 'Projects', href: '/projects/' },
-  { label: 'About', href: '/about/' },
+  { label: 'Building', href: '/building/' },
   { label: 'Blog', href: '/blog/' },
   { label: 'Contact', href: '/contact/' },
 ];
