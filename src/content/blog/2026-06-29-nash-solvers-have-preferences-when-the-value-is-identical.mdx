@@ -1,0 +1,54 @@
+---
+title: "Nash solvers have preferences when the value is identical"
+description: "A new Nash equilibrium study shows that solver choice can quietly pick different policies with the same game value, which matters when agents meet imperfect opponents in sequential, hidden-information settings. The lesson is practical: equilibrium is not always a single behavior, and algorithms have taste."
+pubDate: 2026-06-29
+tags: ["game-theory", "ai-research", "agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-06-29-nash-solvers-have-preferences-when-the-value-is-identical/hero.png
+  alt: "Nash solvers have preferences when the value is identical"
+---
+
+## Same value, different behavior
+
+A lot of AI work treats “finding a Nash equilibrium” like hitting a single target. Solve the game. Get the policy. Move on.
+
+That is often too simple.
+
+In many two-player zero-sum games, there is not one Nash equilibrium. There is a whole convex set of them, a Nash polytope. Every point in that set has the same minimax value, V*. But the policies can behave differently.
+
+The new arXiv work, “Which Nash Equilibrium? Solver-Dependent Selection on Zero-Sum Nash Polytopes,” asks a narrow but important question: when standard solvers land somewhere inside that set, are they picking randomly, or does each algorithm have a predictable bias?
+
+The authors tested six tabular games with analytically known Nash sets, including a two-dimensional Nash polytope and Kuhn poker. Their finding is clean: selection was driven by the algorithm, not by the random seed. That only mattered on asymmetric Nash sets, where different equilibrium points actually prescribe different behavior.
+
+This is the kind of result that sounds academic until you imagine an agent trained to be “optimal” in a negotiation, auction, security game, or poker-like setting. The value may be identical against a perfect adversary. The actual behavior can still change.
+
+![a broad polygon with two distinct paths ending at different points inside it, one near the center and one near an edge](../../assets/blog/2026-06-29-nash-solvers-have-preferences-when-the-value-is-identical/inline-1.png)
+
+## Regularization pulls toward the center
+
+The most useful split is between solver families.
+
+The authors report that regularized last-iterate methods, specifically R-NaD and magnetic mirror descent, selected the maximum-entropy member of the Nash set. More precisely, they matched the information projection of a uniform reference onto the Nash set. That held exactly on the two-dimensional polytope and reached 99.7% of maximum entropy in Kuhn poker.
+
+Regret-averaging methods behaved differently. CFR, CFR+, and fictitious play drifted toward a lower-entropy face of the set. On a randomized ensemble of 180 games, R-NaD reached the maximum-entropy member in 100% of converged games, while CFR+ sat strictly below it in 94%. The paired Wilcoxon result was reported at p < 10^-27.
+
+That does not mean CFR is “bad.” CFR is a core tool for imperfect-information games for a reason. The point is narrower: if a game has many equilibria, a solver is not a neutral transport mechanism. It brings an implicit selection rule.
+
+The paper also knocks down two easy explanations. Removing CFR’s positive-orthant projection, the max(R, 0) step, did not remove the boundary drift. And R-NaD’s behavior was not initialization-independent. It followed its anchor.
+
+So the regularizer is not just a training trick. It is a preference over equilibrium behavior.
+
+## Equilibrium choice matters most against the imperfect
+
+Against an optimal opponent, every Nash point has the same value. That is the definition doing its job.
+
+The interesting part is what happens when the opponent is not optimal. The authors found downstream consequences against sub-optimal opponents. Those effects grew with sequential and hidden-information structure, though they stayed bounded. In Kuhn poker, the maximum-entropy equilibrium was a strictly better hedge. In simpler matrix games, equilibrium members differed, but neither dominated across the board.
+
+That distinction matters for builders. Most deployed agents do not face perfectly rational adversaries. They face users, customers, counterparties, attackers, bots, and other models. They face weird policies. Half-trained policies. Human shortcuts. Distribution shift.
+
+If two equilibria have equal minimax value, I care which one fails more gracefully when reality is messy. Maximum entropy is not automatically better, but it is a plausible default in hidden-information settings because it avoids unnecessary commitment. A lower-entropy face may be sharper, more specialized, and sometimes useful. But you should know you picked it.
+
+The authors frame the maximum-entropy and information-projection result as a strongly data-supported conjecture, not a theorem for all cases. That is the right level of confidence. Six exactly solvable games plus a randomized 180-game ensemble is meaningful evidence. It is not a universal law.
+
+For a builder, the move is simple: stop treating “Nash equilibrium found” as a complete spec. If you are training game-playing agents, negotiation policies, market simulators, or safety eval adversaries, run at least two solver families and compare the selected policies, not just the value. Test against sub-optimal opponent sets. If R-NaD and CFR+ land on behaviorally different equilibria, that difference is product-relevant. The catch most readers miss: your solver may be making a policy choice you never wrote down.
