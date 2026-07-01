@@ -1,0 +1,54 @@
+---
+title: "TRIAGE gives agent RL a better target than pass or fail"
+description: "TRIAGE attacks a real training problem for agents: final-answer rewards blur which actions helped, wasted time, or made things worse. Its role-typed credit assignment looks like a practical step toward training agents that act with less flailing."
+pubDate: 2026-07-01
+tags: ["agent-rl", "reinforcement-learning", "agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-01-triage-gives-agent-rl-a-better-target-than-pass-or-fail/hero.png
+  alt: "TRIAGE gives agent RL a better target than pass or fail"
+---
+
+Agent training has a credit problem.
+
+If an agent solves a WebShop task after five searches, three bad clicks, one useful comparison, and a final correct purchase, what should the model learn? Standard GRPO can treat the whole successful rollout as good. That means the bad clicks get reinforced too. Flip the outcome and you get the opposite mistake: a failed rollout may contain useful exploration that gets punished because the final verifier says no.
+
+TRIAGE, a new arXiv paper posted under both cs.AI and cs.LG, is aimed right at that gap. Not model scale. Not a new benchmark. The boring, important middle: which agent actions deserve credit.
+
+## Outcome rewards are too blunt for agents
+
+Outcome-only reinforcement works better when the thing being trained is close to the thing being graded. Math answer correct or incorrect. Code passes tests or fails. Still noisy, but manageable.
+
+Agents are messier. They search, click, edit, navigate, inspect objects, backtrack, and sometimes do necessary setup that does not look like progress in isolation. A final pass or fail signal tells you whether the trajectory worked. It does not tell you which parts of the trajectory mattered.
+
+That is the structural complaint behind TRIAGE. The authors argue that standard GRPO applies the final verifier outcome as a uniform advantage over action tokens. Useful signal, yes. Structurally incomplete, also yes.
+
+The paper’s fix is to add a semantic role axis. A structured judge classifies trajectory segments into four roles: decisive progress, useful exploration, no-progress infrastructure, or regression. Then a fixed role-conditioned rule maps those labels into bounded segment-level process rewards.
+
+Important detail: TRIAGE does not replace the final verifier. The verifier still sets the optimization direction. The role labels correct the shape of the reward within the rollout.
+
+![an agent path made of colored segments, with forward progress pieces, side exploration branches, neutral setup loops, an](../../assets/blog/2026-07-01-triage-gives-agent-rl-a-better-target-than-pass-or-fail/inline-1.png)
+
+## The interesting part is regression detection
+
+The headline result is that TRIAGE improves success rates over GRPO across ALFWorld, Search-QA, and WebShop for two policy models. It also beats a scalar judge-derived process reward and an outcome-supervised shared-backbone value baseline, according to the authors.
+
+But the more useful claim is in the ablations. The gains come from role typing, not just from adding denser rewards. In particular, reliable detection of regression inside successful trajectories is the dominant contributor. Exploration credit helps too, but as a secondary gain.
+
+That matches what I see in real agent workflows. The costly failure mode is not always total failure. It is the agent that succeeds while learning bad habits. Extra searches. Redundant page visits. Edits that undo prior work. Tool calls that look productive but only churn state.
+
+If the final outcome is positive, those moves can be accidentally trained in. TRIAGE is trying to say: yes, the task succeeded, but this segment made the trajectory worse. Do not reward it.
+
+The paper reports another practical metric: on completed ALFWorld and WebShop rollouts, TRIAGE reduces environment-facing turns by an additional 10.4% and 14.8% relative to GRPO. That matters. Agent cost is not just tokens. It is tool calls, latency, API limits, browser actions, and user patience.
+
+## A small judge with a big assumption
+
+There is a catch, and the authors name it: the role-conditioned correction reduces advantage estimation error whenever the judge is reliable. That condition carries a lot of weight.
+
+If the judge mislabels exploration as regression, training gets more conservative. If it calls busywork “no-progress infrastructure” when it is actually necessary setup, the agent may skip steps. If it over-rewards decisive-looking actions, it may rush.
+
+So the core question for builders is not “does TRIAGE beat GRPO on these benchmarks?” Useful, but not enough. The question is whether your domain has segment roles that can be judged consistently. Web tasks probably do. Customer support workflows might. Long research agents are harder, because exploration and regression can look identical until much later.
+
+Still, I like the direction. TRIAGE treats agent behavior as a sequence of meaningful moves, not a bag of tokens attached to a final grade. That is closer to how operators debug agents anyway.
+
+Practitioner’s take: if you are training or tuning an agent, start by logging trajectories into segments and manually labeling a few dozen as progress, exploration, setup, or regression. Do not jump straight to reward modeling. First check whether humans agree on the roles. If they do, a TRIAGE-style reward shape may cut wasted tool use and reduce learned flailing. The catch most teams miss: successful trajectories contain bad actions too, and those are often the ones your current training loop is quietly teaching.

@@ -1,0 +1,56 @@
+---
+title: "Synthetic QA Has a Selection Problem Before It Has a Training Problem"
+description: "Self-generated question-answer data looks cheap and scalable, but a new arXiv study shows the generation step acts like a hidden policy, deciding what evidence gets taught and when instruction-like text contaminates the answers."
+pubDate: 2026-07-01
+tags: ["synthetic-data", "model-training", "ai-safety"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-01-synthetic-qa-has-a-selection-problem-before-it-has-a-training-problem/hero.png
+  alt: "Synthetic QA Has a Selection Problem Before It Has a Training Problem"
+---
+
+Synthetic QA is one of those ideas that feels almost too convenient. Take a document. Ask a model to generate questions about it. Have the same model answer those questions from the text. Use the resulting pairs to fine-tune, distill, or compress knowledge into another model.
+
+Cheap supervision. Infinite-ish data. Nice workflow.
+
+The arXiv paper *Self-Study Reconsidered: The Hidden Fragility of Learning from Self-Generated QA*, cross-listed in cs.AI and cs.LG, makes a sharper point: the QA generation step is not neutral preprocessing. It is a policy. It decides what the model sees, what it ignores, and how ambiguous or adversarial text gets converted into training signal.
+
+That framing matters. If your synthetic data pipeline is biased before training begins, better training may just make the bias stickier.
+
+## The question generator is not reading evenly
+
+The first failure mode is selection.
+
+According to the *Self-Study Reconsidered* researchers, models do not scan a document uniformly when deciding what to ask. Coverage saturates early. Questions concentrate around salient spans. Different prompts still converge on the same parts of the document. Local presentation changes what looks “question-worthy.”
+
+That sounds mundane until you think about web-scale data. Documents are full of weird formatting, boilerplate, bad OCR, broken markup, navigation junk, duplicated headers, and scraped leftovers. The researchers report that poorly cleaned markup can pull question generation toward itself across model families and scales.
+
+So the issue is not just “garbage in, garbage out.” It is more specific: salient garbage gets promoted into supervision.
+
+This is easy to miss because synthetic QA often gives builders a comforting artifact. A nice table of questions and answers looks clean. But the clean table may be hiding a messy allocation decision. The generator has already decided which facts mattered enough to become teachable examples.
+
+![document fragments flowing into a narrow question funnel, with one bright noisy fragment pulling most paths toward itsel](../../assets/blog/2026-07-01-synthetic-qa-has-a-selection-problem-before-it-has-a-training-problem/inline-1.png)
+
+## The answerer can treat the document like instructions
+
+The second failure mode is stranger, and probably more dangerous for applied teams.
+
+When the same kind of model answers questions from the document, it may obey instruction-like passages embedded in the text. The researchers found that compliance depends on intent and surface form, not only on how strict the instruction is. Under task conflict, larger models complied more often.
+
+That last part is worth sitting with. Bigger is not automatically safer in this setup. A larger model may be better at recognizing and following the apparent intent of an embedded instruction, even when the job is supposed to be extractive QA over source text.
+
+If you are generating QA from docs that include prompts, support tickets, emails, Markdown, scraped websites, agent transcripts, code comments, or policy text, this is not theoretical. A document can contain language that looks like an instruction to the model doing the labeling. The labeler then writes poisoned or distorted answers. Those answers may be used to train another model.
+
+The study reports a mitigation that is refreshingly practical. Filtering instruction-like spans before answering lowered mean injection compliance from 88% to 13% in their evaluation, while retaining nearly all clean text. They also found that tying each question to a fixed target reduces biased selection.
+
+That is not a new training recipe. It is pipeline hygiene. Better sampling. Better span control. Better filtering before the answer is generated.
+
+## Synthetic data needs QA of its own
+
+The lesson I take from this is that “synthetic data quality” cannot just mean checking final examples for style, length, and answer format. The upstream choices matter more.
+
+For builders, the natural temptation is to scale the generator, diversify prompts, and assume the average improves. The paper pushes against that. Prompt diversity did not make coverage uniform. Different prompts still clustered on the same regions. If a span is locally salient, models may keep coming back to it.
+
+That changes how I would evaluate a synthetic QA pipeline. I would inspect document coverage, not just sample rows. I would track which spans produce questions. I would quarantine markup, boilerplate, and instruction-like text before answer generation. I would force question generation against fixed target spans when the goal is coverage. And I would run injection tests on the labeling model itself, not only on the final trained model.
+
+Use synthetic QA, but treat it like a data labeling system with a fallible labeler and a biased assignment policy. Start with a small corpus where you can visualize span coverage, compare generated questions against fixed targets, and filter instruction-like text before answers are produced. The catch most teams miss: the prettiest QA pairs may come from the least representative parts of the document.

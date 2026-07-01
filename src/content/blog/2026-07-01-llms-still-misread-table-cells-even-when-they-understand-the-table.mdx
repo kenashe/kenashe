@@ -1,0 +1,50 @@
+---
+title: "LLMs still misread table cells, even when they understand the table"
+description: "A new tabular reasoning study shows that LLMs can understand table structure and still cite or omit the wrong cells, a failure mode that final-answer accuracy can hide. The fix is not a bigger prompt alone, but a small critic watching the references."
+pubDate: 2026-07-01
+tags: ["llms", "evaluation", "data-workflows"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-01-llms-still-misread-table-cells-even-when-they-understand-the-table/hero.png
+  alt: "LLMs still misread table cells, even when they understand the table"
+---
+
+LLMs are getting decent at table questions. That is not the same as being careful with table data.
+
+The new arXiv paper, cross-listed in cs.AI and cs.CL, puts a useful name on a familiar failure: data referencing errors, or DREs. These are cases where a model cites the wrong table value, skips a value it should have used, or otherwise mangles the evidence while still appearing to understand the table layout.
+
+That distinction matters. A model can parse rows and columns, reason in the right general direction, and still pull the wrong number into the chain. If you only grade the final answer, you may miss the part where the model got lucky, guessed, or repaired its own mistake later.
+
+## The bug is not table blindness
+
+The authors tested models from 1.7B to 20B parameters and found DREs across all of them. The interesting part is not that small models fail. It is that the error shows up even when the task is not just “can you read a table?”
+
+This is closer to sloppy bookkeeping than ignorance.
+
+That tracks with what I see in applied work. Ask a model to summarize a messy CSV, compare quarterly figures, or answer a question from a pricing grid, and it often sounds confident. It may even describe the table structure correctly. Then one cell is off. Or one row gets silently ignored. Or it grabs a nearby value that looks plausible.
+
+In normal chat, that can be annoying. In reporting, finance, operations, compliance, or analytics, it is poison. The model does not need to hallucinate a whole story to break trust. It only needs to reference the wrong value once.
+
+![a large spreadsheet with several glowing cells, a main model looking at one cell while a smaller checker catches a misma](../../assets/blog/2026-07-01-llms-still-misread-table-cells-even-when-they-understand-the-table/inline-1.png)
+
+## Final-answer accuracy hides the mess
+
+The paper’s best contribution is pushing evaluation below the final answer. That is where many AI product demos are still too soft.
+
+If a model answers “yes” correctly, but its reasoning cited the wrong revenue line, should that count as success? For a benchmark leaderboard, maybe. For a workflow that produces an audit trail, no.
+
+Intermediate reasoning is not just decoration when the task depends on data. It is the path a human reviewer uses to decide whether to trust the output. If the path contains bad references, the output becomes harder to verify, even when the final answer happens to be right.
+
+The authors report that adding a data-referencing critic improved answer accuracy by up to 12.0% through critic-based filtering and rejection sampling. That is the practical bit. Do not ask one model to both generate and self-certify every number. Generate candidates, then have a separate critic check whether the referenced table values match the source.
+
+They also trained a lightweight 4B-parameter critic that reached an average F1 of 78.2% detecting both in-distribution and out-of-distribution DREs. That is not perfect. It is good enough to suggest a pattern: smaller specialist checkers can help larger general models behave better on narrow reliability problems.
+
+## The product lesson is boring and useful
+
+This is another mark against single-pass AI workflows for structured data.
+
+If your app asks an LLM to answer questions over tables, the safer shape is a pipeline. First retrieve or isolate the relevant rows and columns. Then generate the answer with explicit references. Then run a critic whose only job is to check whether the cited values are real and complete. If the critic flags the response, sample again, ask for repair, or route to a human.
+
+That adds latency and cost. It also adds a control point. For many table-heavy tasks, I would take that trade.
+
+The catch: a critic is not a truth machine. The reported 78.2% F1 means misses remain. Builders should treat it like a lint pass, not a guarantee. Start by logging every table answer with its cited cells, run a reference checker before the answer leaves the system, and measure DREs separately from final correctness. Most teams will find their “accurate” table assistant is less careful than it sounds.

@@ -1,0 +1,46 @@
+---
+title: "AdaJEPA puts world-model repair inside the control loop"
+description: "AdaJEPA is a small but important shift for latent world models: stop treating the predictor as fixed after training, and let real transitions correct it during planning, one replanning step at a time."
+pubDate: 2026-07-01
+tags: ["world-models", "robotics", "test-time-adaptation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-01-adajepa-puts-world-model-repair-inside-the-control-loop/hero.png
+  alt: "AdaJEPA puts world-model repair inside the control loop"
+---
+
+Latent world models have a familiar failure mode. They look useful until the real world drifts away from the training distribution. Then the planner keeps optimizing against a fantasy.
+
+AdaJEPA attacks that specific problem. Not by adding expert demonstrations. Not by training a larger model and hoping it generalizes. The AdaJEPA authors put adaptation inside model predictive control, so the model gets corrected after it acts.
+
+That is the interesting part.
+
+## The planner stops pretending the model is done
+
+A standard latent world model compresses high-dimensional observations into a smaller state space, predicts future states there, and lets a planner choose actions. For robotics and goal-reaching tasks, that is attractive because planning directly over pixels or raw sensor streams is expensive.
+
+The usual setup freezes the world model at test time. Once deployed, it predicts. The controller trusts those predictions. If the environment changes, or the task lands outside the training distribution, the planner may confidently choose bad actions because the model’s imagined future is wrong.
+
+AdaJEPA changes the loop. After training, it plans using model predictive control, executes the first chunk of actions, observes the next transition, uses that transition as a self-supervised training signal, updates the latent model, and replans. The authors report that this closed-loop recalibration improves planning success across goal-reaching tasks, with as few as one gradient step per MPC replanning step.
+
+That last detail matters. Test-time adaptation often sounds good until you ask how much compute it burns, how stable it is, and whether it slows the controller below the useful range. One gradient step per replanning cycle is at least pointed in the right direction.
+
+![robot moving through a maze while a translucent imagined path is repeatedly corrected by small loops from real observati](../../assets/blog/2026-07-01-adajepa-puts-world-model-repair-inside-the-control-loop/inline-1.png)
+
+## This is less about JEPA branding, more about control discipline
+
+The big idea here is not “the model adapts,” in the generic sense. Lots of systems fine-tune. The useful idea is where the adaptation happens.
+
+AdaJEPA uses the observed next-state transition as the correction signal inside the same loop that chooses actions. That is a tighter design than treating learning, planning, and execution as separate phases. The model makes a prediction. The system acts. Reality answers. The model adjusts before the next plan.
+
+This is closer to how practical control systems should behave under shift. You do not need to know the full cause of the mismatch. Maybe the object is heavier. Maybe friction changed. Maybe the visual scene has a texture the encoder dislikes. If the transition is different from what the model expected, the controller has evidence.
+
+There is still a lot the supplied material does not tell us. We do not get the task list, baselines, failure cases, wall-clock overhead, or whether adaptation can harm performance when observations are noisy. “Substantially improves planning success” is the authors’ claim, not an independent measurement here. The arXiv entries are also the same work cross-listed in cs.AI and cs.LG, not separate confirmations.
+
+So I would not read this as proof that adaptive latent models are solved. I would read it as a clean design pattern: keep the world model plastic at deployment, but constrain that plasticity through the controller’s own interaction data.
+
+## The catch is stability, not cleverness
+
+Test-time learning in a closed loop can fix drift. It can also chase noise, overfit to a bad transition, or corrupt a useful representation after a few unlucky updates. The abstract does not say how AdaJEPA handles those edges. In real systems, that is where the engineering lives.
+
+A builder should look at AdaJEPA as a template for agents and robots that plan against learned simulators. Start small. Take an MPC-style loop, log predicted latent transitions versus observed transitions, and add a tiny adaptation step between replans. Measure success rate, latency, and regression under clean conditions, not just recovery under shift. The catch most readers miss: adaptation is only useful if you can bound it. A model that learns during deployment needs brakes, rollback, and telemetry as much as it needs gradients.
