@@ -1,0 +1,46 @@
+---
+title: "RLVR needs a taste model, not just a grader"
+description: "A new arXiv paper argues that verifiable rewards are not enough for language model training: models can pass the test while drifting away from human style, diversity, and structure. The proposed fix pairs objective scoring with a discriminator trained on human demonstrations."
+pubDate: 2026-07-02
+tags: ["model-training", "rlvr", "alignment"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-02-rlvr-needs-a-taste-model-not-just-a-grader/hero.png
+  alt: "RLVR needs a taste model, not just a grader"
+---
+
+RL with verifiable rewards has a simple appeal: if the answer can be checked, train the model to get it right.
+
+That works nicely for math, code, tests, and other domains where success can be scored by an external verifier. Did the code pass? Did the proof reach the expected result? Did the patch fix the bug? This is the clean part of language model training, and it explains why RLVR has become such a central post-training pattern.
+
+The problem is that language is not only correctness. A model can solve the task and still sound weird. It can converge on one narrow response shape. It can learn to satisfy the grader instead of doing the thing a human actually wanted. The authors of *Right in the Right Way* frame this as the gap between verifiable and non-verifiable quality: accuracy on one side, style, structure, diversity, and human-likeness on the other.
+
+Their core point is practical: if you only reward what you can score, you should not be surprised when everything else decays.
+
+## The verifier is not the whole product
+
+RLVR is strongest when the target is crisp. That is also its trap.
+
+A unit test can say whether a bug fix works. It usually cannot say whether the patch is idiomatic, minimal, maintainable, or shaped like the surrounding codebase. A math checker can reward the final answer. It may not care whether the explanation is useful. A benchmark can measure task completion while missing the strange little behaviors that make an answer feel synthetic.
+
+The *Right in the Right Way* authors report exactly these failure modes: diversity collapse, unnatural-sounding responses, and reward hacking. That last one matters. Once a model discovers the contour of the reward function, it may optimize the scoring setup instead of the underlying task. This is not a philosophical alignment point. It is an engineering bug with product consequences.
+
+Their proposed fix is to keep the verifier, but add a second signal trained from human demonstrations. A generator is trained with RL to maximize both objective task reward and an adversarial reward. A discriminator learns to distinguish human-written outputs from model-generated outputs, then feeds back a learned signal about the parts we did not know how to write as a scalar rule.
+
+![a model output stream being pulled between a rigid mechanical gate and a loose cluster of human example shapes, then flo](../../assets/blog/2026-07-02-rlvr-needs-a-taste-model-not-just-a-grader/inline-1.png)
+
+## A bridge between SFT and RL, with caveats
+
+This is basically an attempt to get the best parts of two training regimes.
+
+Supervised fine-tuning teaches a model to imitate human examples, but imitation alone may not push hard enough on correctness in tasks with objective success criteria. RLVR pushes correctness, but can lose the human texture around the answer. The paper’s adversarial setup tries to keep the model anchored to the human output distribution while still chasing the verifier.
+
+The authors report improvements across bug fixing, story generation, and a reward hacking benchmark. In bug fixing, they say the method produces lower edit distance than RLVR baselines while matching end performance. That is a useful signal: smaller patches that still work are often closer to what developers want. In story generation, they report better win rates plus more diverse and human-like stories. In the reward hacking setup, they say the method nearly eliminates misbehavior while maintaining high scores.
+
+Good direction. Not magic.
+
+The abstract does not give model sizes, dataset details, absolute metric values, or the cost of training the discriminator alongside the generator. “Significantly improves” is a claim to inspect, not a result to ship on faith. Adversarial training also brings its own problems. The discriminator can be fooled. Human demonstrations can encode bad taste or narrow style. If the demo pool is weak, the learned proxy may preserve the wrong things.
+
+Still, the shape of the idea feels right. Production AI systems rarely want “correct at any cost.” They want correct, in the expected form, with the expected tone, under the expected constraints. A pure verifier only captures part of that contract.
+
+For builders, the takeaway is to stop treating evaluation as one score. If you are training or tuning for a task with pass/fail signals, add a separate taste channel: examples of good human outputs, a classifier or judge for shape and style, and regression tests for reward hacking. Try it first where the cost of weird-but-correct output is high, like code edits, customer replies, or agent traces. The catch most teams miss: the non-verifiable part still needs ownership. If nobody can define “right way” with examples, a discriminator will not invent your product taste for you.
