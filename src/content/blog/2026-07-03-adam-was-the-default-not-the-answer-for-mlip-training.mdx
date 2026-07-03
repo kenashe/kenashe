@@ -1,0 +1,52 @@
+---
+title: "Adam Was the Default, Not the Answer, for MLIP Training"
+description: "A new arXiv study on machine learning interatomic potentials makes a practical point: for scientific AI, changing the optimizer can improve convergence and accuracy without changing the model architecture or buying more labels."
+pubDate: 2026-07-03
+tags: ["scientific-ai", "optimization", "mlip"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-03-adam-was-the-default-not-the-answer-for-mlip-training/hero.png
+  alt: "Adam Was the Default, Not the Answer, for MLIP Training"
+---
+
+Adam became the default for a reason. It works often enough, fails quietly enough, and sits in the muscle memory of almost every ML training loop.
+
+That is also how defaults become blind spots.
+
+A new arXiv paper, *Beyond Adam: SOAP and Muon for Faster, Label-Efficient Training of Machine Learning Interatomic Potentials*, looks at a narrow but important case: training machine learning interatomic potentials, or MLIPs. These are models used to approximate atomic interactions for scientific simulation. Think NequIP and Allegro, not chatbots.
+
+The authors tested matrix-structured optimizers, including Muon, SOAP, and SOAP-Muon, against Adam-style training. Their claim is simple: optimizer choice is an underexplored design axis for MLIPs, and in their experiments SOAP and SOAP-Muon substantially beat Adam on convergence speed and final accuracy.
+
+That matters because most AI-for-science talk goes straight to architectures, datasets, and scaling. This paper says, hold on, the training recipe may still have cheap wins hiding in plain sight.
+
+## The interesting part is label efficiency
+
+The paper reports that the gains were especially strong under partial force supervision.
+
+That is the phrase that should get a builder’s attention. MLIPs are trained to predict energies and forces. High-quality force labels usually come from expensive simulation or quantum chemistry workflows. If you can train a better model with less complete force supervision, that is not just a benchmark win. It changes the economics of the pipeline.
+
+This is where “faster convergence” becomes more than a training chart. In applied scientific ML, labels are not scraped from the open web. They are produced. Often slowly. Often with compute-heavy tooling. Often with domain expert involvement.
+
+So if SOAP or SOAP-Muon lets a NequIP or Allegro model reach better accuracy with fewer fully supervised force labels, the optimization choice may be acting like a data multiplier. Not magic. Not free. But potentially valuable.
+
+![identical atomic model and dataset splitting into four optimizer paths, with two paths reaching a deeper valley sooner, ](../../assets/blog/2026-07-03-adam-was-the-default-not-the-answer-for-mlip-training/inline-1.png)
+
+## Muon is not a blanket win
+
+The authors did not report a clean “all new optimizers beat Adam” story. SOAP and SOAP-Muon were the consistent standouts. Muon provided only partial gains relative to Adam.
+
+That distinction is useful. A lot of optimizer discourse turns into fashion. Adam was the default. Then Lion had a moment. Then Muon got attention. Now SOAP is in the mix. But scientific ML is not a vibe check. Different models, losses, symmetries, and supervision patterns can make the same optimizer behave very differently.
+
+Here, the tested models matter. NequIP and Allegro are common architectures for equivariant interatomic potentials. They are not generic MLPs on toy data. If the result holds across more materials systems and training regimes, it gives MLIP teams a practical next experiment.
+
+Still, the source material here is one paper, and the abstract does not give the full table of datasets, compute budgets, or failure cases. I would treat this as a strong prompt to test, not as a new universal rule.
+
+## Optimizers are part of the model now
+
+The broader lesson is not “replace Adam everywhere.” It is that optimizer choice deserves the same seriousness as architecture choice, especially when labels are expensive.
+
+In many production ML systems, the optimizer is treated as plumbing. You tune the learning rate, maybe the schedule, maybe weight decay, then move on. In AI-for-science, that may leave real performance on the table.
+
+Matrix-structured optimizers are interesting because they encode more structure into the update step. That can help training move through parameter space more efficiently than scalar adaptive methods in some settings. The catch is cost and complexity. A better optimizer that adds memory pressure, implementation risk, or fragile hyperparameters may not be better in a real lab workflow.
+
+Practitioner’s take: if you are training MLIPs with NequIP, Allegro, or a similar architecture, do not start by redesigning the model. Run a controlled optimizer bake-off first. Keep the same data split, same architecture, same label budget, and compare Adam against SOAP and SOAP-Muon under both full and partial force supervision. The catch most teams miss: measure wall-clock, memory, and label usage together. A prettier loss curve is not enough if it burns the same labels or breaks your training budget.

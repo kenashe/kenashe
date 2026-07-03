@@ -1,0 +1,58 @@
+---
+title: "DemoPSD Treats Teacher Disagreement as a Training Signal"
+description: "A new self-distillation method called DemoPSD tries to fix a quiet failure mode in reasoning training: teachers with privileged information can create shortcuts. The useful idea is selective imitation, especially where teacher and student distributions disagree, not blind copying during dense token supervision."
+pubDate: 2026-07-03
+tags: ["model-training", "reasoning", "distillation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-03-demopsd-treats-teacher-disagreement-as-a-training-signal/hero.png
+  alt: "DemoPSD Treats Teacher Disagreement as a Training Signal"
+---
+
+Self-distillation sounds clean. Let the model teach itself. Give the teacher more information during training, ask the student to learn the reasoning pattern, then deploy the student without the extra hints.
+
+The catch is obvious once you say it out loud: the teacher may not be teaching reasoning. It may be teaching answer-shaped shortcuts.
+
+DemoPSD, a new arXiv preprint listed in both cs.AI and cs.LG, targets that failure mode directly. The paper’s claim is not “distillation is bad.” It is narrower and more useful: dense token-level supervision from a privileged teacher can overfit the student to in-domain patterns, reduce exploration, and leak information the student will not have at test time.
+
+That is a practical training problem, not just a theoretical purity issue.
+
+## The teacher can be too confident for the wrong reason
+
+On-policy self-distillation, or OPSD, uses one model in two roles. The teacher has privileged information. The student does not. The student is trained against the teacher’s token distributions.
+
+This can work. It can also make the student look better than it is.
+
+If the teacher’s output distribution is conditioned on information unavailable at inference, the student can absorb traces of that hidden signal. DemoPSD calls this privileged information leakage. In plain terms: the student learns artifacts of the training setup instead of learning a reasoning procedure that survives outside the setup.
+
+There is a second issue: dense teacher supervision can compress the student’s search behavior. If every token is pulled toward the teacher, the student has less room to explore alternate reasoning paths. That may help benchmark fit and hurt transfer.
+
+That part matters. A lot of current reasoning training is built around shaping trajectories, not just final answers. If the shaping signal is too strong, the model may become a better mimic and a worse solver.
+
+![two branching paths, one path tightly pulled toward a glowing guide, the other path keeping some independent branches be](../../assets/blog/2026-07-03-demopsd-treats-teacher-disagreement-as-a-training-signal/inline-1.png)
+
+## DemoPSD says copy less when disagreement is informative
+
+The central move in DemoPSD is selective adoption of teacher guidance.
+
+Instead of training the student to fit the full teacher distribution, DemoPSD builds a target between teacher and student distributions. The paper describes it as a reverse-KL barycenter, a weighted geometric combination of both distributions. The weight is not fixed. It changes by token position based on how much the teacher and student disagree.
+
+That is the interesting part.
+
+When the teacher and student are close, teacher guidance is less dangerous. When they diverge, DemoPSD does not blindly force the student into the teacher’s distribution. It uses the disagreement as a modulation signal.
+
+The authors argue this gives two benefits. First, leakage attenuation, meaning less transfer of answer-dependent shortcuts from privileged training conditions. Second, exploration preservation, meaning the student keeps more entropy during training instead of collapsing too quickly into the teacher’s preferred path.
+
+The paper reports experiments on SciKnowEval across four scientific fields, where DemoPSD outperforms GRPO and SDPO. It also reports higher training entropy and better out-of-distribution generalization to GPQA benchmarks.
+
+Those are meaningful receipts, with one caveat: all of this is from the DemoPSD paper itself. I would not treat it as settled until other groups reproduce it across different base models, data mixes, and reward setups. But the framing feels right. The question is not whether a teacher is helpful. The question is when the teacher is contaminating the student.
+
+## This is a training recipe, but also a broader pattern
+
+I like this paper because it names a pattern builders run into outside research training loops too.
+
+Any time a system has access to privileged context during development, evaluation, or feedback generation, it can accidentally train downstream behavior that will not hold in production. That includes agents evaluated with hidden scaffolds, synthetic data generated with answer keys, and fine-tuning traces where the “reasoning” is entangled with labels.
+
+The easy mistake is to make the teacher stronger and assume the student gets better. DemoPSD argues for a more careful rule: stronger teachers need gates, especially at the token level.
+
+Practitioner’s take: if you are training or fine-tuning reasoning models with teacher traces, do not only track accuracy. Track entropy, disagreement, and out-of-domain performance. Try ablations where the student sees less teacher signal in high-disagreement regions, then check whether GPQA-style transfer or your own holdout tasks improve. The catch most teams miss is that a great teacher can make a student look smarter by quietly making the training problem less like deployment.
