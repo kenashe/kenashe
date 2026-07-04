@@ -1,0 +1,54 @@
+---
+title: "Code-as-image is a cost hack, not a free lunch"
+description: "A reported 60% Fable cost cut from sending code as images points to a strange new optimization: model pricing can make the cheapest representation different from the most natural one, but OCR-based code review has sharp edges builders need to measure before trusting it."
+pubDate: 2026-07-04
+tags: ["ai-infrastructure", "multimodal-models", "developer-tools"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-04-code-as-image-is-a-cost-hack-not-a-free-lunch/hero.png
+  alt: "Code-as-image is a cost hack, not a free lunch"
+---
+
+A Hacker News submission claims Fable cut costs 60% by converting code to images and having a model OCR it.
+
+That sounds absurd for about two seconds. Then it starts to make sense.
+
+Code is token-expensive. Whitespace, punctuation, braces, long identifiers, imports, nested paths, generated types. Tokenizers were not built around making large codebases cheap to read. If a multimodal model can “see” a screenshot of code well enough, image pricing may beat text pricing for some workloads.
+
+This is not really an OCR story. It is a pricing story.
+
+## The weird economics of model inputs
+
+For years, the default assumption was simple: if you want a model to reason about text, send text. Text is clean. Text is structured. Text is what language models were trained on.
+
+Multimodal models complicate that. They can ingest screenshots, diagrams, scanned pages, UI states, whiteboards, and code panes. The model provider then prices those pixels differently from text tokens. Sometimes that creates an opening where the cheaper path is not the semantically clean path.
+
+That is what makes the Fable claim interesting. A 60% cut, if measured honestly, is not a rounding error. It suggests there are real workloads where representation choice matters as much as prompt engineering.
+
+![two parallel paths from the same code file, one as text tokens and one as a screenshot, both flowing into the same model](../../assets/blog/2026-07-04-code-as-image-is-a-cost-hack-not-a-free-lunch/inline-1.png)
+
+The broader pattern is modality arbitrage. You take the same underlying information and package it in the form the model market currently prices least painfully. Today that might be code as images. Tomorrow it might be audio summaries, compressed ASTs, structured diffs, or tiny rendered UI states instead of DOM dumps.
+
+This is the kind of optimization builders notice before pundits do. Not because it is elegant. Because the bill arrives every month.
+
+## The failure modes are boring and real
+
+The thin part here is the public evidence. The Hacker News item gives the headline claim, not the benchmark. We do not know which model, what image resolution, what kinds of code, what task Fable was running, or how quality was measured.
+
+Those details matter.
+
+OCR over code is not like OCR over prose. A single missed underscore can change meaning. A line wrap can confuse structure. A faint comma can become a period. Indentation matters in Python. Similar glyphs matter everywhere: `O` and `0`, `l` and `1`, quotes and backticks. If the model is only summarizing a file, maybe that is fine. If it is generating a patch, maybe not.
+
+There is also a context problem. A screenshot can compress visible code cheaply, but it may lose metadata that plain text preserves. File paths, exact line numbers, hidden characters, selection state, diffs, comments outside the viewport. You can work around that, but every workaround eats into the savings.
+
+And pricing can move. If a provider notices users routing huge text workloads through images, image rates may change. Or text tokenization for code may improve. Or models may get better native code compression. A clever bill reduction can become a dead trick in one pricing update.
+
+## Treat representation as part of the system design
+
+The useful lesson is not “turn all code into PNGs.” The useful lesson is that input format is now an optimization surface.
+
+For a code assistant, I would test at least three representations: raw text, rendered screenshots, and a structured form like file summaries plus diffs. Then I would measure cost against task success, not against vibes. Can the model identify the right function? Can it explain a bug? Can it propose a safe patch? Can it preserve exact syntax? Does it fail more often on dense TypeScript than on simple Python? Does it degrade when code is minified, generated, or deeply nested?
+
+The surprising winner may vary by task. Screenshots might be good for broad review, UI-related code, or “what is this file doing?” prompts. Raw text probably still wins when exact edits matter. Structured diffs may beat both when the model only needs the change, not the whole file.
+
+Practitioner’s take: try this as an experiment, not a doctrine. Pick one expensive code-reading workflow, run a small eval across text, image, and structured inputs, and compare total cost per accepted answer. The catch most readers miss is that cheaper input can raise downstream review cost if errors get subtle. Measure the full loop, not just the model invoice.
