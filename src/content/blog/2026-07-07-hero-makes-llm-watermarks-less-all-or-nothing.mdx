@@ -1,0 +1,44 @@
+---
+title: "HeRo makes LLM watermarks less all-or-nothing"
+description: "A new watermarking approach called HeRo tries to solve a practical privacy problem: proving something about generated text without exposing the whole embedded payload to every verifier."
+pubDate: 2026-07-07
+tags: ["watermarking", "llm-security", "ai-policy"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-07-hero-makes-llm-watermarks-less-all-or-nothing/hero.png
+  alt: "HeRo makes LLM watermarks less all-or-nothing"
+---
+
+LLM watermarking usually gets framed as a detection problem. Did a model write this, yes or no?
+
+That is the simple version. The more useful version is messier. A generated document may need to carry metadata: which model produced it, which deployment it came from, what policy tier applied, maybe which organization has authority to verify it. Once you move from “synthetic or not” into metadata, the privacy problem shows up fast.
+
+The HeRo authors, in a preprint cross-listed across cs.AI, cs.CL, and cs.LG, call this the selective disclosure problem. Current multi-bit watermarking schemes can embed more than a single yes/no signal, but verifying one part of the payload generally reveals the entire embedded message. That is a bad default. A platform moderator may only need to know that text came from a licensed model. An internal auditor may need more. A court order may justify still more. Those should not all be the same key.
+
+## Watermarks need access control, not just detection
+
+HeRo, short for Hierarchical Vocabulary Routing, is aimed at that gap. Instead of treating the watermark payload as one flat message, it recursively partitions the model vocabulary and distributes watermark information across hierarchical layers. Different verifiers can decode different portions of the payload, depending on their access level.
+
+That sounds abstract, but the product shape is familiar. Think permissioned metadata, not a single public stamp. The model’s sampling process routes through a hierarchy, and each level can carry a different slice of information. A verifier with a shallow key sees a shallow claim. A verifier with deeper access sees more.
+
+![branching tree of token paths with three differently shaped keys opening progressively deeper layers](../../assets/blog/2026-07-07-hero-makes-llm-watermarks-less-all-or-nothing/inline-1.png)
+
+The important claim is not just that HeRo can hide and reveal payload fragments. The authors also report that the scheme preserves the unbiasedness of the underlying sampling process. In plain English: the watermark should not skew token choice in a way that degrades text quality. They also report high detection accuracy and low latency in experiments, though the abstract does not give the numbers. Code is available, which matters here because watermarking claims need implementation scrutiny.
+
+## The privacy angle is the real contribution
+
+I like this direction because it treats watermarking as infrastructure, not theater.
+
+A lot of watermarking discourse has been stuck on public detection. Can teachers detect AI homework? Can platforms flag AI slop? Can governments mandate labels? Those use cases are politically loud, but they are not the only ones. In many real deployments, the verifier is not “the public.” It is a partner, regulator, internal compliance team, marketplace, insurer, or customer support system.
+
+Selective disclosure fits that world better. It lets a model provider prove one fact without dumping every embedded fact. That is closer to how modern identity and credentials work. You do not show your full passport to prove you are over 21 if a narrower proof will do.
+
+The catch: this does not make watermarking magically durable. The HeRo abstract focuses on embedding, access control, quality, detection, and latency. It does not settle the harder operational questions: what happens after paraphrasing, translation, heavy editing, screenshot OCR, or model-to-model rewriting? How are keys governed? Who decides verifier access levels? What happens when a verifier is compromised? Those questions are not side quests. They are the deployment.
+
+## A better primitive, not a full policy
+
+The strongest read is that HeRo gives builders a cleaner primitive for a future watermarking stack. Zero-bit marks answer “was this synthetic?” Multi-bit marks answer “what metadata is inside?” Selective disclosure asks “who gets to know which part?”
+
+That third question is where real systems live.
+
+For builders, I would not start by trying to watermark every output. I would start with a narrow workflow where provenance has clear value: generated legal drafts, healthcare admin text, support macros, marketplace listings, or regulated ad copy. Define the smallest facts that need proof, then map who should verify each one. Try HeRo-style selective disclosure in that bounded lane. The catch most teams miss is governance, not generation. A watermark without key management, verifier roles, audit logs, and a plan for edited text is just a clever signal looking for an operating model.

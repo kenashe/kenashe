@@ -1,0 +1,54 @@
+---
+title: "Reusing RL Gains Across Model Sizes: The Case for Direct-OPD"
+description: "A new method transfers what reinforcement learning taught a small model into a bigger one, skipping the expensive rollouts. It boosted a 1.7B model from 48.3% to 62.4% on AIME 2024 in four hours. Here is what that means for anyone doing post-training."
+pubDate: 2026-07-07
+tags: ["reinforcement-learning", "distillation", "post-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-07-reusing-rl-gains-across-model-sizes-the-case-for-direct-opd/hero.png
+  alt: "Reusing RL Gains Across Model Sizes: The Case for Direct-OPD"
+---
+
+Post-training is the new bottleneck. Pretraining costs are brutal but well understood. The part everyone underestimates is what comes after: the reinforcement learning pass that turns a capable base model into something that actually reasons well. Reinforcement learning with verifiable rewards, RLVR, is the recipe most labs use for that. It works. It also gets more expensive the bigger your model gets, because the target model has to generate its own rollouts during training, and a big model generating thousands of long reasoning traces is slow and costly.
+
+A new paper posted across arXiv's cs.AI, cs.CL, and cs.LG sections, "Weak-to-Strong Generalization via Direct On-Policy Distillation," proposes a way around that. The pitch: run the expensive RL on a small model where rollouts are cheap, then transfer what that run learned to a bigger model without repeating the RL. If it holds up, it changes the economics of iterating on reasoning models.
+
+## The problem with just distilling the small model
+
+The obvious move is to run RL on a small teacher and then distill it into the big student. Copy the teacher's outputs, imitate the behavior, done. The authors argue this does not work well, and the reason is worth sitting with.
+
+When you finish RL on a small model, its final policy is a blend of two things. One is the genuine improvement RL gave it: the reasoning habits, the self-correction, the better answer selection. The other is the ceiling of being a small model in the first place. Its final outputs are limited by its size. So when you imitate the finished small teacher, you drag the strong student down toward the small model's limitations at the same time you pass along the good stuff. You are copying the destination when what you actually want is the direction of travel.
+
+![two runners of different sizes, one small one large, with a glowing arrow showing the direction the small one shifted be](../../assets/blog/2026-07-07-reusing-rl-gains-across-model-sizes-the-case-for-direct-opd/inline-1.png)
+
+That distinction, destination versus direction, is the whole idea.
+
+## What Direct-OPD actually transfers
+
+Direct On-Policy Distillation, or Direct-OPD, transfers the policy shift instead of the policy. Here is the mechanism in plain terms.
+
+You keep two checkpoints of the small model: the version before RL (the reference) and the version after RL (the teacher). You compare them. The difference between those two, the log-ratio of their probabilities, tells you exactly which actions RL made the small model more likely to take and which it made less likely. That difference is the signal RL produced. It is not the small model's final answers; it is the *change* RL induced.
+
+Direct-OPD treats that log-ratio as a dense implicit reward and applies it to the strong student on the student's own on-policy states. That last part matters. The student generates its own reasoning traces, and the transferred signal shapes them, so the student is being nudged in the direction RL discovered while still operating from its own stronger starting point. You never train a separate reward model. You never run sparse-reward RL on the big model at all.
+
+The framing the authors push is the headline: RL outcomes can be reused across model scales as implicit reward signals, not merely as final models to imitate. That is a genuinely different way to think about what an RL run leaves behind. The checkpoint pair is the asset, not the final weights.
+
+## The numbers, and what to trust
+
+The result they lead with: Direct-OPD boosts Qwen3-1.7B from 48.3% to 62.4% on AIME 2024, in 4 hours on 8 A100 GPUs. That is a 14-point jump on a hard math benchmark, on modest hardware, in an afternoon.
+
+A few things I like about how this is reported. They compare against step-matched direct RL, meaning they gave the baseline the same training budget rather than an artificially short one, and Direct-OPD still came out ahead. That is the honest comparison, and it is the one people usually skip. They also show the shifts compose: you can apply multiple policy shifts in sequence, stacking gains from more than one teacher run. That hints at a workflow where RL improvements become reusable building blocks rather than one-off training jobs.
+
+![several small glowing arrows of different colors being stacked and combined into one larger arrow pointing forward](../../assets/blog/2026-07-07-reusing-rl-gains-across-model-sizes-the-case-for-direct-opd/inline-2.png)
+
+Now the caveats, because this is one paper and one benchmark family. The strongest evidence is a single model line (Qwen3) on a single kind of task (competition math with verifiable answers). AIME is exactly the setting where verifiable rewards are cleanest, so it is the friendliest possible testbed. The open question is how far this travels to messier domains where "correct" is fuzzy, or to much larger scale gaps between teacher and student than what's shown here. The method also assumes you have both checkpoints of a teacher that shares enough of the student's structure for the policy shift to mean something. Transfer across very different model families is not something the abstract claims, so I would not assume it.
+
+There is also the quiet dependency on on-policy generation from the student. You still pay for the big model to generate during training. What you save is the RL rollout loop with its reward computation and its sparse, noisy signal. That is a real saving, but it is not free lunch, and anyone budgeting compute should model it honestly.
+
+## Why this matters beyond one benchmark
+
+The deeper idea here connects to the original weak-to-strong generalization work: can a weaker supervisor make a stronger model better? Most of that conversation has been about alignment and about humans supervising superhuman models. This paper answers a narrower, more practical version: a weaker *model's RL run* can supervise a stronger model, if you extract the right signal from it.
+
+If that generalizes, the iteration loop for reasoning models gets cheaper in a specific way. You run your expensive, careful RL once on a small model. Every time a new stronger base model ships, you replay the shift instead of rerunning RL from scratch. Post-training stops being a per-model tax and starts being a library of transferable improvements.
+
+A builder should read this as a technique to test, not a settled result. If you are doing RLVR on verifiable-reward tasks and you keep clean pre-RL and post-RL checkpoints, you already have the raw material to try Direct-OPD. Start where it is strongest: math, code, anything with a checker. Keep the reference checkpoint from every RL run you do, because the whole method depends on having that pair, and people throw those away. The catch most readers will miss is that the small teacher and the strong student need to be close enough in family for the log-ratio to carry meaning, so this is a within-lineage upgrade tool, not a way to borrow reasoning from a totally foreign model. Treat it as a way to amortize your own RL investment across sizes, and measure it against step-matched direct RL on your own task before you believe the savings.
