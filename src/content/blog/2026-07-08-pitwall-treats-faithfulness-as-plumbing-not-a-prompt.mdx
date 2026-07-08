@@ -1,0 +1,60 @@
+---
+title: "Pitwall Treats Faithfulness as Plumbing, Not a Prompt"
+description: "A Formula 1 briefing system verifies every generated sentence against a live Monte Carlo race model, and the design choice that matters most is what it refuses to let the language model ever see."
+pubDate: 2026-07-08
+tags: ["grounded-generation", "hallucination", "applied-ai"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-08-pitwall-treats-faithfulness-as-plumbing-not-a-prompt/hero.png
+  alt: "Pitwall Treats Faithfulness as Plumbing, Not a Prompt"
+---
+
+Live F1 commentary is one of the meanest generation problems you can pick. The facts change every few seconds. Every sentence names a real driver doing a real thing. And there is no reference text to check against, because the race hasn't finished yet. You are writing truth claims about the future, in three languages, on a deadline measured in laps.
+
+That is the setup for Pitwall, described in a paper cross-posted across arXiv's cs.AI, cs.CL, and cs.LG (same authors, same system, three audiences). The pitch that caught me: they treat faithfulness as an architectural property, not something you coax out of a good prompt. Every published sentence gets broken into typed factual claims (position, gap, tyre, pace, overtake, race control) and each claim is checked against the probabilistic race state that produced it. If a claim isn't supported by the state, it doesn't ship.
+
+Most "reduce hallucination" work lives in the prompt or the fine-tune. This lives in the pipe.
+
+## The verifier is the whole point
+
+Here is the move I'd copy. The same verifier that gates live output also gates the training data. They had 3,045 model-written target briefings. Only the 81.9% whose every claim was state-supported got kept. The rest fell back to a provably faithful template.
+
+So the generator never trains on an ungrounded target. Read that again, because it inverts the usual loop. Normally you fine-tune on the best examples you can gather and then try to catch bad output at inference. Pitwall refuses to let the model learn from anything it can't verify in the first place. The verifier isn't a filter bolted on at the end. It's the same gate at both ends of the system, so the model's idea of "a good sentence" is definitionally "a sentence I can check."
+
+![a single gate that both incoming training material and outgoing live output must pass through, forming a closed loop](../../assets/blog/2026-07-08-pitwall-treats-faithfulness-as-plumbing-not-a-prompt/inline-1.png)
+
+This is the part builders should sit with. If your fine-tuning set contains fluent, plausible, unverifiable sentences, you are teaching the model that fluent-and-plausible is the target. Then you act surprised when it produces fluent, plausible, unverifiable sentences at runtime. Pitwall's answer is boring and correct: only train on what your checker can bless.
+
+## Verification only means something if the ground truth is real
+
+A verifier is only as good as the thing it verifies against. You can decompose sentences into claims all day, but if the "truth" you check against is garbage, you've built a very rigorous way to be confidently wrong.
+
+So the substrate matters. Pitwall's grounding is a vectorized Monte Carlo engine running 2,000 per-lap race continuations, calibrated on 126 races from 2018 to 2024. The numbers they report on fully held-out 2025 and 2026 seasons are the part that earns my attention: winner-in-top-3 at 90.3% across 155 backtests, and a held-out Brier score of 0.0745. Brier is a proper scoring rule for probabilistic forecasts (lower is better, 0 is perfect), and 0.0745 on truly held-out seasons is a genuinely calibrated model, not a curve fit to its own training years.
+
+The anecdote they lead with is the kind of thing that's easy to fake and hard to fake honestly: at Silverstone in 2026, a timestamped probability trace was committed to disk before the outcome was known, and it locked onto the eventual winner ten laps before the flag. The "committed to disk before the outcome" detail is doing real work there. It's the difference between a prediction and a story told after the fact.
+
+I'd still want to see the full distribution of those 155 backtests, not just the headline hit rate. Winner-in-top-3 at 90.3% tells you the system is rarely blindsided, but it doesn't tell you how sharp the probabilities are on the boring midfield races where nothing dramatic happens. The Brier number helps. It's not the whole story.
+
+## Virtues trade off, so gate them separately
+
+The finding I keep thinking about isn't about F1 at all. It's this line, which shows up on both halves of the system: virtues trade off and must be gated separately.
+
+In the simulation half, calibration-optimal is not decision-optimal. A model tuned to produce the best-calibrated probabilities isn't automatically the one that makes the best strategy calls. Those are two different objectives and treating them as one degrades both.
+
+In the generation half, the same shape appears. Fine-tuning on richer, more vivid targets buys you better writing, right up until the grounding state gets sparse (early laps, quiet stretches, missing data), at which point that same vividness collapses into hallucination. The model that writes the most engaging briefing when it has data is the model that confidently invents one when it doesn't.
+
+![two dials that cannot both point to maximum at once, one for vividness and one for grounding](../../assets/blog/2026-07-08-pitwall-treats-faithfulness-as-plumbing-not-a-prompt/inline-2.png)
+
+What I like is the diagnosis. They ran a four-base replication and traced the sparse-context failure to base-model instruction adherence, not scale. Bigger wasn't the fix. The models that followed the "only say what's supported" instruction under pressure were the ones that held up, and sparse-context auditing (deliberately testing the system when the state is thin) removed the failure from the production model. That's a much more useful lesson than "hallucination goes down with parameters," which is the thing everyone wants to believe and which this paper quietly declines to confirm.
+
+## Why this generalizes past racing
+
+Strip out the tyres and gaps and you have a template for any high-stakes, real-time, grounded generation job: financial market commentary, medical monitoring summaries, live ops dashboards, logistics status. Anywhere the facts move faster than a human can check and the cost of a confident lie is high.
+
+The pattern is three parts. A grounding substrate you actually trust, validated out of sample. A verifier that decomposes output into checkable typed claims. And the discipline to run that verifier on your training data too, so the model never learns to value unverifiable fluency.
+
+![a live data stream feeding a probability cloud, which feeds a claim-checker, which feeds clean text out](../../assets/blog/2026-07-08-pitwall-treats-faithfulness-as-plumbing-not-a-prompt/inline-3.png)
+
+The catch most readers will miss: this only works because F1 has a clean, typed state to check against. Positions, gaps, tyres, these are structured and unambiguous. Your domain probably isn't that tidy. Before you copy Pitwall's architecture, the real work is defining what a "typed factual claim" even means for your data and building the substrate that can adjudicate it. The language model part is almost the easy bit.
+
+Practitioner's take: if you're shipping any grounded generation feature, steal the two-sided gate first, before you touch the model. Take your existing fine-tuning set and run every example through whatever verifier you'd use at runtime. Throw out anything that fails and replace it with a rigid template. You'll likely lose 15 to 20% of your data, like Pitwall did, and your output will get slightly less colorful. That's the trade. Then build a sparse-context test set on purpose, the thin cases where your model has almost nothing to work with, because that's exactly where vividness turns into invention, and it's the case your happy-path demos will never surface.
