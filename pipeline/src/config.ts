@@ -23,7 +23,7 @@ export const env = {
 export const MODELS = {
   triage: { provider: 'deepseek', model: 'deepseek-chat' },
   flagship: { provider: 'anthropic', model: 'claude-opus-4-8' },
-  note: { provider: 'openai', model: 'gpt-5.5' }, // was google/gemini-3.1-pro (404); swap to a verified id. Revisit Gemini once the valid model name is known.
+  note: { provider: 'openai', model: 'gpt-5.6-sol' }, // GPT-5.6 flagship (Sol); same $/token as 5.5; verified against OpenAI docs 2026-07-09. Gate stays gpt-5.5 (independent, calibrated).
   gate: { provider: 'openai', model: 'gpt-5.5' },
   embed: { provider: 'openai', model: 'text-embedding-3-small' },
   image: { provider: 'google', model: 'gemini-3-pro-image' },
