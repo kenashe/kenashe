@@ -1,0 +1,48 @@
+---
+title: "RL post-training as procedure compression, not just skill amplification"
+description: "A clean rewrite-grammar study suggests RL post-training can do more than amplify latent skills: it can compress primitive procedures into reusable strategies, if pretraining already organized the primitives well enough for reward-driven selectivity to find valid structure. That matters for builders training agents."
+pubDate: 2026-07-09
+tags: ["rl-post-training", "reasoning", "model-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-09-rl-post-training-as-procedure-compression-not-just-skill-amplification/hero.png
+  alt: "RL post-training as procedure compression, not just skill amplification"
+---
+
+## The interesting part is not the toy task
+
+A new arXiv paper, “RL Post-Training Builds Compositional Reasoning Strategies,” asks a question that keeps showing up under different names: does reinforcement learning after pretraining teach models something new, or does it just make them say the right latent thing more often?
+
+The setup is deliberately artificial. A Transformer is pretrained on primitive symbol-rewrite chains. Then it is post-trained on a trace-based reasoning task with only a binary final-answer reward. The environment is fully observable, the pretraining distribution is known, and every rewrite can be audited.
+
+That last part matters. Most claims about model “reasoning” get stuck in vibes because we cannot see the intermediate mechanics cleanly. Here, the researchers can inspect each generated rewrite and classify what happened. No mystery benchmark soup. No squinting at chain-of-thought samples and guessing whether the model learned a concept.
+
+Their finding: RL solved held-out problems that the pretrained model rarely solved, even with much larger sampling budgets. Rejection fine-tuning improved early, then plateaued. So this was not just “sample more from the base model and keep the good ones.”
+
+The paper’s stronger claim is that RL reorganized primitive competence into higher-level procedures. First it strengthened primitive reductions. Then it found composed procedures. Some were sequential, collapsing ordered chains of primitive contractions. Some were parallel, combining independent primitive contractions in a single step. The model did not merely stumble into these once. The procedures became a reused repertoire.
+
+![small primitive pieces merging first into simple paths, then into larger reusable structures](../../assets/blog/2026-07-09-rl-post-training-as-procedure-compression-not-just-skill-amplification/inline-1.png)
+
+## Selectivity beats raw exploration
+
+The contrast with rejection fine-tuning is the practical signal.
+
+Rejection fine-tuning had access to successful outputs, but according to the paper it produced many shortcut-like rewrites, many invalid. RL, by comparison, concentrated exploration into valid reusable structure. That is a subtle difference, and probably the most useful one.
+
+A lot of model training talk treats exploration as the scarce ingredient. More rollouts. More samples. Bigger search. This study says the sharper distinction may be selectivity. The reward process did not just collect lucky completions. It shaped which intermediate moves survived and got consolidated.
+
+That does not mean RL is magic. The pretraining ablations are the cold shower. The paper reports that compositional strategies did not emerge from primitive exposure alone. They depended on whether pretraining had already organized primitive competence into reduction procedures that RL could later compress.
+
+So the base model still matters. A lot. RL did not create reasoning from dust. It operated on weak procedural ingredients that were already present in some usable form. The useful phrase here is not “RL teaches reasoning.” It is closer to: RL can compress and stabilize procedures when the base model has the right kind of procedural substrate.
+
+## What this suggests for agent training
+
+This lands in an awkward middle, which is usually where the truth is.
+
+For people skeptical of RL post-training, the result is evidence that final-answer rewards can shape more than surface behavior, at least in a clean environment where traces can be inspected. For people selling RL as a path to general reasoning, the result is narrower. This is a rewrite grammar, not open-ended software engineering, science, law, or operations. The world was fully observable. The validity of steps was auditable. Real agent environments are messy, delayed, partially observed, and full of rewards that lie.
+
+Still, the pattern is useful. If you want an agent to become better at multi-step work, do not only ask whether it can produce correct final answers. Ask whether its training loop is selecting for reusable intermediate procedures, or just harvesting lucky trajectories.
+
+That means instrumenting traces. It means distinguishing valid shortcuts from invalid ones. It means checking whether learned behaviors are reused across tasks, not just appearing in isolated wins. It also means caring about pretraining or supervised warmup data that teaches procedures, not just examples of outcomes.
+
+For a builder, I would try this in a narrow workflow before making grand claims. Pick a task with auditable intermediate state: data cleaning, code migration, spreadsheet repair, ticket triage with known policies. Give the model primitive demonstrations first. Then use RL or another reward-driven loop against final outcomes, but inspect whether it starts compressing repeated subroutines. The catch most readers miss: if the warmup data only shows scattered primitives and not coherent procedures, the reward loop may optimize for junk shortcuts faster than it learns anything reusable.
