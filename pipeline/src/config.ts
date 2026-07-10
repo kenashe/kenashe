@@ -23,7 +23,7 @@ export const env = {
 export const MODELS = {
   triage: { provider: 'deepseek', model: 'deepseek-chat' },
   flagship: { provider: 'anthropic', model: 'claude-opus-4-8' },
-  note: { provider: 'openai', model: 'gpt-5.6-sol' }, // GPT-5.6 flagship (Sol); same $/token as 5.5; verified against OpenAI docs 2026-07-09. Gate stays gpt-5.5 (independent, calibrated).
+  note: { provider: 'openai', model: 'gpt-5.5' }, // reverted from gpt-5.6-sol: model_not_found on this account 2026-07-10 (id real in OpenAI docs but account lacks access). Verify account access to a 5.6 id, then validate in shadow before switching.
   gate: { provider: 'openai', model: 'gpt-5.5' },
   embed: { provider: 'openai', model: 'text-embedding-3-small' },
   image: { provider: 'google', model: 'gemini-3-pro-image' },
