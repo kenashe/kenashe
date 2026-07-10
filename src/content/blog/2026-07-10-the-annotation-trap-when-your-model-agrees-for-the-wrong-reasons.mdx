@@ -1,0 +1,62 @@
+---
+title: "The Annotation Trap: When Your Model Agrees for the Wrong Reasons"
+description: "A study on Portugal's national language model shows why agreement with human coders isn't the same as measuring the thing you claim to measure, and what that means for anyone using LLMs to label data at scale."
+pubDate: 2026-07-10
+tags: ["evaluation", "annotation", "sovereign-ai"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-10-the-annotation-trap-when-your-model-agrees-for-the-wrong-reasons/hero.png
+  alt: "The Annotation Trap: When Your Model Agrees for the Wrong Reasons"
+---
+
+There's a quiet assumption baked into a lot of AI workflows right now: if a model labels data the same way a trained human would, the model understands the task. Swap the annotator, save the money, scale the work. Cheap, fast, good enough.
+
+A new arXiv study on AMALIA, Portugal's publicly funded 9B-parameter model for European Portuguese, pokes a hole in that assumption. Not by showing the model disagrees with humans. By showing it can agree with them and still be measuring the wrong thing.
+
+That distinction is the whole game, and most people running annotation pipelines aren't checking for it.
+
+## Reliability is not validity
+
+The researchers set AMALIA to a specific task: coding whether a piece of text expresses the moral foundation of *authority*. This comes out of Moral Foundations Theory, where authority is a construct about respect for hierarchy, tradition, legitimate leadership. It's not a keyword you can grep for. You have to infer it.
+
+On raw agreement, AMALIA looks great. It lands within six F1 points of open models eight to thirteen times its size. For a 9B model built for one language, coding a subtle social-science construct, that's a strong showing. If agreement were the finish line, you'd ship it.
+
+But agreement is reliability, not validity. Reliability means the model gives consistent, human-matching answers. Validity means it gets those answers *for the reason the construct says it should*. Two annotators can agree on every label while one reasons from the theory and the other just notices that angry-sounding sentences near a boss tend to get coded a certain way. Same output. Completely different instrument.
+
+![two paths arriving at the same single point, one path winding through a structured lattice, the other a short straight s](../../assets/blog/2026-07-10-the-annotation-trap-when-your-model-agrees-for-the-wrong-reasons/inline-1.png)
+
+The paper's line is worth sitting with: a national language model gives a community "its own instrument for measuring what its citizens say and value." That's the pitch for sovereign AI generally. But an instrument that reads the right number for the wrong reasons isn't measuring. It's guessing well in the cases you happened to test.
+
+## The recovery gap, and why it's clever
+
+The method here is the part builders should steal. To separate reliable-from-lucky, the authors use what they call the *recovery gap*.
+
+First they ask the model to code the construct holistically, one prompt, one judgment. Then they decompose the task into the codebook's atomic clauses, the individual sub-conditions the theory says define authority, ask the model about each piece, and recombine those answers using the theory's explicit rule. If the model actually follows the construct's logic, the decomposed version should roughly reproduce the holistic score. The theory is the theory whether you apply it all at once or in parts.
+
+For AMALIA, it didn't. Decomposition recovered only about half of its holistic performance. Cut the task into the reasoning steps the construct is made of, and the model falls apart. That's the signature of a shortcut: the holistic answer wasn't built from the parts, it was pattern-matched from the surface.
+
+Error analysis backed this up. AMALIA leaned on correlated cues, especially moral outrage near authority figures. Anger at a leader looks like the authority foundation if you're skimming vibes. It often isn't, under the theory. The model found a proxy and rode it.
+
+![a single complex shape being split into small clean component blocks, some blocks glowing solid and others fading and cr](../../assets/blog/2026-07-10-the-annotation-trap-when-your-model-agrees-for-the-wrong-reasons/inline-2.png)
+
+I like the recovery gap because it's a validity test you can actually run without a philosophy degree. You already have the codebook. You already have the holistic prompt. The new work is decomposing and recombining. If the two scores diverge hard, your model is faking the construct.
+
+## It's the model, not the language
+
+The obvious objection: maybe European Portuguese is just hard, or the corpus is weird, or the calibrated English instrument doesn't travel. The authors checked. An open *multilingual* LLM, run on the same Portuguese corpus under the same instructions, closed the recovery gap. Same language, same texts, same prompts. It held together.
+
+So the failure isn't the corpus and it isn't Portuguese. It's the specific pairing of this construct with this model. The paper calls the instrument itself, the construct-model combination, the likely locus of failure.
+
+This is a sharper and fairer claim than "national models are worse." It isn't a verdict on AMALIA or on sovereign AI. It's one construct, one corpus, one counterexample. The authors are careful about that and I'll be careful about it too. What it demonstrates is that agreement scores alone can hide a broken instrument, and that a bigger or better-generalized model can carry theory the smaller specialist couldn't.
+
+The uncomfortable read for the sovereign-AI push: a model can pass its public benchmark, agree with human coders, get funded and deployed, and still be unable to measure the values it was built to measure. Not because it's bad at Portuguese. Because coding an inferred construct is a different, harder skill than matching surface patterns, and a small model may only have room for the easy one.
+
+## What this means beyond one model
+
+Zoom out from AMALIA and the lesson lands on every annotation pipeline. The industry moved to LLM-as-annotator because it's cheap and fast, and the standard justification is inter-annotator agreement with humans. This paper's argument is that agreement is table stakes, not proof. You also need the *evidential route*: how the model reached the label.
+
+That matters most exactly where LLM annotation is most tempting, on abstract, inferred constructs. Sentiment with obvious lexical cues, fine. Sarcasm, moral framing, political stance, legitimacy, trust, the things worth measuring at scale, those are the constructs where shortcuts are easiest to hide and most expensive to miss. If your downstream research or product decision depends on the construct being real, a model that pattern-matches its way to human agreement will quietly poison everything built on top of it.
+
+The authors' recommendation is that sovereign-LLM benchmark batteries test not just agreement but the route to it. I'd extend that to any serious annotation use, national model or frontier API.
+
+Run the recovery gap before you trust a model as an annotator on any inferred construct. Take your rubric, code a sample holistically, then decompose it into the atomic conditions your definition actually names, ask the model each one separately, and recombine by your own stated rule. Compare the two scores. If holistic beats decomposed by a wide margin, the model isn't applying your theory, it's guessing from correlates, and you should either move up a model size or keep humans in the loop for that construct. The catch most people miss: your model can post beautiful agreement numbers and still be wrong in a way agreement can never reveal, because the shortcut and the real reasoning produce the same label right up until the case where they don't, and that's the case that ends up in your paper or your product.
