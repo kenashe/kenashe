@@ -7,6 +7,7 @@ import type { Store } from './store.ts';
 const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 const iso = (d?: string) => { const t = d ? Date.parse(d) : NaN; return Number.isNaN(t) ? new Date().toISOString() : new Date(t).toISOString(); };
 const strip = (s: unknown) => String(s ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+const txt = (v: unknown): string => (typeof v === 'string' ? v : ((v as { '#text'?: string } | null)?.['#text'] ?? ''));
 const arr = <T>(x: T | T[] | undefined): T[] => (x == null ? [] : Array.isArray(x) ? x : [x]);
 
 async function getText(url: string): Promise<string> {
@@ -29,7 +30,7 @@ async function rss(src: SourceConfig): Promise<Item[]> {
   const items = arr<any>(feed?.rss?.channel?.item ?? feed?.feed?.entry);
   return items.slice(0, 15).map((it) => {
     const link = typeof it.link === 'string' ? it.link : it.link?.['@_href'] ?? '';
-    return base(src, { id: strip(it.guid?.['#text'] ?? it.guid ?? it.id ?? link), url: link, title: strip(it.title?.['#text'] ?? it.title), text: strip(it['content:encoded'] ?? it.description ?? it.summary ?? it.content), publishedAt: iso(it.pubDate ?? it.published ?? it.updated) });
+    return base(src, { id: strip(it.guid?.['#text'] ?? it.guid ?? it.id ?? link), url: link, title: strip(it.title?.['#text'] ?? it.title), text: strip(txt(it['content:encoded']) || txt(it.description) || txt(it.summary) || txt(it.content)), publishedAt: iso(it.pubDate ?? it.published ?? it.updated) });
   });
 }
 
