@@ -1,0 +1,56 @@
+---
+title: "vLLM 0.25 Deletes PagedAttention, and the Transformers Backend Catches Up"
+description: "vLLM's 0.25.0 release retires the feature that made it famous, makes Model Runner V2 the default, and closes the speed gap with the Transformers backend. Here is what that reshuffle means for anyone running inference in production."
+pubDate: 2026-07-12
+tags: ["inference", "vllm", "open-source"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-12-vllm-0-25-deletes-pagedattention-and-the-transformers-backend-catches-up/hero.png
+  alt: "vLLM 0.25 Deletes PagedAttention, and the Transformers Backend Catches Up"
+---
+
+vLLM shipped 0.25.0 with 558 commits from 232 contributors. Buried in that pile is a line most people will scroll past: PagedAttention has been removed. That is the algorithm that put vLLM on the map in 2023. The thing every inference blog post cited as the reason vLLM was faster than everything else. It is gone now, deleted in PR #47361.
+
+That is not a regression. It is the whole point. Let me explain what actually happened here, because the release notes read like a changelog and the story underneath is bigger than the version bump suggests.
+
+## The famous feature became legacy code
+
+PagedAttention was a memory-management trick. Instead of reserving one big contiguous block of GPU memory per request, it broke the KV cache into pages and mapped them like virtual memory in an operating system. That let vLLM pack many more requests onto the same GPU without wasting space on padding. It was genuinely clever and it was the marketing.
+
+But the ideas in PagedAttention got absorbed into the V1 engine rewrite and now the Model Runner V2 execution path. Once the new backends became the standard, the old implementation was just dead weight: another code path to test, another thing that could break, another place for bugs to hide. So they cut it.
+
+![a well-worn foundation stone being lifted away while the building above it stands on a new deeper structure](../../assets/blog/2026-07-12-vllm-0-25-deletes-pagedattention-and-the-transformers-backend-catches-up/inline-1.png)
+
+This is a healthy pattern and a rare one. Most projects accrete. The famous feature stays in the codebase forever because ripping it out feels risky and nobody gets promoted for deleting code. vLLM deleting PagedAttention says the maintainers trust the new path enough to remove the safety net. That is a stronger signal about MRv2's maturity than any benchmark they could publish.
+
+## Model Runner V2 is now the default, and it is doing the heavy lifting
+
+MRv2 is now the standard execution path for all dense models (#44443). Everything else in this release hangs off that decision. The interesting additions are not headline models, they are the plumbing: prefix caching for Mamba hybrid models (#42406), multimodal-prefix bidirectional attention (#46942), realtime embeddings (#46762), and dynamic speculative decoding that works with full CUDA graphs (#45953).
+
+That last one matters more than it looks. CUDA graphs capture a fixed sequence of GPU operations and replay them with almost no CPU overhead. Speculative decoding, where a small draft model guesses several tokens ahead and the big model verifies them, is dynamic by nature: the number of accepted tokens changes every step. Making those two play together is genuinely hard, and vLLM shipping it as compatible is a real engineering result, not a checkbox.
+
+The speculative decoding work goes deeper. There is now universal spec decode for heterogeneous vocabularies, called TLI (#38174). Translation: your draft model and your target model no longer need to share the same tokenizer. That has been a quiet blocker for a long time. If you wanted to speed up a big model with a small drafter, you were usually stuck finding a drafter trained on the same vocabulary. TLI loosens that constraint, and it opens the door to mixing and matching drafters across model families. New drafters like DSpark (#46995) and DFlash (#46770) land alongside it, DFlash even getting CPU support (#44029).
+
+## The Transformers backend just closed the speed gap
+
+Here is the release note that will quietly change how people build: the Transformers modeling backend is now as fast as native vLLM (#47187), and it picked up FP8 MoE support (#46820) along the way.
+
+For years the deal was simple. You could run a model through Hugging Face Transformers for flexibility and easy debugging, or you could write a native vLLM model implementation for speed. Two code paths, two sets of quirks. If a new architecture dropped, you waited for someone to port it into vLLM's native format before you got production throughput.
+
+![two parallel roads that were different widths now merging into one wide road](../../assets/blog/2026-07-12-vllm-0-25-deletes-pagedattention-and-the-transformers-backend-catches-up/inline-2.png)
+
+If the "as fast as native" claim holds up under real load, that tradeoff mostly disappears. You define a model once, in the Transformers format most researchers already use, and get vLLM serving speed. That is a big deal for the long tail of models that never got a hand-tuned native implementation. The migrations of GPTBigCode, Starcoder2 (#30966), and RoBERTa (#47452) into this path are the proof of concept.
+
+I want to flag the "as fast as" language, though. Release notes say that. Nobody has independently benchmarked it across model sizes and batch configurations yet. Parity on one workload is not parity everywhere. Treat it as a strong claim to verify, not a settled fact.
+
+## The model zoo tells you where the field is
+
+The new models are a decent map of what labs are shipping. GLM-5 and DeepSeek-V3.2 landed in the zoo (#46808), with GLM-5.2 tuning already in flight. MiniMax-M3 got pipeline parallelism (#45810) and NVFP4 support (#46756). There is a new Streaming Parser Engine (#46610) with parsers for Kimi k2.5 through k2.7 and a port of DeepSeek V4 (#45877).
+
+The pattern worth noticing is the parsing infrastructure. As models get better at tool calling and explicit reasoning traces, serving them correctly means parsing structured output as it streams, not after. A unified tool-call and reasoning parser is unglamorous work, and it is exactly the kind of thing that determines whether agentic workloads actually function in production or fall over on malformed output. The Rust frontend maturing with HTTPS/mTLS (#45890) and a DP supervisor (#47076) points the same direction: vLLM is hardening for serious deployment, not just research demos.
+
+## Practitioner's take
+
+If you run vLLM in production, do not blind-upgrade to 0.25.0. PagedAttention being deleted means any custom code or config that touched the legacy attention path will break, and MRv2 being the new default changes performance characteristics you may have tuned around. Stand it up in staging, replay your actual traffic, and compare tokens per second and memory headroom against your current version before you touch prod.
+
+The thing worth testing first is the Transformers backend parity claim, because if it holds for your models it simplifies your whole stack. Take a model you currently run through a native implementation, run the same load through the Transformers backend on 0.25.0, and measure throughput and latency at your real batch sizes. If it matches, you can collapse two maintenance paths into one. The catch most readers will miss: "as fast as native vLLM" was measured by the people shipping it, on their benchmarks, not yours. Parity on their test does not guarantee parity on your traffic shape, sequence lengths, or quantization setup. Verify before you commit, then enjoy the simpler stack.

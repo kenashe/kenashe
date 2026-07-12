@@ -1,0 +1,60 @@
+---
+title: "Grok Build's CLI and the Telemetry Question Every Coding Agent Raises"
+description: "A look at what xAI's command-line coding tool actually transmits, why the answer matters more than any single vendor, and how builders should think about trust when an agent runs on their machine."
+pubDate: 2026-07-12
+tags: ["coding-agents", "privacy", "developer-tools"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-12-grok-builds-cli-and-the-telemetry-question-every-coding-agent-raises/hero.png
+  alt: "Grok Build's CLI and the Telemetry Question Every Coding Agent Raises"
+---
+
+A Hacker News thread this week pulled apart what xAI's Grok Build CLI actually sends back to xAI. The specifics are worth reading, but the bigger point is that we now have a whole category of software that lives inside your terminal, reads your files, and talks to a server you don't control. The question of what leaves your machine is no longer a footnote. It is the product.
+
+I want to use the Grok Build case as a way into that larger issue, because the details are concrete and the pattern is universal.
+
+## What the reporting actually found
+
+The Hacker News investigation focused on inspecting network traffic from the Grok Build CLI: what endpoints it hits, what payloads it sends, and how much of your local context ends up on xAI's servers. This is the useful kind of scrutiny, someone sitting down with a proxy and watching the wire instead of trusting the marketing page.
+
+The honest caveat first: a single community teardown is a snapshot, not an audit. Traffic captures show what a tool did on one machine, on one day, under one set of settings. They do not show intent, retention policy, or what happens to the data after it lands. So treat the findings as a starting point for questions, not a verdict.
+
+What these teardowns typically surface, and what the Grok Build discussion circled, is a familiar shape. A coding CLI needs your code to be useful. When you ask it to fix a bug, it has to send the relevant files, or embeddings of them, or a summary, to the model. That is not a leak. That is the job. The interesting questions are the ones around the edges: does it send more than the file you asked about, does it phone home on startup before you've typed anything, does it collect telemetry separate from the actual model calls, and can you turn any of that off.
+
+![a laptop terminal with threads of light flowing out to a distant server, some threads thick and some thin](../../assets/blog/2026-07-12-grok-builds-cli-and-the-telemetry-question-every-coding-agent-raises/inline-1.png)
+
+## Why "it sends your code" is not the scandal
+
+Here is where I part ways with the reflexive outrage. Of course it sends your code. Every cloud-based coding assistant does. Claude Code sends context to Anthropic. Cursor sends it to whichever model you pick. Copilot sends it to a mix of GitHub and OpenAI endpoints. If you want a model's help with your code, the model has to see your code. The alternative is running a local model, which most people are not doing for real work yet because the quality gap is still real.
+
+So the scandal, if there is one, is never the fact of transmission. It is the gap between what a tool sends and what a reasonable user would expect it to send. Three gaps matter in practice.
+
+The first is scope. You asked about one file. Did it index your whole repo? Did it walk up the directory tree and grab your `.env` while it was there? Coding agents that do repository-wide context are more useful and also send far more of your machine to a server. That trade-off should be visible, not silent.
+
+The second is telemetry that is not the model call. Usage analytics, error reporting, feature-flag pings. This is the traffic people find most surprising because it happens even when you are not actively asking for help. A CLI that beacons on launch feels different from one that only talks when you talk to it, even if the launch beacon is harmless.
+
+The third is retention and training. What does the vendor do with what it receives. This is the part a traffic capture literally cannot show you, because it happens on the other side of the wire. You are dependent on the published policy, and on whether the default is opt-in or opt-out for training.
+
+## The trust stack for anything that runs in your terminal
+
+I've started thinking about local agents as a trust stack with layers, and it helps clarify where the real risk sits.
+
+![a stack of translucent layers, the bottom layer wide and the top layer narrow, light passing through cleanly on some lay](../../assets/blog/2026-07-12-grok-builds-cli-and-the-telemetry-question-every-coding-agent-raises/inline-2.png)
+
+At the bottom is filesystem access. The tool can read anything your user account can read. That is enormous power and we hand it over casually. A coding agent with shell execution can also run commands, which is a different and larger risk than reading files.
+
+Above that is what it chooses to send. This is where the Grok Build discussion lives. Good tools scope tightly and tell you what they're including. You can watch this yourself with a proxy, which is exactly what the Hacker News crowd did.
+
+Above that is where it sends. A single vendor endpoint is easy to reason about. A tool that talks to five different domains, some of them third-party analytics services, is harder to trust because now your code's metadata is spread across companies you never chose.
+
+At the top is what happens after. Retention, training, breach exposure. You cannot verify this. You can only read the terms and decide whether you believe them.
+
+The thing about this stack is that most of the public arguing happens at the middle layers, the ones you can inspect, while the biggest risk sits at the top layer, the one you can't. That's a natural bias. We debate what we can see.
+
+## What xAI specifically should do, and what all of them should
+
+For xAI's part, the fix for this kind of scrutiny is boring and known: publish a clear data flow doc, make training opt-in with an obvious toggle, separate telemetry from model calls so users can disable analytics without breaking the tool, and default to narrow context with an explicit flag to widen it. None of this is novel. Anthropic and others have moved in this direction under pressure, and the community teardown is the pressure.
+
+The uncomfortable truth is that xAI is getting scrutiny partly because it is xAI, and Elon-adjacent products draw more suspicion than the median startup. Some of that is fair, some of it is vibes. The right response to both is the same: show the wire, document the flow, ship the toggles. Trust you can verify beats trust you have to assume.
+
+**Practitioner's take:** Before you let any coding CLI touch a real repo, spend twenty minutes with a proxy like mitmproxy or Proxyman and watch what it does on launch and on your first prompt. You are looking for three things: does it beacon before you ask it anything, does it send more than the files relevant to your request, and does it hit domains other than the vendor's own. Then read the retention and training terms, because that's the part your proxy can't see. The catch most people miss is that the default settings are the real product. A tool can be perfectly configurable and still ship with repo-wide indexing and opt-out training turned on, and almost nobody changes the defaults. If you're working with client code or anything under NDA, assume the defaults are wrong for you until you've checked, and keep the truly sensitive repos on a local model or an air-gapped setup where the trust stack has one fewer layer to worry about.
