@@ -1,0 +1,60 @@
+---
+title: "Idioms Cluster by Concept, Not Language: What a Feature Graph Adds to Embeddings"
+description: "A new arXiv paper builds an interpretable graph of 160 idioms across eight languages and finds they group by shared concepts, not by tongue. Here is why that matters for translation, idiom detection, and anyone who trusts embeddings to catch figurative meaning."
+pubDate: 2026-07-13
+tags: ["nlp", "embeddings", "interpretability"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-13-idioms-cluster-by-concept-not-language-what-a-feature-graph-adds-to-embeddings/hero.png
+  alt: "Idioms Cluster by Concept, Not Language: What a Feature Graph Adds to Embeddings"
+---
+
+Embeddings are good at a lot of things. Figurative language is not reliably one of them. "Kick the bucket" and "spill the beans" both look, to a distributional model, like ordinary sentences about buckets and beans. The model learns that these strings appear in death-adjacent or secret-adjacent contexts, so it often gets the vibe right. But it does not represent *why* the idiom means what it means. It has no handle on the concept underneath.
+
+A new paper on arXiv (posted under both cs.AI and cs.CL) takes a different route. Instead of leaning on the vector space, the authors build an explicit network of idioms annotated with conceptual features drawn from cognitive linguistics. Their headline finding: across eight typologically diverse languages and 160 expressions, idioms cluster by shared concept, not by language. An English idiom about concealment sits next to a Turkish or Japanese one about concealment, even when the surface words and the word vectors have nothing in common.
+
+That is a small dataset making a specific claim. Worth taking seriously, worth not overselling. Let me walk through what they actually did and where it earns its keep.
+
+## What they built
+
+The method is refreshingly legible. Each of the 160 expressions gets tagged with binary conceptual features: containment, concealment, emotional, social, and others, grounded in cognitive-linguistic theory. Think of these as the semantic primitives the idiom is built from. "Keep it under wraps" carries containment and concealment. "Wear your heart on your sleeve" carries emotional and social.
+
+Then they compute pairwise Jaccard similarity between expressions based on which features they share, and use those similarities to define a weighted graph. Run community detection on the graph and you get clusters. The clusters, crucially, do not respect language boundaries. They respect conceptual schemas.
+
+![many small nodes in different visual styles pulling together into shared glowing clusters, the groupings cutting across ](../../assets/blog/2026-07-13-idioms-cluster-by-concept-not-language-what-a-feature-graph-adds-to-embeddings/inline-1.png)
+
+This is the part that makes the paper more than a taxonomy exercise. If idioms across five language families organize around the same handful of concepts, that is evidence for a real cross-linguistic structure, not an artifact of one language's habits. The authors frame it as consistent with cognitive-linguistic predictions, which is the polite academic way of saying the theory called this shot and the data cooperated.
+
+## The claim that actually matters: this is not in the embeddings
+
+Anyone can build a graph. The interesting question is whether it tells you something you could not already get from a language model. The paper's answer is yes, and they try to show it three ways.
+
+First, the conceptual network captures semantic information not present in distributional embeddings. That is the load-bearing claim. Feature-based conceptual proximity and embedding proximity are measuring different things, and the difference is not noise.
+
+Second, adding the conceptual signal improves downstream idiom detection. This is where I want to see numbers, and the abstract only says "improves." I will hold judgment on magnitude until the tables are in front of me. But the direction is the point: an interpretable feature layer bolted onto a detection pipeline made it better, not worse.
+
+Third, the ablations. They test three feature dimensions: schemas, roles, and valence, and report each contributes non-redundantly. So it is not that one dimension is doing all the work and the other two are decoration. Graph-derived signals like community membership and neighbor similarity turn out to be especially informative. That is the kind of detail that separates a real finding from a hopeful one.
+
+## Cross-lingual translation without the vectors
+
+The result I find most provocative is the transfer experiment. Using conceptual proximity *alone*, the framework identifies acceptable translation equivalents across five language families, with what the authors call substantial gains over embedding-based baselines.
+
+Read that carefully. The system is not translating word to word. It is saying: this English idiom occupies a conceptual position, and the idiom that occupies the nearest conceptual position in the target language is your best equivalent. Concealment maps to concealment. Containment maps to containment. The surface forms can be wildly different and it still works.
+
+![two distinct visual objects on opposite sides of a gap, connected by a bridge made of shared abstract shapes rather than](../../assets/blog/2026-07-13-idioms-cluster-by-concept-not-language-what-a-feature-graph-adds-to-embeddings/inline-2.png)
+
+That is a genuinely different mental model for machine translation of figurative language. Embeddings try to find a nearby point in a shared vector space. This finds a nearby point in a shared *concept* space, and the concept space is human-legible. You can look at why two idioms were matched and disagree with it. Try doing that with a 1,536-dimensional vector.
+
+The honest caveats: 160 expressions is tiny. Eight languages is diverse but not representative of the world's several thousand. "Acceptable translation equivalents" is a softer bar than "correct." And the annotation, while theory-grounded, involves human judgment about which concepts an idiom carries. The paper says annotation can scale via LLMs, which is plausible and also the exact place where subtle errors would creep in at volume.
+
+## Interpretability as a feature, not a consolation prize
+
+We are living through a stretch where the field mostly buys performance with opacity. Bigger models, better numbers, less understanding of the internals. This paper runs the other way and still shows gains. That combination is rare enough to note.
+
+The value is not that the graph beats a frontier model at understanding idioms. It almost certainly does not, in raw capability. The value is that the graph is a representation you can inspect, argue with, and correct. When it matches two idioms, there is a reason on the table. When it clusters concealment idioms together, you can check the feature tags. That auditability is worth real accuracy in domains where a wrong figurative translation is embarrassing or worse.
+
+![a transparent glass mechanism with visible interlocking gears beside an opaque black sphere, both producing the same out](../../assets/blog/2026-07-13-idioms-cluster-by-concept-not-language-what-a-feature-graph-adds-to-embeddings/inline-3.png)
+
+The framework also stays robust when enriched with corpus frequencies, which suggests it plays nicely with the distributional signal rather than fighting it. That is the right posture. Concepts and statistics are complementary, not rivals.
+
+Practitioner's take: if you are shipping anything that touches idiomatic or figurative language across languages, do not trust embedding similarity alone to catch it. Build a small conceptual feature layer for your highest-risk expressions and use it as a check on the vector-based match. The move is not to replace your embeddings, it is to add a legible second opinion that flags when the model matched surface form but missed the concept. Start with your top few hundred problem phrases, annotate them by hand or with an LLM you spot-check, and treat disagreements between the concept graph and the embedding as the queue a human reviews. The catch most readers will miss: the whole thing lives or dies on annotation quality, and if you let an LLM tag concepts unsupervised at scale you will quietly reintroduce the exact black-box error the approach was supposed to expose. Keep a human on the feature layer even when you automate everything around it.
