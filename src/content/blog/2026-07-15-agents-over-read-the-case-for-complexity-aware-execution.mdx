@@ -1,0 +1,54 @@
+---
+title: "Agents Over-Read: The Case for Complexity-Aware Execution"
+description: "A new arXiv paper shows coding agents treat one-line edits like full code-base audits, then proposes a three-step policy that matches top accuracy while cutting cost 85 percent. Here is what the numbers mean for anyone building or paying for agents."
+pubDate: 2026-07-15
+tags: ["agents", "coding-agents", "cost-efficiency"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-15-agents-over-read-the-case-for-complexity-aware-execution/hero.png
+  alt: "Agents Over-Read: The Case for Complexity-Aware Execution"
+---
+
+Most coding agents do not know when a task is easy. Ask one to change a single line, and it will often re-read the file, chase its imports, inspect dependencies, and generally behave like it was asked to audit the whole repo. The edit lands. The bill does not match the work.
+
+A new paper on arXiv (posted under both cs.AI and cs.CL) gives that behavior a name and a fix. The authors call the missing skill "task-aware execution-scope estimation": judging up front how hard a task actually is, what information it genuinely needs, and the shortest reliable path to done. They formalize a metric for the waste, the Agent Cognitive Redundancy Ratio (ACRR), and propose a policy called E3. The headline result: same success rate as the strongest baseline, 85 percent less cost.
+
+## The over-reading problem
+
+The core observation is simple and, if you have watched an agent work, familiar. Agents default to what the authors call a maximum-context-first strategy. When in doubt, read more. Pull in more files. Re-read things already in context. It feels safe because more information rarely hurts accuracy directly. It just quietly inflates tokens, latency, and cost.
+
+The reason this matters now is that agents are moving from demos to standing infrastructure. When a human reads three extra files before a one-line fix, that is a few wasted minutes. When an agent does it thousands of times a day across a team, that is a real line item. And unlike a human, the agent does not feel the friction. It has no sense that this task was trivial and that one was not.
+
+![a small screwdriver tightening a single screw while a huge toolbox is dragged along behind it](../../assets/blog/2026-07-15-agents-over-read-the-case-for-complexity-aware-execution/inline-1.png)
+
+The paper's framing is worth pausing on. They are not measuring any specific deployed product. They call it a controlled probe of execution redundancy. That is an honest boundary, and I appreciate it. The claim is not "GPT-5 wastes 91 percent of its tokens." The claim is that the redundancy is real, measurable, and reducible, shown first in a clean simulator and then corroborated on a live model.
+
+## What E3 actually does
+
+E3 stands for Estimate, Execute, Expand. The agent first estimates an operating point, meaning it guesses how much effort the task deserves. Then it executes a minimum viable path, doing the least it thinks is sufficient. Only if verification fails does it expand scope and pull in more context.
+
+That last part is the whole trick. E3 is not just "be cheaper." A policy that always does the minimum would fail on hard tasks. E3 starts lean and escalates on failure, so it spends budget where the task earns it. The gate is verification, not vibes. If the minimal attempt does not pass the check, the agent widens its view and tries again.
+
+This is closer to how a good engineer works. You do not read the whole codebase to fix a typo. You also do not blindly patch a subtle bug without tracing it. You start with a hypothesis about scope and adjust when reality pushes back.
+
+## The numbers, and where they came from
+
+Two evaluation setups here, and the split matters.
+
+MSE-Bench is the clean one: a deterministic benchmark of 121 edits inside a capability-controlled simulator. On that, E3 matched the strongest baseline's 100 percent success while cutting cost 85 percent, tokens 91 percent, and inspected files 92 percent. It also beat a strong adaptive-retrieval baseline by 16 percent. The authors stress the gains held under reworded instructions and across nearly every cost weighting, which is the kind of robustness check that separates a real effect from a tuning artifact.
+
+LLM-Case is the messier, more convincing one. Here they ran a live GPT-4o agent editing a real open-source library, and graded every candidate patch by actually running the project's pytest suite against a measured oracle. Not "does the diff look plausible." Does the code pass the real tests. On live models the over-reading was milder but still real, and E3 was the leanest and fastest policy at comparable success. Its one failure was a provider rate limit, not a wrong edit.
+
+![two paths from start to finish, one meandering and looping back on itself, one direct with a single detour](../../assets/blog/2026-07-15-agents-over-read-the-case-for-complexity-aware-execution/inline-2.png)
+
+I want to flag the gap between the two numbers honestly, because it is the most important line in the paper. The simulator shows an 85 to 92 percent reduction. The live model shows the effect is "milder." That is a big word doing quiet work. The simulator is designed to make over-reading costly and cleanly measurable, so it likely amplifies the gap versus a real model that already has some implicit sense of scope. Read the simulator numbers as an upper bound on the opportunity, not as what you will see in production Monday.
+
+## Why this points somewhere bigger
+
+The authors position this as a step toward what they call engineering-grounded AI, agents whose effort is anchored in the engineering reality of the task. Strip the acronym and the idea is good: an agent should have a cost model, not just a capability model. Right now we optimize agents to be correct and to be capable. We rarely optimize them to be proportionate.
+
+Proportionality is going to matter more as agents run unattended. A background agent that over-reads is not just expensive, it is slow, and slowness compounds when agents call other agents. The redundancy the paper measures at one hop multiplies across a chain. A cheap, verification-gated escalation policy at each step is the difference between an agent fleet that is affordable and one that quietly triples your inference bill.
+
+The catch is that E3 leans hard on verification. In this study the check was a real test suite with a measured oracle. That is a luxury. Plenty of real agent tasks have no clean pass/fail signal, and "execute the minimum, expand on failure" only works if you can reliably detect failure. Weak verification turns lean execution into confidently-wrong-and-cheap, which is worse than expensive and right.
+
+So the practitioner move is not to bolt on E3 tomorrow. It is to instrument first. Log how many files your agent reads per task and how many it actually needed to touch. That ratio is the paper's ACRR, and you can approximate it without any new framework. If you find your agent inspecting twenty files to change one, you have found free money. Then, and only then, add a start-small-escalate-on-failure loop, but wire it to the strongest verification signal you have, tests, type checks, a linter, a smoke run. Where you have no real check, do not go lean. Over-reading is wasteful. Under-reading without a safety net is how you ship the wrong patch fast.
