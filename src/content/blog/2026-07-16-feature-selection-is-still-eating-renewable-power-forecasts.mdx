@@ -1,0 +1,50 @@
+---
+title: "Feature selection is still eating renewable power forecasts"
+description: "A new arXiv study on wind and solar forecasting is a useful reminder that applied AI often improves by choosing better inputs, not bigger models. The proposed CSFS method keeps wrapper-style accuracy while cutting compute cost by 21% on average."
+pubDate: 2026-07-16
+tags: ["applied-ai", "energy", "ml-systems"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-16-feature-selection-is-still-eating-renewable-power-forecasts/hero.png
+  alt: "Feature selection is still eating renewable power forecasts"
+---
+
+Renewable power forecasting is a great place to look if you want AI without the theater.
+
+No chatbot. No agentic workbench. No trillion-token pretraining run. Just a hard operational problem: wind and solar output move with weather, site conditions, sensor quality, and time. Grid operators and energy companies need better estimates because renewable generation is less controllable than conventional generation.
+
+The interesting bit in this arXiv paper is not a new giant model. It is feature selection.
+
+## The boring part that decides the forecast
+
+The authors looked at two real-world prediction tasks: wind turbine power curve modeling and photovoltaic power prediction. Across those domains, they found a familiar mess. There are lots of possible monitoring and environmental variables, but feature selection is often limited, inconsistent, or not systematic.
+
+That tracks with what I see in applied ML. Teams collect everything because storage is cheap and dashboards make it look useful. Then the model inherits the mess. Temperature, irradiance, wind speed, wind direction, humidity, inverter signals, turbine readings, lagged values, derived values. Some matter. Some duplicate each other. Some only help in one season or at one site. Some add cost and fragility without much signal.
+
+In many production systems, the feature set becomes institutional memory. Someone added a column three years ago. Nobody wants to remove it because the model still runs. That is not engineering. That is archaeology.
+
+![a dense cloud of sensor and weather signals forming several small clusters, with only a few clean streams flowing onward](../../assets/blog/2026-07-16-feature-selection-is-still-eating-renewable-power-forecasts/inline-1.png)
+
+## CSFS is a practical wrapper, not magic
+
+The paper proposes Cluster-based Sequential Feature Selection, or CSFS. The method is model-agnostic and wrapper-based, which means it evaluates feature subsets using model performance rather than relying only on static scores such as correlation or an embedded importance value.
+
+Classic sequential feature selection can work well, but it gets expensive because it repeatedly trains and evaluates models while searching through candidate features. CSFS tries to reduce that cost by clustering related features first, then searching more efficiently through those grouped candidates.
+
+That is a sensible move. In energy data, many inputs are correlated or near-substitutes. If a cluster contains several versions of the same underlying signal, you may not need to test every possible combination with equal effort.
+
+The authors report that wrapper-based methods generally produced better-performing feature selections than filter methods and Random Forest embedded feature importance in their experiments. CSFS reached predictive performance comparable to standard sequential feature selection while reducing computational cost by 21% on average.
+
+That number is not a revolution. It is still useful. A 21% reduction in selection cost matters when you retrain across many sites, turbines, horizons, or model classes. It matters even more when the alternative is “we skip feature selection because it takes too long.”
+
+## The broader AI lesson: smaller search spaces win
+
+This is the kind of paper that will not trend, but it points at a durable pattern in applied AI. Better systems often come from narrowing the problem before the model sees it.
+
+Foundation model culture has trained people to ask, “What model should I use?” In forecasting, anomaly detection, pricing, routing, and industrial control, the better first question is often, “What inputs are actually carrying independent signal?”
+
+There is also a governance angle. If a forecast depends on 80 features, nobody understands the failure mode. If it depends on 15 well-chosen features, the team can monitor drift, audit sensors, and explain why the model moved. Smaller feature sets are easier to test, easier to move between sites, and less likely to break when one upstream system changes a field name.
+
+I would not overread the study. The abstract does not give enough detail here to know how CSFS behaves under every dataset size, retraining cadence, or model family. It is also still an empirical result in specific renewable prediction tasks. But the framing is right: feature selection should be a first-class part of the pipeline, not an afterthought hidden in a notebook.
+
+For builders, the move is simple: before swapping models, run a disciplined feature selection pass. Compare a wrapper method, a cheap filter baseline, and whatever embedded importance your current model gives you. Measure not just accuracy, but training time, feature availability, sensor failure risk, and monitoring burden. The catch most readers miss: the best feature set is not always the one with the highest offline score. It is the one your production system can keep feeding cleanly next month.
