@@ -1,0 +1,56 @@
+---
+title: "Uncertainty metrics should follow the loss, not the other way around"
+description: "A new uncertainty quantification paper argues that epistemic and aleatoric uncertainty are not standalone objects to pick from a menu. They fall out of the modeling setup, especially the strictly proper loss you choose."
+pubDate: 2026-07-17
+tags: ["uncertainty-quantification", "model-evaluation", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-17-uncertainty-metrics-should-follow-the-loss-not-the-other-way-around/hero.png
+  alt: "Uncertainty metrics should follow the loss, not the other way around"
+---
+
+Most AI products treat uncertainty like an accessory.
+
+Add a confidence score. Ask the model to rate itself. Run a calibration pass. Maybe split uncertainty into “epistemic” (the model does not know) and “aleatoric” (the world is noisy), then act like those buckets are stable across tasks.
+
+The arXiv paper *Subjective Risk Decomposition: A New View for Uncertainty Quantification* pushes against that habit. Its central claim is simple and useful: uncertainty measures should not be treated as primitives. They are consequences of higher-level modeling choices.
+
+That sounds abstract. It is. But the practical implication is sharp: if you choose a different loss, you may be asking a different uncertainty question.
+
+## Uncertainty is downstream of the loss
+
+The paper starts from subjective risk, built around a strictly proper loss. A strictly proper loss is one that rewards honest probabilistic predictions. If the true belief is 70 percent, the best move is to say 70 percent, not 55 or 95.
+
+From that setup, the authors show that epistemic and aleatoric uncertainty can be derived by decomposition. The model’s uncertainty is not bolted on later. It falls out of the risk formulation.
+
+That reframes a lot of UQ work. Instead of debating whether entropy, mutual information, variance, disagreement, or another score is the “right” uncertainty metric, the paper says: first specify the modeling scenario and the proper loss. Then the corresponding uncertainty terms are induced.
+
+One concrete receipt: the authors report that reverse cross-entropy recovers the classic information-theoretic uncertainty terms. They also argue that the same framework recovers many measures already proposed across the UQ literature. So this is less “new magic score” and more “common accounting system.”
+
+![a funnel of many possible model outputs passing through a shaped bowl, then splitting into two streams, one showing scat](../../assets/blog/2026-07-17-uncertainty-metrics-should-follow-the-loss-not-the-other-way-around/inline-1.png)
+
+## This is useful for builders because confidence is usually underspecified
+
+In applied AI, “confidence” is often a mushy field in a JSON response.
+
+That is fine for demos. It is dangerous for workflows.
+
+A medical triage assistant, a code migration agent, and a customer support classifier do not need the same kind of uncertainty. One cares about missing a rare condition. One cares about silently introducing a bug. One cares about routing cost and user frustration. A generic confidence score cannot carry all of that.
+
+The paper’s framing says the uncertainty question should inherit the decision question. What loss are you optimizing? What errors matter? What kind of probability report would be honest under that loss?
+
+This matters even more for LLM systems because model self-reports are weak evidence. Asking “how confident are you?” often measures style, not knowledge. Sampling multiple outputs can help, but disagreement is still not automatically epistemic uncertainty. It depends on the task, the loss, and the distribution you think you are modeling.
+
+The useful move is to stop treating uncertainty as a universal scalar and start treating it as part of system design.
+
+## The research is early, but the direction is right
+
+The authors also extend the view into learning theory. They introduce subjective-risk analogues of excess risk, approximation error, and estimation error, then connect those to uncertainty quantification.
+
+That part matters because UQ often floats apart from the rest of model evaluation. Teams measure accuracy over here, calibration over there, uncertainty somewhere else, then try to reconcile them in a dashboard. A learning-theoretic frame could make those pieces less ad hoc.
+
+Still, this is a theoretical paper. It does not give product teams a drop-in library, a benchmark suite, or a guarantee that their chatbot’s confidence score is now trustworthy. The authors call it a first step toward a full learning-theoretic framework for uncertainty quantification. That caveat is doing real work.
+
+The practical read is not “use subjective risk decomposition tomorrow.” It is “stop picking uncertainty metrics before defining the decision problem.”
+
+For a builder, I would apply this by taking one workflow and writing down the actual loss before touching calibration. If the model abstains, what does that cost? If it answers wrong, what does that cost? If it asks for human review too often, what breaks? Then test uncertainty scores against that loss, not against vibes. The catch most teams miss: a confidence score can look clean in the UI and still be answering the wrong question.
