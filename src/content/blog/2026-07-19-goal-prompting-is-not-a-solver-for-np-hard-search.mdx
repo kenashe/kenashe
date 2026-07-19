@@ -1,0 +1,48 @@
+---
+title: "Goal prompting is not a solver for NP-hard search"
+description: "A Hacker News benchmark framing Fable 5 against GPT-5.6 Sol asks whether a /goal instruction helps on an NP-hard problem. The useful answer is narrower than model rankings: goal hints can improve search behavior, but they do not erase combinatorial structure."
+pubDate: 2026-07-19
+tags: ["reasoning", "benchmarks", "agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-19-goal-prompting-is-not-a-solver-for-np-hard-search/hero.png
+  alt: "Goal prompting is not a solver for NP-hard search"
+---
+
+## The interesting part is not the leaderboard
+
+Hacker News surfaced a comparison framed as “Fable 5 vs. GPT-5.6 Sol on an NP-Hard Problem: Does /goal help?” That is a good prompt for a better conversation than “which model wins?”
+
+The phrase “NP-hard problem” does a lot of work here. It means the task can blow up combinatorially. It does not mean every instance is impossible. It also does not mean a language model cannot find a good answer sometimes. Many NP-hard problems have small cases, structured cases, lucky cases, and cases where heuristics work shockingly well.
+
+That matters because a model demo can be true and still not generalize.
+
+If Fable 5 or GPT-5.6 Sol improves after being given a `/goal` instruction, the first question is not “did it become smarter?” The first question is “what changed in the search?” Did the model prune bad branches earlier? Did it maintain constraints more consistently? Did it stop optimizing for a local pattern and start checking the target condition? Those are different mechanisms.
+
+A goal hint can help a model behave more like a planner. It can keep the target state active in context. It can reduce meandering. It can also make the model overconfident, because it now has a clean narrative about what it is trying to do.
+
+![two maze-solving machines facing the same tangled maze, one casting light in every direction, the other pulled by a narr](../../assets/blog/2026-07-19-goal-prompting-is-not-a-solver-for-np-hard-search/inline-1.png)
+
+## `/goal` is steering, not proof
+
+I like goal-style prompting. Not because it magically solves hard problems, but because it makes intent explicit.
+
+A normal prompt often mixes the task, constraints, scoring, examples, and desired format into one blob. A `/goal` instruction separates the desired end state from the rest of the instructions. That can be useful for agents, search loops, coding tasks, planning, and optimization problems where the model needs to repeatedly ask, “am I closer?”
+
+But this is steering. It is not verification.
+
+For an NP-hard task, the real test is not whether the model says it found a solution. The real test is whether an independent checker confirms it. If the task is satisfiability, check the assignment. If it is routing, calculate the route cost. If it is scheduling, validate every constraint. If it is a proof-like task, separate proof generation from proof checking.
+
+That separation is the line between an impressive transcript and a useful system.
+
+This is also where model comparisons get slippery. One model may be better at following `/goal`. Another may be better at raw search. Another may produce cleaner intermediate reasoning but worse final answers. Another may be more willing to guess. Without the exact task, prompt, instance distribution, checker, retry policy, and scoring method, a head-to-head result is mostly a clue.
+
+A clue can be valuable. It is not a benchmark suite.
+
+## Builders should test the loop, not the vibe
+
+The practical takeaway is to treat `/goal` as a component in a search system.
+
+Give the model a goal. Then give it tools that can reject bad states. Let it propose candidates, run a verifier, reflect on failures, and try again with the failed constraints made explicit. Keep temperature, retry count, and budget fixed when comparing models. Save traces. Look for where the model loses the thread.
+
+The catch is that better prompting can hide weaker evaluation. If `/goal` makes the output sound more purposeful, humans may grade it higher even when the solution is wrong. For hard problems, do not trust fluency. Build the checker first, then compare Fable 5, GPT-5.6 Sol, and whatever comes next inside the same harness. Try `/goal`, yes. But measure solved instances, failed constraints, cost per valid answer, and how often the model confidently returns nonsense. That is where the useful signal lives.
