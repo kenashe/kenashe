@@ -1,0 +1,56 @@
+---
+title: "Chess Shows What RL Actually Does to a Reasoning Model"
+description: "A controlled study using chess as a testbed finds that RL post-training returns are largely set by how well a model was pretrained, and that RL does two different jobs depending on how hard the problem is."
+pubDate: 2026-07-20
+tags: ["reinforcement-learning", "reasoning-models", "pretraining"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-20-chess-shows-what-rl-actually-does-to-a-reasoning-model/hero.png
+  alt: "Chess Shows What RL Actually Does to a Reasoning Model"
+---
+
+Most of the RL papers you read treat post-training like a magic wand. Take a base model, run reinforcement learning with verifiable rewards, watch the reasoning scores climb. What almost nobody does is ask the boring question underneath: how much of that gain was already baked in by pretraining, and how much did RL actually add?
+
+A new paper, "Understanding Reasoning from Pretraining to Post-Training," cross-listed on arXiv under cs.AI, cs.CL, and cs.LG, goes after exactly that. The trick is the testbed. Instead of fighting with a trillion-token web corpus you can never fully audit, the authors use chess. Pretrain language models on human chess games, do supervised fine-tuning on synthetic reasoning traces, then run RL on chess puzzles where the reward is just verifiable: did the move work or not. Clean inputs, clean rewards, and a full compute sweep from 5M to 1B parameters that would be unaffordable on frontier-scale models.
+
+That constraint is the whole point. You can actually attribute behavior to a stage.
+
+## Pretraining sets the ceiling, and you can predict it
+
+The headline result is the one that should reshape how teams budget compute. Post-RL performance at a given RL compute level is well-predicted by the pretraining loss. Put differently: if you tell me how well the model was pretrained, I can tell you roughly where it lands after RL, before you spend a dollar on RL.
+
+And it goes further. The slope of the RL reward curve improves approximately linearly with the number of pretraining tokens. More pretraining does not just give you a better starting point. It makes RL itself more productive per step. The longer-pretrained checkpoints both reach higher and climb faster.
+
+![two climbers on parallel slopes, one starting higher and ascending a steeper grade, the other starting lower on a gentle](../../assets/blog/2026-07-20-chess-shows-what-rl-actually-does-to-a-reasoning-model/inline-1.png)
+
+This is a quiet rebuke to a common instinct. When a model plateaus on reasoning benchmarks, the reflex is to throw more RL at it: more rollouts, more reward shaping, longer runs. The chess results suggest a lot of that spend is fighting the wrong battle. If the pretraining loss is mediocre, RL is working against a low ceiling, and the reward curve will be flatter no matter how much compute you pour in. The lever was upstream.
+
+I want to be careful here. This is chess, and a 1B math model, not a frontier LLM. The authors say as much. But the fact that the same predictive pattern showed up in a second, unrelated domain is the part that makes me take it seriously rather than filing it as a cute toy result.
+
+## RL does two different jobs, and it matters which one you need
+
+The second finding is the more interesting one for anyone trying to reason about what RL is actually for. The common story is that RL just sharpens the model's existing policy: it takes the distribution the SFT model already has and concentrates it on the good answers. Tighten what's there.
+
+That story is only half right.
+
+On easy puzzles, that is exactly what happens. RL amplifies correct moves the SFT policy already preferred. The knowledge was present, RL just turned up the volume. Sharpening.
+
+On hard puzzles, something different happens. RL surfaces correct moves that were nearly absent under SFT. Moves the fine-tuned model would almost never have played, RL pulls them up out of the tail and makes them reachable. That is not sharpening. That is closer to discovery.
+
+![a spotlight brightening shapes already near the front of a stage, contrasted with a hand reaching into shadow at the bac](../../assets/blog/2026-07-20-chess-shows-what-rl-actually-does-to-a-reasoning-model/inline-2.png)
+
+This resolves an argument that has been going in circles for a year. One camp insists RL only elicits capabilities the base model already had, that it can't teach anything genuinely new. Another camp points to reasoning models that solve problems the base model never could. The chess data says both camps are describing real phenomena, they just picked different difficulty regimes. Easy problems: elicitation. Hard problems: something that looks like acquisition. The dividing line is how far the correct answer sits from what SFT already believed.
+
+## Why chess is the right kind of small
+
+There's a temptation to dismiss controlled studies like this because they don't run on the models we actually ship. I think that misreads what they're for. You don't use a controlled testbed to predict GPT-6's exact benchmark. You use it to isolate mechanisms you can then go looking for at scale.
+
+Chess is a good choice specifically because the reward is unambiguous and the state space is legible. A move is legal or not, it wins material or not, the puzzle is solved or not. No reward model to hack, no fuzzy human preference to game. When RL surfaces a move that was nearly absent under SFT, you can see it happen and check that it's real. That kind of visibility is impossible when the reward is a learned scalar sitting on top of messy text.
+
+The 1B math transfer check is the bridge. Same pipeline, different domain, same qualitative pattern: longer-pretrained checkpoints reach higher post-RL performance and improve faster. Two data points isn't a law. But it's enough to say the chess findings probably aren't an artifact of chess.
+
+## What this changes about how you spend
+
+The practical shift is a reordering of where you look when reasoning performance disappoints. The reflexive move is to tune the RL stage. The paper's logic says: first ask whether your pretraining loss can even support the target you want, because that number is quietly predicting your post-RL ceiling.
+
+Practitioner's take: before you scale up an RL run, treat pretraining loss (or the closest proxy you have on your base checkpoint) as a leading indicator of RL payoff, and don't expect RL to rescue a weak base. Then separate your eval set by difficulty and watch which job RL is doing. If gains come almost entirely on easy items, you're getting sharpening, and you probably didn't need a heavy RL run to get it, cheaper elicitation like better prompting or light SFT would land close. If you're moving hard items where the correct answer was previously near-zero probability, that's the expensive, genuinely useful part of RL, and it's worth the compute. The catch most people miss: an aggregate reward curve that goes up looks like progress, but it can be entirely easy-item amplification masking zero movement on the problems you actually cared about. Split by difficulty or you'll pay frontier-RL prices for a sharpening job.

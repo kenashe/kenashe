@@ -1,0 +1,54 @@
+---
+title: "CRAFT Turns Rubrics Into a Fine-Tuning Map"
+description: "A new arXiv paper argues that model evals should identify broken capabilities, not just failed prompts. CRAFT clusters rubric criteria into a capability tree, then uses the weakest branches to generate targeted fine-tuning data for finance and legal models."
+pubDate: 2026-07-20
+tags: ["evals", "fine-tuning", "llmops"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-20-craft-turns-rubrics-into-a-fine-tuning-map/hero.png
+  alt: "CRAFT Turns Rubrics Into a Fine-Tuning Map"
+---
+
+Most evals still answer the wrong question.
+
+They tell you the model missed question 47, struggled on securities disclosures, or scored poorly on a legal reasoning benchmark. Useful. But not enough. If you are trying to improve the next model, the real question is narrower: what capability is missing?
+
+That is the frame behind CRAFT, a new arXiv paper cross-listed in cs.AI and cs.LG. The authors argue that rubric-based evaluations already contain richer signal than most teams use. A rubric criterion is not just a grading instruction. It is a small probe of a capability.
+
+That shift matters. Instead of clustering failed prompts or broad topic areas, CRAFT extracts capability descriptions from prompt-rubric pairs, clusters those descriptions into a hierarchy, scores the target model at each node, and then picks weak nodes at the level where the failure is clearest.
+
+Not “bad at finance.” More like “fails to apply a specific accounting constraint when reconciling a scenario.” That is the kind of diagnosis you can train against.
+
+## Rubrics are hiding the repair manual
+
+The interesting move here is not another benchmark score. It is treating the eval artifact as a training data design tool.
+
+Most teams already have rubrics, especially in domains where correctness is structured: finance, legal, medicine, support, compliance, internal ops. Those rubrics often describe what a good answer must do: cite controlling facts, apply a rule, avoid unsupported assumptions, preserve a calculation chain, distinguish similar terms.
+
+CRAFT turns those criteria into capability descriptions. Then it builds a tree, where nearby failures sit together. The model is scored at each node, and weak branches are selected dynamically. Sometimes the useful diagnosis is broad. Sometimes it is a leaf-level weakness. The point is to pick the granularity where the failure is most actionable.
+
+![tree of small broken capability fragments feeding into a focused repair loop and returning to a stronger model](../../assets/blog/2026-07-20-craft-turns-rubrics-into-a-fine-tuning-map/inline-1.png)
+
+That is better than the usual “collect more data from weak examples” loop. Failed prompts can be misleading. One prompt may test five skills. One failed answer may be caused by retrieval, reasoning, instruction following, domain knowledge, or formatting. Prompt-level clustering says where the smoke is. Rubric-level clustering gets closer to the wiring.
+
+## The claim is measured, not magical
+
+The CRAFT authors compared their method against prompt-level EvalTree clustering and untargeted random generation. They held the data generation, fine-tuning, and evaluation setup fixed, then tested across four open source models, two professional domains, and 13 held-out benchmarks that were separate from the diagnostic data.
+
+Their reported result: CRAFT had the strongest finance-domain average for all four models under repeated temperature decoding. In legal, it was strongest for three of four models and stayed within the decoding variance bands of the best baseline on the fourth.
+
+That is a useful receipt. Not “solves evaluation.” Not “auto-improves any model.” The setup is still bounded: open models, two domains, supervised fine-tuning, rubric-based eval data, and generated training examples. Also, the paper summary does not tell us how expensive the full loop is, how sensitive it is to rubric quality, or whether the same gains hold in messy product traffic with users doing weird things.
+
+But the direction is right. Eval design and training data design should not be separate departments. If an eval can only tell you that yesterday’s model was bad, it is a scoreboard. If it can point to the missing capability and help generate targeted examples, it becomes part of the model improvement system.
+
+## The bigger pattern: evals as compilers
+
+I like CRAFT because it fits a broader shift I expect to matter: evals are becoming compilers for improvement.
+
+A good eval does not just produce a number. It decomposes behavior. It names failure modes. It routes work. It tells you whether to change prompts, add tools, fine-tune, retrain, improve retrieval, or collect new gold data.
+
+Rubrics are especially good raw material because they carry human intent in a structured form. They encode what experts care about. CRAFT’s bet is that those criteria can be mechanically transformed into a capability map, then into targeted fine-tuning data. If that works beyond finance and legal, it is a practical recipe for domain model teams.
+
+The catch is that bad rubrics will produce bad maps. Vague criteria like “answer clearly” or “show strong reasoning” will cluster into mush. Teams need rubrics that separate observable behaviors. “Identifies the governing clause before applying the exception” is trainable. “Understands the contract” is not.
+
+Practitioner's take: if you maintain domain evals, audit your rubrics before adding more benchmarks. Rewrite criteria as concrete capability probes, then cluster failures by criterion, not by prompt topic. Pick one weak cluster, generate a small batch of targeted examples, fine-tune or preference-tune, and retest on held-out tasks. The missed catch is that the eval has to be designed for repair from the start, not just for reporting a score.
