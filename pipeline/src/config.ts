@@ -12,6 +12,8 @@ export const env = {
   dedupSim: Number(process.env.DEDUP_SIMILARITY ?? 0.82),
   clusterSim: Number(process.env.CLUSTER_SIMILARITY ?? 0.78),
   cooldownDays: Number(process.env.TOPIC_COOLDOWN_DAYS ?? 14),
+  relatedK: Number(process.env.RELATED_K ?? 5),
+  relatedMinSim: Number(process.env.RELATED_MIN_SIM ?? 0.4),
   githubRepo: process.env.GITHUB_REPO ?? 'kenashe/kenashe',
   gitBranch: process.env.GIT_BRANCH ?? 'master',
   vercelHook: process.env.VERCEL_DEPLOY_HOOK ?? '',
