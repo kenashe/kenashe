@@ -11,6 +11,7 @@ import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
 import { addImages } from './images.ts';
 import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
+import { writeRelated } from './related.ts';
 import type { Item, Story, RunReport, Vec } from './types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../');
@@ -93,6 +94,10 @@ async function main(): Promise<void> {
       }
     } catch (e) { report.errors.push(`${story.key}: ${(e as Error).message}`); }
   }
+
+  // Recompute related-post links across all published posts (bidirectional).
+  const rel = await writeRelated(store, repoRoot, { k: env.relatedK, minSim: env.relatedMinSim });
+  console.log(`[related] ${rel.withLinks}/${rel.posts} posts have related links`);
 
   if (!shadow && (report.published.length || report.drafted.length)) {
     commitAndPush(repoRoot, `pipeline: ${report.published.length} posts, ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
