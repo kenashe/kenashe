@@ -1,0 +1,54 @@
+---
+title: "Soft Prefixes Can Flip a Model's Correct Logic 90% of the Time"
+description: "A new syllogism study shows learned continuous prompts can override correct reasoning in three open models, flipping right answers to wrong ones by pushing a broad answer preference rather than teaching real logic."
+pubDate: 2026-07-21
+tags: ["reasoning", "prompt-injection", "evaluation"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-21-soft-prefixes-can-flip-a-models-correct-logic-90-of-the-time/hero.png
+  alt: "Soft Prefixes Can Flip a Model's Correct Logic 90% of the Time"
+---
+
+Here is an uncomfortable result. You can take a model that answers a logic problem correctly, prepend a short block of learned numbers to the input, change nothing about the model itself, and watch it get the same problem wrong most of the time. Not sometimes. Between 72% and 90% of the time on one model.
+
+That is the core finding in a new arXiv paper on syllogistic reasoning under what the authors call "learned contextual pressure." It posted to both cs.AI and cs.CL, and it is worth sitting with, because it cuts against the story we tell ourselves about reasoning models: that once a model reliably gets the logic right, the logic is stable.
+
+## What a soft prefix actually is
+
+Most prompt attacks you have seen use words. "Ignore previous instructions." "You are now DAN." Those are discrete tokens, things a human can read.
+
+A soft prefix is different. It is a sequence of continuous vectors prepended to the input, optimized directly in the model's embedding space. There are no words to read. It is opaque by construction. You cannot look at it and say what it means, which is exactly why the authors study it through behavior instead of inspection. They keep the model frozen, learn a prefix, and measure what it does to answers on an exactly labeled syllogism benchmark.
+
+Think of it as a lever you attach to the model's input that has no readable label. You only learn what the lever does by pulling it and watching what moves.
+
+![an opaque smooth block attached to the front of a transparent reasoning chain, the block subtly bending the chain toward](../../assets/blog/2026-07-21-soft-prefixes-can-flip-a-models-correct-logic-90-of-the-time/inline-1.png)
+
+The benchmark matters here. Syllogisms are the cleanest logic you can test. All men are mortal, Socrates is a man, therefore Socrates is mortal. Valid or invalid, true or false, no ambiguity. If a model can be pushed off correct answers on syllogisms, the wobble is not about fuzzy real-world facts. It is about the logical judgment itself.
+
+## The numbers, and why they are not noise
+
+The study covers three open models: Qwen3.6-35B-A3B (a mixture-of-experts model), Qwen3-8B, and Gemma 4 31B. Across all three, learned prefixes redirected many correct answers, and they kept working on logical forms and interface variations the prefixes were never trained on.
+
+The obvious objection is that any random junk prepended to a prompt might jostle the answer. The authors control for exactly this. They compare learned prefixes against paired random prefixes of the same shape. In all 16 model-direction-split comparisons, the learned prefixes beat the random controls by 37 to 99 percentage points. That is not a subtle edge. On Gemma, validity-flipping prefixes held a 54% to 56% flip rate while matched random prefixes came in under 1%. The gap is the whole story. Random noise does almost nothing. Learned pressure does a great deal.
+
+Qwen3.6 MoE was the most fragile of the group, holding flip rates between 72% and 90% even as the researchers changed wording and prompt structure. That robustness-of-the-attack is the part that should bother you. It is not a brittle jailbreak tuned to one phrasing. It survives the kinds of interface changes you would hope would break it.
+
+## It is not teaching logic, it is nudging a preference
+
+Here is the subtler and more useful finding. The authors ran diagnostic tests to figure out *how* the prefixes work. Three hypotheses: maybe they force a fixed symbol ("always output B"), maybe they install a real logical operation that transfers between tasks, or maybe they just push a broad preference for one *answer meaning* (like "prefer valid" or "prefer true").
+
+The answer is the third one. The dominant effect is a broad answer preference, not fixed-symbol forcing and not a portable logical operation. The prefix is not making the model reason differently. It is putting a thumb on the scale toward one conclusion, regardless of the actual argument in front of it.
+
+![a balance scale where a hidden weight tilts every measurement the same direction no matter what is placed on the pans](../../assets/blog/2026-07-21-soft-prefixes-can-flip-a-models-correct-logic-90-of-the-time/inline-2.png)
+
+That distinction changes what the result means. If the prefix installed a wrong logical rule, you could argue the model learned a coherent-but-broken procedure. Instead it is closer to a mood: the model becomes disposed to say "valid" or "true" and lets that disposition swamp the reasoning it would otherwise do correctly.
+
+And the disposition is not uniform across models. In both Qwen models, simple scoring models could predict *which* judgments would flip but not *how far* the decision margins would move. Gemma's overall response was better captured by those same simple models. So the surface effect looks similar (correct answers flip) but the internal shape of the vulnerability differs by model. There is no single "logic stability" number you can quote across architectures. Each model has its own failure geometry.
+
+## What this means if you ship reasoning
+
+The honest read: this is a controlled lab study on syllogisms with open-weight models, not a demonstration of an attack on a production API you cannot access the embeddings of. A soft prefix requires embedding-space access to optimize. Most attackers hitting your app through a text box do not have that. So do not read this as "your chatbot is about to be logic-hacked tomorrow."
+
+But do read it as a diagnosis. The paper's real contribution is showing that correct logical behavior sits on top of a broad, pushable answer preference rather than on a rigid logical core. That preference is the soft, movable layer. When your agent chain, your fine-tune, or your retrieved context happens to lean hard toward one conclusion, you are applying a crude version of the same pressure the researchers applied deliberately. The model can be right in isolation and wrong under a leaning context, on the same problem.
+
+Practitioner's take: if you run models on judgment tasks (compliance checks, eligibility rules, valid-or-invalid decisions), stop trusting a single pass. Test each decision from both directions. Ask "is this valid?" and, separately, "is this invalid?" and flag any case where the model agrees with whichever framing you fed it. That divergence is the fingerprint of a preference override, and it is cheap to catch with a paired-prompt eval you can run today. The catch most readers will miss: the danger is not the exotic soft prefix, which most people will never face. It is that the same underlying weakness (a bendable answer preference beneath the logic) gets triggered by ordinary things like leading system prompts, one-sided retrieval, and fine-tuning data that skews toward one label. The attack in the paper is just the clean, measurable version of a bias you are probably already introducing by accident.

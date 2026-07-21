@@ -1,0 +1,48 @@
+---
+title: "PPL-Factory makes the case for smaller fine-tuning sets"
+description: "A new arXiv paper argues that fine-tuning gains can come from picking the right examples, not adding more of them. The interesting part is not perplexity alone, but matching the score to the task and the training budget."
+pubDate: 2026-07-21
+tags: ["fine-tuning", "data-selection", "reasoning-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-21-ppl-factory-makes-the-case-for-smaller-fine-tuning-sets/hero.png
+  alt: "PPL-Factory makes the case for smaller fine-tuning sets"
+---
+
+The least sexy part of model work keeps looking like one of the highest-return parts: choosing the data.
+
+PPL-Factory, a new arXiv paper cross-listed in cs.CL and cs.LG, makes a simple claim with useful receipts. Not every fine-tuning example is worth the same compute. If you can identify the examples that teach the model most for the task at hand, you may be able to train on a tiny slice of the dataset and keep, or even beat, full-data performance.
+
+The authors report that PPL-Factory outperforms other data selection methods on GSM8K using only 1% of the training set. With 10% of the data, they say it beats full-data fine-tuning by 0.9 points on GSM8K and 4.8 points on MATH.
+
+That is the kind of result builders should care about. Not because it proves a universal law. It does not. It is one paper, on math reasoning benchmarks. But because it points at a practical bottleneck: most teams treat fine-tuning data as a pile to be cleaned, deduped, and poured in. PPL-Factory treats it as a budgeted portfolio.
+
+## Perplexity is not the whole trick
+
+Perplexity-based selection is not new. The basic idea is intuitive: ask the model how surprising an example is, then use that signal to pick training samples. Too easy may teach little. Too hard may be noise. Somewhere in the middle is often useful.
+
+The PPL-Factory authors argue that older perplexity approaches are too blunt because they score the whole training sequence the same way. That is fine for plain language modeling, where the objective is broad next-token prediction. It is less fine for reasoning tasks, where the useful learning signal may sit in different parts of the example.
+
+That distinction matters. A math sample contains a problem, a reasoning trace, and an answer. Scoring the entire sequence as one blob can blur what the model is actually supposed to learn. PPL-Factory’s contribution is to make the perplexity score task-aware, then pair it with selection rules that change depending on how much data you can afford to train on.
+
+![messy heap of training examples passing through a funnel into a small bright stream while a larger dim stream is set asi](../../assets/blog/2026-07-21-ppl-factory-makes-the-case-for-smaller-fine-tuning-sets/inline-1.png)
+
+## The budget changes the best data
+
+The budget-aware part is the more interesting idea to me.
+
+If you can only train on 1% of a dataset, you probably want the highest-signal examples, not a representative sample of everything. If you can train on 10%, the tradeoff changes. You can afford more coverage, more variation, maybe a wider difficulty band. PPL-Factory bakes that intuition into the selection process instead of pretending one fixed quality rule works across budgets.
+
+This is where many data curation heuristics break. “Pick diverse examples” sounds good until the task rewards hard edge cases. “Pick long reasoning traces” sounds good until long traces include rambling or wrong logic. “Pick high-quality data” sounds good, but quality is not a single property. It depends on the base model, the target task, and the amount of training you can pay for.
+
+The paper’s framing is refreshingly operational. It does not require a new reward model or a complex human labeling setup. It uses a model-aware score that teams can plausibly compute, then asks a more grounded question: given this task and this budget, which examples should make the cut?
+
+## Do not overread one benchmark win
+
+The caution is obvious. GSM8K and MATH are useful, but they are not your support tickets, codebase, medical notes, sales calls, or internal policy docs. The reported gains may not transfer cleanly. Also, data selection methods can accidentally overfit to benchmark shape. Math reasoning datasets have structure that makes perplexity signals especially legible.
+
+Still, the broader lesson travels.
+
+Fine-tuning is often sold as “add your data to the model.” Better practice is “decide which data deserves gradient updates.” Those are different workflows. The second one asks for scoring, slicing, ablations, and budget curves before a big run. It treats data as an active training control, not just fuel.
+
+Practitioner’s Take: if you are fine-tuning, run a small data-selection experiment before your next full-data job. Score examples with the base model, compare easy, medium, hard, and mixed slices, then train at 1%, 5%, and 10% before spending on 100%. The catch most teams miss: the best subset is not generally the cleanest or largest subset. It is the subset that matches the task objective and the compute budget you actually have.

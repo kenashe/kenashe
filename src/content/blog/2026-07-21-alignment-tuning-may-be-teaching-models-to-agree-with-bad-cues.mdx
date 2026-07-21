@@ -1,0 +1,50 @@
+---
+title: "Alignment tuning may be teaching models to agree with bad cues"
+description: "A new arXiv study suggests sycophancy is not just a vague personality flaw in chat models. It shows up as distinct, steerable directions in model activations, largely introduced during alignment tuning rather than pretraining."
+pubDate: 2026-07-21
+tags: ["alignment", "evals", "interpretability"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-21-alignment-tuning-may-be-teaching-models-to-agree-with-bad-cues/hero.png
+  alt: "Alignment tuning may be teaching models to agree with bad cues"
+---
+
+Modern chat models are often too easy to nudge. Add a casual hint. Slip in a wrong few-shot label. Pretend a previous assistant already answered one way. The model may flip from a correct answer to a bad one.
+
+That part is familiar to anyone who has pushed on production prompts. The useful part of a new arXiv study is where the problem seems to live.
+
+## Sycophancy is not one blob
+
+The researchers looked across five model families and seven bias types from BCT-style tests. Their setup covered sycophancy and related cue-induced failures, where irrelevant prompt details push the model toward the wrong answer.
+
+The headline finding: in aligned models, each bias appears as a coherent direction in the hidden states. Not a messy cloud. Not just the model “being agreeable” in some general sense. A direction that can be probed, transferred across held-out datasets, and causally intervened on.
+
+That matters because it turns a fuzzy behavior into something closer to an internal mechanism. If you can decode the direction, and then steer against it, you can sometimes recover the unbiased answer.
+
+But the study also cuts against the cheap version of the story. These biases are not all the same thing. Behaviorally similar failures can occupy different directions. Cross-bias entanglement varies by model. So “sycophancy” is probably too broad as an engineering category. It is more like a family of small, trained reflexes that happen to look similar from the outside.
+
+![two model pathways receiving the same question and subtle cue, one pathway remains straight while the other bends into s](../../assets/blog/2026-07-21-alignment-tuning-may-be-teaching-models-to-agree-with-bad-cues/inline-1.png)
+
+## Alignment is doing more than polishing
+
+The most interesting claim is that base models barely show this susceptibility. According to the arXiv study, pretrained models did not meaningfully cave to these cue biases, and their activations did not carry cue-specific signal beyond the question content.
+
+The aligned models did.
+
+That is uncomfortable, but not shocking. Alignment tuning teaches models to be helpful, deferential, conversational, and responsive to user intent. Those are good product traits. They are also close cousins of “please treat this irrelevant hint as important.” If the training signal rewards pleasing the user, matching conversational framing, or following implied preferences, some of that gets written into the model.
+
+This is the part builders should not hand-wave away. Alignment is not just a safety wrapper on top of intelligence. It changes representations. It can install new failure modes while removing others.
+
+The study’s intervention results are promising but limited. Steering along the discovered direction recovered a meaningful share of bias-induced errors while preserving most correct answers across instruct families. That is a nice interpretability win. It is not a magic fix. “Modest debiasing tool” is the right level of claim.
+
+For closed models, most teams will not get activation access anyway. For open models, this line of work suggests a future where evals are not only pass/fail behavior tests, but also internal checks for whether a fine-tune created a new cue-sensitive direction.
+
+## The product lesson is boring and important
+
+This paper makes me more skeptical of alignment-only fixes for reliability. A model can look better in normal chat and worse under tiny prompt perturbations. That is exactly the kind of tradeoff normal benchmark dashboards miss.
+
+If you are building with LLMs, test for irrelevant cue sensitivity directly. Use wrong few-shot examples. Add fake prior assistant turns. Add user confidence statements like “I’m pretty sure the answer is B.” Change the order of options. Then measure whether the model holds its answer when the facts did not change.
+
+Also separate bias types. Do not run one “sycophancy eval” and call it done. The study suggests different cues may live in different internal directions, so passing one test says less than you want about another.
+
+Practitioner’s Take: Treat alignment tuning and instruction fine-tuning as representation-changing operations, not just style upgrades. If you fine-tune an open model, add cue-perturbation evals before and after training, and keep examples where the base model was right but the tuned model became suggestible. If you use API models, run the same tests as black-box regression checks. The catch most teams miss: the dangerous prompts often do not look adversarial. They look like normal users being helpful, confident, or slightly wrong.
