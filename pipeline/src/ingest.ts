@@ -25,13 +25,24 @@ function base(src: SourceConfig, extra: Partial<Item>): Item {
   return { source: src.name, sourceType: src.type, tier: src.tier, weight: src.weight, id: '', url: '', title: '', text: '', publishedAt: new Date().toISOString(), ...extra };
 }
 
+// AI keyword gate for topic-intersection feeds (e.g. digital-asset sources): keep only
+// items mentioning an AI term. Word-boundary + case-insensitive, so "domain" != "AI".
+const AI_KEYWORDS = ['AI', 'LLM', 'LLMs', 'GPT', 'ChatGPT', 'OpenAI', 'Anthropic', 'Claude', 'Gemini', 'Grok', 'DeepSeek', 'machine learning', 'neural network', 'generative', 'chatbot', 'AI agent', 'AI agents', 'AI model', 'large language model', 'AI-powered'];
+const kwRegex = (words: string[]): RegExp[] => words.map((w) => new RegExp(`\\b${w}\\b`, 'i'));
+
 async function rss(src: SourceConfig): Promise<Item[]> {
   const feed = xml.parse(await getText(String(src.url)));
   const items = arr<any>(feed?.rss?.channel?.item ?? feed?.feed?.entry);
-  return items.slice(0, 15).map((it) => {
+  const mapped = items.slice(0, 15).map((it) => {
     const link = typeof it.link === 'string' ? it.link : it.link?.['@_href'] ?? '';
     return base(src, { id: strip(it.guid?.['#text'] ?? it.guid ?? it.id ?? link), url: link, title: strip(it.title?.['#text'] ?? it.title), text: strip(txt(it['content:encoded']) || txt(it.description) || txt(it.summary) || txt(it.content)), publishedAt: iso(it.pubDate ?? it.published ?? it.updated) });
   });
+  // Optional keyword gate (src.keywords or src.aiFilter): hold a general feed to a topic
+  // intersection by keeping only items that mention a keyword. Used by digital-asset feeds.
+  const words = (src.keywords as string[] | undefined) ?? (src.aiFilter === true ? AI_KEYWORDS : undefined);
+  if (!words?.length) return mapped;
+  const res = kwRegex(words);
+  return mapped.filter((it) => res.some((re) => re.test(`${it.title} ${it.text}`)));
 }
 
 async function youtube(src: SourceConfig): Promise<Item[]> {
