@@ -17,6 +17,12 @@ import type { Item, Story, RunReport, Vec } from './types.ts';
 const repoRoot = path.resolve(import.meta.dirname, '../../');
 const hash = (s: string) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 12);
 
+// Digital-assets beachhead source names (must match config/sources.yaml). Used to reserve
+// a guaranteed selection slot so the beachhead surfaces; split domains/crypto for balance.
+const DA_DOMAINS = new Set(['Domain Name Wire', 'DomainInvesting', 'TheDomains']);
+const DA_CRYPTO = new Set(['Decrypt', 'CoinDesk', 'The Block', 'CoinTelegraph', 'The Defiant']);
+const inSources = (s: Story, names: Set<string>) => s.items.some((i) => names.has(i.source));
+
 function rankScore(items: Item[]): number {
   const weight = items.reduce((a, b) => a + b.weight, 0);
   const tier1 = items.some((i) => i.tier === 1) ? 0.5 : 0;
@@ -71,15 +77,31 @@ async function main(): Promise<void> {
   report.deduped = stories.length - kept.length;
 
   kept.sort((a, b) => b.score - a.score);
-  const flagships = kept.slice(0, env.flagships).map((s) => ({ ...s, tier: 'flagship' as const }));
-  const notes = kept.slice(env.flagships, env.flagships + env.notesMax).map((s) => ({ ...s, tier: 'note' as const }));
-  const selected: Story[] = [...flagships, ...notes];
+  // Beachhead guarantee: reserve up to one domains + one crypto "AI x digital assets"
+  // story (top-ranked of each) so the beachhead reliably surfaces without drowning
+  // mainstream AI. Reserved from the notes budget; still gated below (a slot is not a publish).
+  const daPicks: Story[] = [];
+  const domainPick = kept.find((s) => inSources(s, DA_DOMAINS));
+  if (domainPick) daPicks.push(domainPick);
+  const cryptoPick = kept.find((s) => inSources(s, DA_CRYPTO));
+  if (cryptoPick) daPicks.push(cryptoPick);
+  const daKeys = new Set(daPicks.map((s) => s.key));
+  const rest = kept.filter((s) => !daKeys.has(s.key));
+  const flagships = rest.slice(0, env.flagships).map((s) => ({ ...s, tier: 'flagship' as const }));
+  const notesRoom = Math.max(0, env.notesMax - daPicks.length);
+  const notes = rest.slice(env.flagships, env.flagships + notesRoom).map((s) => ({ ...s, tier: 'note' as const }));
+  const selected: Story[] = [...flagships, ...notes, ...daPicks.map((s) => ({ ...s, tier: 'note' as const }))];
   report.selected = selected.length;
 
   let gatePass = 0;
   for (const story of selected) {
     try {
       const draft = await synthesize(story);
+      // Canonical beachhead tags so the future hub can aggregate the cluster.
+      if (inSources(story, DA_DOMAINS) || inSources(story, DA_CRYPTO)) {
+        const half = inSources(story, DA_DOMAINS) ? 'domains' : 'crypto';
+        draft.tags = [...new Set([...draft.tags, 'digital-assets', half])];
+      }
       const g = await gate(draft); // sets draft.draft based on tier threshold
       if (!draft.draft) gatePass += 1; // gate verdict, before the shadow override
       const why = `${g.verdict} ${g.total}/40${g.critical_fails.length ? ` fails=[${g.critical_fails.join('; ')}]` : ''}${g.ai_tells_found.length ? ` tells=${g.ai_tells_found.length}` : ''} :: ${g.reason}`;
