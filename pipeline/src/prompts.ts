@@ -23,6 +23,10 @@ Sourcing & attribution (multi-source synthesis):
 - Attribute notable specific claims to the named person or lab ("Anthropic reported", "Karpathy argued"). Never write "the video", "the article", "the source".
 - Where sources disagree or a claim is thin, say so. Your value is judgment across sources.
 
+Financial & crypto guardrail (for posts on crypto, tokens, domains, or any tradable asset):
+- No price predictions, no financial or investment advice, no buy/sell calls, no shilling or token promotion.
+- Stay clear-eyed on risk, hype, and scams. Cover the AI mechanics and what an operator can actually use, not speculation.
+
 Title rules:
 - Specific, narrow, not clickbait. Describes the actual angle. Vary grammatical construction across posts.
 - BANNED: any "Why I Stopped/Started...", "X Things About Y", "The Ultimate Guide", "How to Master", "X vs Y: Which Wins?".
@@ -66,6 +70,7 @@ Score 1-10 each: originality, voice_match, factual_defensibility, reader_value.
 List AI tells in ai_tells_found. CRITICAL FAILS in critical_fails (flag only genuine problems):
 - The post HIDES its primary source, OR is a thin summary of a single source dressed up as analysis, OR uses vague-source phrasings like "the video", "this video", "the transcript", "the channel". (Naming real public sources — an arXiv paper, an official blog, a lab, a Hacker News thread — is good and NOT a fail. A missing citation for a minor or background claim is a scoring deduction, NOT a critical fail; only a hidden/unnamed PRIMARY source is critical.)
 - Fabricated statistics or claims.
+- For crypto/token/asset posts: price predictions, financial or investment advice, buy/sell calls, or shilling/token promotion (the site stays clear-eyed and never gives financial advice).
 - A contradiction between the title and the body.
 - A closing paragraph that merely summarizes instead of adding a forward-looking Practitioner's Take.
 
