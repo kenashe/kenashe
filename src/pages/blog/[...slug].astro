@@ -1,18 +1,26 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
+import related from '../../data/related.json';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) =>
     import.meta.env.PROD ? !data.draft : true,
   );
+  const titleBySlug = new Map(posts.map((p) => [p.id, p.data.title]));
+  const rel = related as Record<string, { slug: string; title: string }[]>;
   return posts.map((post) => ({
     params: { slug: post.id },
-    props: { post },
+    props: {
+      post,
+      relatedPosts: (rel[post.id] ?? [])
+        .filter((r) => titleBySlug.has(r.slug))
+        .map((r) => ({ slug: r.slug, title: titleBySlug.get(r.slug) as string })),
+    },
   }));
 }
 
-const { post } = Astro.props;
+const { post, relatedPosts } = Astro.props;
 const { Content } = await render(post);
 ---
 
@@ -26,6 +34,7 @@ const { Content } = await render(post);
   tags={post.data.tags}
   draft={post.data.draft}
   body={post.body ?? ''}
+  relatedPosts={relatedPosts}
 >
   <Content />
 </BlogPost>
