@@ -17,9 +17,10 @@ interface Props {
   tags: string[];
   draft: boolean;
   body: string;
+  relatedPosts?: { slug: string; title: string }[];
 }
 
-const { id, title, description, pubDate, updatedDate, image, tags, draft, body } = Astro.props;
+const { id, title, description, pubDate, updatedDate, image, tags, draft, body, relatedPosts = [] } = Astro.props;
 const { minutes } = readingTime(body ?? '');
 const url = new URL(`/blog/${id}/`, SITE_URL).toString();
 
@@ -44,6 +45,9 @@ const articleSchema = {
   articleSection: tags?.[0],
   url,
   keywords: tags?.join(', '),
+  ...(relatedPosts.length
+    ? { relatedLink: relatedPosts.map((r) => new URL('/blog/' + r.slug + '/', SITE_URL).toString()) }
+    : {}),
 };
 
 const breadcrumbSchema = {
@@ -127,6 +131,21 @@ const breadcrumbSchema = {
     <div class="prose">
       <slot />
     </div>
+
+    {
+      relatedPosts.length > 0 && (
+        <nav class="related" aria-label="Related posts">
+          <span class="related-label" aria-hidden="true">// related</span>
+          <ul>
+            {relatedPosts.map((r) => (
+              <li>
+                <a href={`/blog/${r.slug}/`}>{r.title}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
 
     <nav class="post-links" aria-label="More from KenAshe.ai">
       <span class="post-links-label" aria-hidden="true">// more</span>
@@ -233,6 +252,38 @@ const breadcrumbSchema = {
     color: var(--fg);
     margin: 0;
     max-width: 36rem;
+  }
+
+  .related {
+    margin: 3.5rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .related-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .related ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .related a {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    color: var(--fg);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .related a:hover {
+    color: var(--accent);
   }
 
   /* Internal links out of each post (blog -> projects / newsroom). */
