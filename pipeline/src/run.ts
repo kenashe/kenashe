@@ -129,7 +129,9 @@ async function main(): Promise<void> {
   // to whichever has the most material; if none clears the floor, skip the pillar entirely.
   // The chosen story is pulled out and given the 'deepdive' tier, taking one flagship slot.
   const dd = loadDeepDive();
-  const runDeepDive = dd.enabled && (dd.force || (new Date().getUTCDay() === dd.weekday && !shadow));
+  // `force` is a shadow-only test override; live runs strictly follow the weekday schedule
+  // (so a lingering force flag can never publish an un-inspected pillar off-schedule).
+  const runDeepDive = dd.enabled && ((dd.force && shadow) || (new Date().getUTCDay() === dd.weekday && !shadow));
   let ddStory: Story | undefined;
   let ddBeachhead = '';
   if (runDeepDive) {
