@@ -20,6 +20,17 @@ async function getJson(url: string, headers: Record<string, string> = {}): Promi
   if (!r.ok) throw new Error(`${url} -> ${r.status}`);
   return r.json();
 }
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+// Retry a text fetch with linear backoff. YouTube's feed endpoint intermittently 404/500s
+// against datacenter IPs (transient), so a couple of retries recover most of them.
+async function getTextRetry(url: string, tries = 3, baseMs = 600): Promise<string> {
+  let last: unknown;
+  for (let i = 0; i < tries; i += 1) {
+    try { return await getText(url); }
+    catch (e) { last = e; if (i < tries - 1) await sleep(baseMs * (i + 1)); }
+  }
+  throw last;
+}
 
 function base(src: SourceConfig, extra: Partial<Item>): Item {
   return { source: src.name, sourceType: src.type, tier: src.tier, weight: src.weight, id: '', url: '', title: '', text: '', publishedAt: new Date().toISOString(), ...extra };
@@ -46,7 +57,10 @@ async function rss(src: SourceConfig): Promise<Item[]> {
 }
 
 async function youtube(src: SourceConfig): Promise<Item[]> {
-  const feed = xml.parse(await getText(`https://www.youtube.com/feeds/videos.xml?channel_id=${src.channelId}`));
+  // Jitter each fetch so the ~14 YouTube feeds don't hit the endpoint in one burst
+  // (trips per-IP rate limiting), and retry transient 404/500s.
+  await sleep(400 + Math.floor(Math.random() * 500));
+  const feed = xml.parse(await getTextRetry(`https://www.youtube.com/feeds/videos.xml?channel_id=${src.channelId}`));
   const entries = arr<any>(feed?.feed?.entry).slice(0, 3);
   const out: Item[] = [];
   for (const e of entries) {
