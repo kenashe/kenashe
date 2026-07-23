@@ -23,6 +23,22 @@ const DA_DOMAINS = new Set(['Domain Name Wire', 'DomainInvesting', 'TheDomains']
 const DA_CRYPTO = new Set(['Decrypt', 'CoinDesk', 'The Block', 'CoinTelegraph', 'The Defiant']);
 const inSources = (s: Story, names: Set<string>) => s.items.some((i) => names.has(i.source));
 
+// Canonical beachhead tags: add the hub's canonical tag when a post carries any family
+// alias, so tagging standardizes going forward (hubs still aggregate the whole family).
+const CANON: Record<string, string[]> = {
+  'ai-agents': ['agents', 'agentic', 'tool-use', 'langchain', 'agent-eval'],
+  'evals': ['evaluation', 'agent-eval'],
+  'marketing-ops': ['marketing-automation', 'ai-marketing'],
+  'building-with-ai': ['ai-workflows', 'builder-tools', 'developer-tools', 'ai-coding', 'ai-tools', 'workflows'],
+};
+const withCanonicalTags = (tags: string[]): string[] => {
+  const out = new Set(tags);
+  for (const [canon, fam] of Object.entries(CANON)) {
+    if (tags.some((t) => t === canon || fam.includes(t))) out.add(canon);
+  }
+  return [...out];
+};
+
 function rankScore(items: Item[]): number {
   const weight = items.reduce((a, b) => a + b.weight, 0);
   const tier1 = items.some((i) => i.tier === 1) ? 0.5 : 0;
@@ -102,6 +118,7 @@ async function main(): Promise<void> {
         const half = inSources(story, DA_DOMAINS) ? 'domains' : 'crypto';
         draft.tags = [...new Set([...draft.tags, 'digital-assets', half])];
       }
+      draft.tags = withCanonicalTags(draft.tags);
       const g = await gate(draft); // sets draft.draft based on tier threshold
       if (!draft.draft) gatePass += 1; // gate verdict, before the shadow override
       const why = `${g.verdict} ${g.total}/40${g.critical_fails.length ? ` fails=[${g.critical_fails.join('; ')}]` : ''}${g.ai_tells_found.length ? ` tells=${g.ai_tells_found.length}` : ''} :: ${g.reason}`;
