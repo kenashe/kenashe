@@ -17,6 +17,11 @@ const posts = all
   .filter((p) => (p.data.tags ?? []).some((t) => fam.has(t)))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
+// The newest deep-dive pillar in this beachhead is featured at the top ("Start here")
+// and pulled out of the chronological list below.
+const pillar = posts.find((p) => (p.data.tags ?? []).includes('deep-dive'));
+const listPosts = pillar ? posts.filter((p) => p.id !== pillar.id) : posts;
+
 const url = new URL(`/topics/${topic.slug}/`, SITE_URL).toString();
 const collectionSchema = {
   '@context': 'https://schema.org',
@@ -68,9 +73,19 @@ const breadcrumbSchema = {
     </header>
 
     {
-      posts.length > 0 && (
+      pillar && (
+        <a class="pillar" href={`/blog/${pillar.id}/`}>
+          <span class="pillar-mark">Start here · Deep dive</span>
+          <span class="pillar-title">{pillar.data.title}</span>
+          <span class="pillar-desc">{pillar.data.description}</span>
+        </a>
+      )
+    }
+
+    {
+      listPosts.length > 0 && (
         <ul class="hub-list">
-          {posts.map((p) => (
+          {listPosts.map((p) => (
             <li>
               <a href={`/blog/${p.id}/`}>
                 <span class="t">{p.data.title}</span>
@@ -141,6 +156,51 @@ const breadcrumbSchema = {
     text-transform: uppercase;
     color: var(--muted);
     margin: 0;
+  }
+  .pillar {
+    display: block;
+    padding: 1.5rem 1.75rem;
+    margin: 0 0 2.5rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0.5rem;
+    background: var(--surface, rgba(127, 127, 127, 0.05));
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 150ms ease, transform 150ms ease;
+  }
+  .pillar:hover {
+    border-left-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .pillar:hover .pillar-title {
+    color: var(--accent);
+  }
+  .pillar-mark {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  .pillar-title {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--fg);
+    margin: 0 0 0.5rem;
+  }
+  .pillar-desc {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--muted);
   }
   .hub-list {
     list-style: none;
