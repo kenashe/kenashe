@@ -46,6 +46,9 @@ export function synthesisUser(story: Item[], tier: TierKind): string {
   return `Today: ${new Date().toISOString().slice(0, 10)}
 Write a ${tier.toUpperCase()} post (${len}) synthesizing the sources below into one original take.
 
+Open the body with a one-sentence TL;DR line, prefixed "TL;DR: ". State the single takeaway plainly and usefully, not as a teaser. This is the one allowed opener; no other throat-clearing.
+Where it reads naturally, phrase H2 subsection headings as the question a reader would actually ask, so the post maps to real search and assistant queries. Never force a question that does not fit.
+
 Insert exactly ${imgN} inline image placeholder(s) on their own line where a visual would help, formatted:
 {{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
 Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.
@@ -58,7 +61,7 @@ pubDate: ${new Date().toISOString().slice(0, 10)}
 tags: ["tag-one", "tag-two", "tag-three"]
 draft: true
 ---
-[body with ## subsections and the image placeholder(s)]
+[body: the TL;DR line, then ## subsections (question-form where natural) and the image placeholder(s)]
 
 SOURCES:
 ${sources}`;
