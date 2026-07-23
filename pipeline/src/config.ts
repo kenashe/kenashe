@@ -57,10 +57,11 @@ export interface DeepDiveConfig {
   enabled: boolean;
   weekday: number; // 0 = Sunday (UTC)
   minStories: number;
+  maxStories: number; // primary stories folded into one pillar (multi-source synthesis)
   force: boolean;
 }
 export function loadDeepDive(): DeepDiveConfig {
-  const def: DeepDiveConfig = { enabled: true, weekday: 0, minStories: 2, force: false };
+  const def: DeepDiveConfig = { enabled: true, weekday: 0, minStories: 2, maxStories: 3, force: false };
   try {
     const p = path.resolve(import.meta.dirname, '../config/deepdive.json');
     return { ...def, ...(JSON.parse(fs.readFileSync(p, 'utf8')) as Partial<DeepDiveConfig>) };

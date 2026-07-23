@@ -134,6 +134,7 @@ async function main(): Promise<void> {
   const runDeepDive = dd.enabled && ((dd.force && shadow) || (new Date().getUTCDay() === dd.weekday && !shadow));
   let ddStory: Story | undefined;
   let ddBeachhead = '';
+  let ddSourceKeys: Set<string> | undefined;
   if (runDeepDive) {
     // A pillar may only form around a cluster that carries a citable primary (tier-1)
     // source, so it is defensible by construction; a commentary-only cluster is never
@@ -161,19 +162,31 @@ async function main(): Promise<void> {
       if (alt) pickBh = alt;
     }
     if (pickBh) {
-      // Anchor the pillar on the top-scored PRIMARY-sourced story in that beachhead.
+      // Anchor on the top-scored PRIMARY story, then fold in the next few primary stories
+      // in the beachhead so the pillar synthesizes the AREA (multi-source) rather than a
+      // single paper — single-paper analysis is what capped originality at gate.
       const primaries = (byBh.get(pickBh) ?? []).filter(hasPrimary).sort((a, b) => b.score - a.score);
-      if (primaries.length) { ddStory = primaries[0]; ddBeachhead = pickBh; }
+      if (primaries.length) {
+        const anchorStories = primaries.slice(0, Math.max(1, dd.maxStories));
+        const mergedItems: Item[] = [];
+        const seenIds = new Set<string>();
+        for (const st of anchorStories) for (const it of st.items) {
+          if (!seenIds.has(it.id)) { seenIds.add(it.id); mergedItems.push(it); }
+        }
+        ddStory = { ...anchorStories[0], items: mergedItems.slice(0, 8) };
+        ddBeachhead = pickBh;
+        ddSourceKeys = new Set(anchorStories.map((s) => s.key));
+      }
     }
   }
-  const ddKey = ddStory?.key;
   const ddSelected: Story[] = ddStory ? [{ ...ddStory, tier: 'deepdive' as const }] : [];
   const flagBudget = ddStory ? Math.max(0, env.flagships - 1) : env.flagships;
 
   // Beachhead guarantee: reserve up to one domains + one crypto "AI x digital assets"
   // story (top-ranked of each) so the beachhead reliably surfaces without drowning
   // mainstream AI. Reserved from the notes budget; still gated below (a slot is not a publish).
-  const pool = kept.filter((s) => s.key !== ddKey);
+  // Exclude every story folded into the pillar so we do not also publish them as notes.
+  const pool = kept.filter((s) => !(ddSourceKeys ?? new Set<string>()).has(s.key));
   const daPicks: Story[] = [];
   const domainPick = pool.find((s) => inSources(s, DA_DOMAINS));
   if (domainPick) daPicks.push(domainPick);
