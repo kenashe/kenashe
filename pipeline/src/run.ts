@@ -2,7 +2,7 @@
 // synthesize -> gate -> images -> publish -> digest. `--shadow` = draft-only, no commit.
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { env, loadSources } from './config.ts';
+import { env, loadSources, loadDeepDive } from './config.ts';
 import { getStore } from './store.ts';
 import { ingest } from './ingest.ts';
 import { LexicalEmbedder, cluster, isCovered } from './core.ts';
@@ -11,7 +11,7 @@ import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
 import { addImages } from './images.ts';
 import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
-import { writeRelated } from './related.ts';
+import { writeRelated, cosine } from './related.ts';
 import type { Item, Story, RunReport, Vec } from './types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../');
@@ -38,6 +38,36 @@ const withCanonicalTags = (tags: string[]): string[] => {
   }
   return [...out];
 };
+
+// --- Weekly deep-dive (pillar) selection helpers ---
+// Beachhead detection for choosing what to go deep on. Digital-assets is source-based
+// (reuses the DA sets); the other three match distinctive keywords in the story text.
+// Heuristic and selection-only — the synthesizer and gate still decide quality.
+const BH_KEYWORDS: Record<string, string[]> = {
+  'ai-agents': ['agent', 'agentic', 'tool use', 'tool-use', 'eval', 'benchmark', 'langchain', 'autonomous', 'multi-agent'],
+  'marketing-ops': ['marketing', ' seo', 'brand', 'campaign', 'advertis', 'go-to-market', 'growth', 'crm', 'content ops', 'copywrit'],
+  'building-with-ai': ['shipped', 'build', 'workflow', 'developer', 'coding', 'codebase', 'automation', 'pipeline', 'devtool', 'ide '],
+};
+const BEACHHEADS = ['ai-agents', 'marketing-ops', 'building-with-ai', 'digital-assets'] as const;
+function storyBeachhead(s: Story): string | null {
+  if (inSources(s, DA_DOMAINS) || inSources(s, DA_CRYPTO)) return 'digital-assets';
+  const hay = ` ${s.items.map((i) => `${i.title} ${i.text}`).join(' ').toLowerCase()} `;
+  let best: string | null = null;
+  let bestN = 0;
+  for (const [bh, kws] of Object.entries(BH_KEYWORDS)) {
+    const n = kws.reduce((a, k) => a + (hay.includes(k) ? 1 : 0), 0);
+    if (n > bestN) { bestN = n; best = bh; }
+  }
+  return bestN > 0 ? best : null;
+}
+// ISO week number (UTC) so the beachhead rotation is deterministic and even across the year.
+function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
 
 function rankScore(items: Item[]): number {
   const weight = items.reduce((a, b) => a + b.weight, 0);
@@ -93,26 +123,71 @@ async function main(): Promise<void> {
   report.deduped = stories.length - kept.length;
 
   kept.sort((a, b) => b.score - a.score);
+
+  // Weekly deep-dive (pillar): on the scheduled weekday (or forced for a shadow test),
+  // pick a beachhead by ISO-week rotation; if that beachhead is thin this week, fall back
+  // to whichever has the most material; if none clears the floor, skip the pillar entirely.
+  // The chosen story is pulled out and given the 'deepdive' tier, taking one flagship slot.
+  const dd = loadDeepDive();
+  const runDeepDive = dd.enabled && (dd.force || (new Date().getUTCDay() === dd.weekday && !shadow));
+  let ddStory: Story | undefined;
+  let ddBeachhead = '';
+  if (runDeepDive) {
+    const byBh = new Map<string, Story[]>();
+    for (const s of kept) {
+      const bh = storyBeachhead(s);
+      if (bh) { const g = byBh.get(bh) ?? []; g.push(s); byBh.set(bh, g); }
+    }
+    const rotate = BEACHHEADS[isoWeek(new Date()) % BEACHHEADS.length];
+    let pick = byBh.get(rotate) ?? [];
+    let pickBh: string = rotate;
+    if (pick.length < dd.minStories) {
+      const top = [...byBh.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+      if (top && top[1].length >= 1) { pickBh = top[0]; pick = top[1]; } else { pick = []; }
+    }
+    if (pick.length) {
+      pick.sort((a, b) => b.score - a.score);
+      ddStory = pick[0];
+      ddBeachhead = pickBh;
+    }
+  }
+  const ddKey = ddStory?.key;
+  const ddSelected: Story[] = ddStory ? [{ ...ddStory, tier: 'deepdive' as const }] : [];
+  const flagBudget = ddStory ? Math.max(0, env.flagships - 1) : env.flagships;
+
   // Beachhead guarantee: reserve up to one domains + one crypto "AI x digital assets"
   // story (top-ranked of each) so the beachhead reliably surfaces without drowning
   // mainstream AI. Reserved from the notes budget; still gated below (a slot is not a publish).
+  const pool = kept.filter((s) => s.key !== ddKey);
   const daPicks: Story[] = [];
-  const domainPick = kept.find((s) => inSources(s, DA_DOMAINS));
+  const domainPick = pool.find((s) => inSources(s, DA_DOMAINS));
   if (domainPick) daPicks.push(domainPick);
-  const cryptoPick = kept.find((s) => inSources(s, DA_CRYPTO));
+  const cryptoPick = pool.find((s) => inSources(s, DA_CRYPTO));
   if (cryptoPick) daPicks.push(cryptoPick);
   const daKeys = new Set(daPicks.map((s) => s.key));
-  const rest = kept.filter((s) => !daKeys.has(s.key));
-  const flagships = rest.slice(0, env.flagships).map((s) => ({ ...s, tier: 'flagship' as const }));
+  const rest = pool.filter((s) => !daKeys.has(s.key));
+  const flagships = rest.slice(0, flagBudget).map((s) => ({ ...s, tier: 'flagship' as const }));
   const notesRoom = Math.max(0, env.notesMax - daPicks.length);
-  const notes = rest.slice(env.flagships, env.flagships + notesRoom).map((s) => ({ ...s, tier: 'note' as const }));
-  const selected: Story[] = [...flagships, ...notes, ...daPicks.map((s) => ({ ...s, tier: 'note' as const }))];
+  const notes = rest.slice(flagBudget, flagBudget + notesRoom).map((s) => ({ ...s, tier: 'note' as const }));
+  const selected: Story[] = [...ddSelected, ...flagships, ...notes, ...daPicks.map((s) => ({ ...s, tier: 'note' as const }))];
   report.selected = selected.length;
 
   let gatePass = 0;
   for (const story of selected) {
     try {
-      const draft = await synthesize(story);
+      // For a deep-dive, gather its semantic spokes (nearest published posts) to link.
+      const spokes = story.tier === 'deepdive'
+        ? memory
+            .map((m) => ({ slug: m.slug, title: m.title, score: cosine(story.vec, m.vec) }))
+            .filter((x) => x.score >= env.relatedMinSim)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 8)
+            .map(({ slug, title }) => ({ slug, title }))
+        : [];
+      const draft = await synthesize(story, spokes);
+      if (story.tier === 'deepdive') {
+        draft.tags = [...new Set([...draft.tags, ddBeachhead, 'deep-dive'])];
+      }
       // Canonical beachhead tags so the future hub can aggregate the cluster.
       if (inSources(story, DA_DOMAINS) || inSources(story, DA_CRYPTO)) {
         const half = inSources(story, DA_DOMAINS) ? 'domains' : 'crypto';
@@ -145,7 +220,7 @@ async function main(): Promise<void> {
     commitToBranch(repoRoot, 'pipeline-shadow', `shadow preview: ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
   }
   await store.recordRun(report);
-  await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nGate passed ${gatePass}/${report.selected}. Published ${report.published.length} (${flagships.length} flagship), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);
+  await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nGate passed ${gatePass}/${report.selected}. Published ${report.published.length} (${flagships.length} flagship${ddStory ? `, deep-dive: ${ddBeachhead}` : ''}), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);
   console.log(JSON.stringify(report, null, 2));
 }
 

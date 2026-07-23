@@ -1,5 +1,5 @@
 export type SourceType = 'rss' | 'youtube' | 'arxiv' | 'github_releases' | 'hackernews' | 'reddit';
-export type TierKind = 'flagship' | 'note';
+export type TierKind = 'flagship' | 'note' | 'deepdive';
 export type SparseVec = Map<string, number>;
 export type Vec = SparseVec | number[];
 

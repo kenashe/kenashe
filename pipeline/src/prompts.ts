@@ -37,14 +37,26 @@ export function voiceSystem(): string {
   return VOICE;
 }
 
-export function synthesisUser(story: Item[], tier: TierKind): string {
-  const len = tier === 'flagship' ? '800-1200 words, 3-5 H2 subsections' : '400-600 words, 2-3 H2 subsections';
-  const imgN = tier === 'flagship' ? 3 : 1;
+export function synthesisUser(story: Item[], tier: TierKind, spokes: { slug: string; title: string }[] = []): string {
+  const deep = tier === 'deepdive';
+  const len = deep
+    ? '1800-2600 words, 5-7 H2 subsections'
+    : tier === 'flagship'
+      ? '800-1200 words, 3-5 H2 subsections'
+      : '400-600 words, 2-3 H2 subsections';
+  const imgN = deep ? 4 : tier === 'flagship' ? 3 : 1;
+  const deepGuide = deep
+    ? `
+
+This is a PILLAR: the definitive current-state reference on this topic for The Lab, not a reaction to one day's news. Map where the topic actually stands: what is settled, what is contested, what a practitioner should do right now, and what to watch next. Answer the sub-questions a serious reader (or an AI assistant answering them) would expect, each as its own H2. Write the piece you would send someone who says "catch me up on this," and add a forward-looking judgment they could not get from any single source.${spokes.length ? `
+Where they genuinely support a point, weave in links to these existing kenashe.ai posts, as Markdown links to /blog/<slug>/. Use four to eight of them, and never force one that does not fit:${spokes.map((s) => `
+- ${s.title} (/blog/${s.slug}/)`).join('')}` : ''}`
+    : '';
   const sources = story
     .map((s, i) => `[Source ${i + 1}] ${s.source} (${s.sourceType}, tier ${s.tier})\nTitle: ${s.title}\n${s.text.slice(0, 4000)}`)
     .join('\n\n---\n\n');
   return `Today: ${new Date().toISOString().slice(0, 10)}
-Write a ${tier.toUpperCase()} post (${len}) synthesizing the sources below into one original take.
+Write a ${deep ? 'DEEP-DIVE PILLAR' : tier.toUpperCase()} post (${len}) synthesizing the sources below into one original take.${deepGuide}
 
 Open the body with a one-sentence TL;DR line, prefixed "TL;DR: ". State the single takeaway plainly and usefully, not as a teaser. This is the one allowed opener; no other throat-clearing.
 Where it reads naturally, phrase H2 subsection headings as the question a reader would actually ask, so the post maps to real search and assistant queries. Never force a question that does not fit.

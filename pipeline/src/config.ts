@@ -41,10 +41,30 @@ export const IMAGES = {
 export const GATE = {
   flagship: { min: 30 },
   note: { min: 27 },
+  deepdive: { min: 34 }, // pillar posts clear a higher bar than daily flagships
 };
 
 export function loadSources(): SourceConfig[] {
   const p = path.resolve(import.meta.dirname, '../config/sources.yaml');
   const doc = parseYaml(fs.readFileSync(p, 'utf8')) as { sources?: SourceConfig[] };
   return doc.sources ?? [];
+}
+
+// Weekly flagship deep-dive (pillar) config. Committed JSON so the trigger needs no new
+// env/workflow wiring: run.ts fires the deep-dive when `force` is set (shadow test) or on
+// `weekday` in a live run. `minStories` is the material floor that greenlights a pillar.
+export interface DeepDiveConfig {
+  enabled: boolean;
+  weekday: number; // 0 = Sunday (UTC)
+  minStories: number;
+  force: boolean;
+}
+export function loadDeepDive(): DeepDiveConfig {
+  const def: DeepDiveConfig = { enabled: true, weekday: 0, minStories: 2, force: false };
+  try {
+    const p = path.resolve(import.meta.dirname, '../config/deepdive.json');
+    return { ...def, ...(JSON.parse(fs.readFileSync(p, 'utf8')) as Partial<DeepDiveConfig>) };
+  } catch {
+    return def;
+  }
 }

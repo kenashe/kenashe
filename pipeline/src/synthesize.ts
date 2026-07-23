@@ -5,9 +5,11 @@ import { voiceSystem, synthesisUser } from './prompts.ts';
 import { parseGenerated, cleanSlug, governTags } from './publish.ts';
 import type { Story, DraftPost } from './types.ts';
 
-export async function synthesize(story: Story): Promise<DraftPost> {
-  const model = story.tier === 'flagship' ? MODELS.flagship : MODELS.note;
-  const mdx = await chat(model, voiceSystem(), synthesisUser(story.items, story.tier), { maxTokens: 4000 });
+export async function synthesize(story: Story, spokes: { slug: string; title: string }[] = []): Promise<DraftPost> {
+  // deep-dive uses the flagship model (Opus); only 'note' uses the cheaper writer.
+  const model = story.tier === 'note' ? MODELS.note : MODELS.flagship;
+  const maxTokens = story.tier === 'deepdive' ? 8000 : 4000;
+  const mdx = await chat(model, voiceSystem(), synthesisUser(story.items, story.tier, spokes), { maxTokens });
   const p = parseGenerated(mdx);
   if (!p.title) throw new Error(`synthesize: no title produced for story ${story.key}`);
   const pubDate = new Date().toISOString().slice(0, 10);
