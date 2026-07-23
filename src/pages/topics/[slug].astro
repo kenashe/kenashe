@@ -1,0 +1,187 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import { topics } from '../../data/topics';
+import { SITE_URL } from '../../consts';
+
+export async function getStaticPaths() {
+  return topics.map((topic) => ({ params: { slug: topic.slug }, props: { topic } }));
+}
+
+const { topic } = Astro.props;
+const all = await getCollection('blog', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
+const fam = new Set(topic.family);
+const posts = all
+  .filter((p) => (p.data.tags ?? []).some((t) => fam.has(t)))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const url = new URL(`/topics/${topic.slug}/`, SITE_URL).toString();
+const collectionSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  '@id': url,
+  url,
+  name: topic.title,
+  description: topic.blurb,
+  isPartOf: { '@id': 'https://kenashe.ai/#website' },
+  about: { '@id': 'https://kenashe.ai/#ken-ashe' },
+  inLanguage: 'en-US',
+  mainEntity: {
+    '@type': 'ItemList',
+    numberOfItems: posts.length,
+    itemListElement: posts.slice(0, 50).map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: new URL(`/blog/${p.id}/`, SITE_URL).toString(),
+      name: p.data.title,
+    })),
+  },
+};
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+    { '@type': 'ListItem', position: 2, name: 'Topics', item: `${SITE_URL}/topics/` },
+    { '@type': 'ListItem', position: 3, name: topic.title, item: url },
+  ],
+};
+---
+
+<BaseLayout title={topic.title} description={topic.blurb}>
+  <Fragment slot="jsonld">
+    <JsonLd data={[collectionSchema, breadcrumbSchema]} />
+  </Fragment>
+
+  <div class="hub">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/topics/"><span aria-hidden="true">←</span> Topics</a>
+    </nav>
+
+    <header class="hub-header">
+      <p class="mark" aria-hidden="true">// topic</p>
+      <h1>{topic.title}</h1>
+      <p class="intro">{topic.intro}</p>
+      <p class="count">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+    </header>
+
+    {
+      posts.length > 0 && (
+        <ul class="hub-list">
+          {posts.map((p) => (
+            <li>
+              <a href={`/blog/${p.id}/`}>
+                <span class="t">{p.data.title}</span>
+                <span class="d">{p.data.description}</span>
+                <FormattedDate date={p.data.pubDate} />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .hub {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .hub-header {
+    margin-bottom: 2.5rem;
+  }
+  .mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .hub-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0 0 1.25rem;
+    color: var(--fg);
+  }
+  .intro {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--fg);
+    margin: 0 0 1.25rem;
+    max-width: 40rem;
+  }
+  .count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+  .hub-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .hub-list li {
+    border-top: 1px solid var(--border);
+  }
+  .hub-list a {
+    display: block;
+    padding: 1.25rem 0;
+    text-decoration: none;
+    color: inherit;
+    transition: color 150ms ease;
+  }
+  .hub-list a:hover .t {
+    color: var(--accent);
+  }
+  .hub-list .t {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+    margin: 0 0 0.35rem;
+  }
+  .hub-list .d {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 0.5rem;
+  }
+  .hub-list :global(time) {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+</style>
