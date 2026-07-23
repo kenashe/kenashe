@@ -1,0 +1,56 @@
+---
+title: "What Actually Makes Medical Image Encoders Interoperable"
+description: "A controlled study of 18 image encoders and 650,982 chest radiographs finds that representational convergence in medical foundation models comes from the self-supervised training objective, not from scale or clinical labels, with real limits for anyone building on top."
+pubDate: 2026-07-23
+tags: ["medical-ai", "foundation-models", "interoperability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-23-what-actually-makes-medical-image-encoders-interoperable/hero.png
+  alt: "What Actually Makes Medical Image Encoders Interoperable"
+---
+
+TL;DR: Medical image encoders converge on a shared representation mostly because of how they were pretrained (self-supervision), not because they got bigger or saw clinical labels, and that convergence is real enough to reuse a classifier across hospitals but too weak to treat encoders as drop-in equivalents.
+
+There's a comfortable assumption floating around medical AI: as image encoders scale up and train on more clinically labeled data, they all drift toward the same underlying representation of anatomy and disease. If that were true, you could swap one encoder for another, and everything downstream would keep working. The paper "Self-supervision drives representational convergence in medical foundation models more than clinical supervision," posted to arXiv across cs.AI, cs.CL, and cs.LG, tests that assumption directly and finds it mostly wrong about the cause, and partly right about the effect.
+
+That gap matters if you build products on top of these encoders. So let me walk through what the study actually shows and where I'd be careful.
+
+## What did the study actually measure?
+
+The authors ran a controlled dissection across 18 image encoders and 7 text encoders, all open-weight and run locally. Sizes spanned 7M to 27B parameters across five imaging modalities. The heavy lifting happened on chest radiography: 650,982 chest X-rays pulled from six datasets.
+
+The clever part is the controlled comparison. Instead of just measuring similarity between off-the-shelf models (which confounds everything with everything), they trained encoders that vary only the objective while holding data, architecture, and scale fixed. Then they reproduced the effect in a synthetic model to confirm the mechanism. That's the difference between "we noticed a correlation" and "we isolated a cause."
+
+They were also honest about a real weakness in this whole line of work: the similarity measures people use to claim convergence are fragile. Small changes in how you compare two representation spaces can flip your conclusion. So they didn't lean on a single metric and treat the number as gospel.
+
+![many separate lens-like shapes each viewing the same object, their outlines partially overlapping into a shared region b](../../assets/blog/2026-07-23-what-actually-makes-medical-image-encoders-interoperable/inline-1.png)
+
+## Where does the convergence actually come from?
+
+Here's the headline result. Convergence is real but modest, sitting above a random floor rather than near perfect overlap. And it's driven by the self-supervised objective, not by clinical supervision.
+
+The numbers tell the story cleanly. Encoders trained with matched self-supervised objectives aligned most, at 40.4% on chest radiography. Label-supervised encoders aligned far less, at 21.1%. Image-text encoders came in lowest, at 3.3%. So the thing people assumed would concentrate representations, clinical labels, does the opposite of what the story predicted. Self-supervision, learning structure from the images themselves without human labels, is what pulls different models toward a common geometry.
+
+Two more findings puncture the scaling narrative. Convergence did not grow with size (Spearman 0.302, p=0.223, which is a non-significant relationship). And it did not track model capability. Bigger and better did not mean more aligned. If you were betting that the next generation of larger medical encoders would automatically become more interchangeable, this is evidence against that bet.
+
+The convergence is also boxed in. It stays within a modality. It does not reach clinical language, meaning the shared image geometry doesn't map neatly onto how findings get described in text. And critically, it does not reproduce how radiologists judge case similarity. Two encoders can agree with each other while both disagreeing with the doctor. That last point is the one I'd tattoo on the wall of any team shipping this.
+
+## Can you actually reuse a model trained on one encoder?
+
+This is where the practical value shows up, and it's genuinely useful. A linear classifier trained on one encoder transferred across other encoders and to five held-out hospitals, retaining about 85% of within-encoder performance.
+
+Read that carefully, because it's a specific and bounded claim. Not the full model. A linear classifier, the simplest possible layer on top of the representation. And not perfect transfer, but roughly 85% retained. That's the level of interoperability the shared geometry actually supports right now: you can move a lightweight head between encoders and across sites and keep most of your accuracy, but you lose something, and the loss is largest exactly where the geometry is weakest.
+
+![a thin flat layer lifting cleanly off one textured foundation and settling onto a different textured foundation, mostly ](../../assets/blog/2026-07-23-what-actually-makes-medical-image-encoders-interoperable/inline-2.png)
+
+Where is it weakest? The authors point to two places to validate: across patient subgroups, and against clinical judgment. The subgroup point is the safety-critical one. An 85% average can hide a much worse number for an underrepresented group, and averages are exactly how these failures get missed. If your linear head transfers well on the majority population and poorly on a minority one, the aggregate metric looks fine and the deployment is not.
+
+## So how should a builder treat these encoders?
+
+The framing I like from this work is that interoperability is something you design for through the pretraining objective, not something you inherit from scale or supervision. That flips the usual procurement logic. When you're picking or commissioning a medical encoder, the question isn't just "how big is it" or "was it trained on clinical labels." It's "what was the training objective, and does it match the objective of the other models I need to interoperate with?" Matched self-supervised objectives aligned at 40.4%. Mismatched ones fell off a cliff. Compatibility is a design choice made upstream.
+
+That also means the vendor pitch of "our encoder is state of the art, so it'll plug into your pipeline" doesn't follow. Capability and interoperability are separate axes here. A more capable encoder is not a more interchangeable one.
+
+The honest caveat, from the authors themselves, is that the convergence story rests on similarity measures that are fragile, and that convergence does not reproduce radiologist judgment. So even the 40.4% and the 85% are best read as directional, not as guarantees you can port between clinical settings without checking.
+
+Practitioner's take: if you're building on medical image encoders, treat the 85% linear-classifier transfer as a real, exploitable property, but instrument it like it will fail. Concretely: when you swap encoders or move to a new hospital, retrain or at least recalibrate the linear head rather than assuming it carries over, and report performance sliced by patient subgroup, not just the aggregate. Match self-supervised objectives across the encoders you want to interoperate, and don't pay a premium for scale expecting it to buy you compatibility, because the data says it won't. The catch most readers will miss is buried in one clause: the shared geometry does not reproduce how radiologists judge case similarity. Your models can agree with each other and still be wrong about the patient. Interoperability between encoders is not the same as agreement with the clinic, and only the second one keeps people safe.
