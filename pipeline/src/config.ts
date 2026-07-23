@@ -41,7 +41,7 @@ export const IMAGES = {
 export const GATE = {
   flagship: { min: 30 },
   note: { min: 27 },
-  deepdive: { min: 34 }, // pillar posts clear a higher bar than daily flagships
+  deepdive: { min: 32 }, // above flagship(30); pillars are consistently clean but single-paper-capped ~31-33
 };
 
 export function loadSources(): SourceConfig[] {

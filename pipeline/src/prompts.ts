@@ -63,6 +63,8 @@ Write a ${deep ? 'DEEP-DIVE PILLAR' : tier.toUpperCase()} post (${len}) synthesi
 Open the body with a one-sentence TL;DR line, prefixed "TL;DR: ". State the single takeaway plainly and usefully, not as a teaser. This is the one allowed opener; no other throat-clearing.
 Where it reads naturally, phrase H2 subsection headings as the question a reader would actually ask, so the post maps to real search and assistant queries. Never force a question that does not fit.
 
+Name your primary source. When the post centers on a paper, report, or announcement, cite it explicitly by title and author or lab (for a paper, include its arXiv ID or link when the sources below provide one), taken verbatim from the material and never invented. Do not refer to it vaguely as "a new study," "a recent paper," "the authors," or "the source": an unnamed primary source reads as a thin summary dressed up as analysis, which is exactly what this is not.
+
 Insert exactly ${imgN} inline image placeholder(s) on their own line where a visual would help, formatted:
 {{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
 Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.
