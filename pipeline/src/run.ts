@@ -135,22 +135,35 @@ async function main(): Promise<void> {
   let ddStory: Story | undefined;
   let ddBeachhead = '';
   if (runDeepDive) {
+    // A pillar may only form around a cluster that carries a citable primary (tier-1)
+    // source, so it is defensible by construction; a commentary-only cluster is never
+    // eligible (that is what sank the shadow-tested Exploit Gym pillar at gate).
+    const hasPrimary = (s: Story) => s.items.some((i) => i.tier === 1);
     const byBh = new Map<string, Story[]>();
     for (const s of kept) {
       const bh = storyBeachhead(s);
       if (bh) { const g = byBh.get(bh) ?? []; g.push(s); byBh.set(bh, g); }
     }
+    // Eligible beachhead = enough material AND at least one primary-anchored story.
+    const eligible = (bh: string) => {
+      const g = byBh.get(bh) ?? [];
+      return g.length >= dd.minStories && g.some(hasPrimary);
+    };
     const rotate = BEACHHEADS[isoWeek(new Date()) % BEACHHEADS.length];
-    let pick = byBh.get(rotate) ?? [];
-    let pickBh: string = rotate;
-    if (pick.length < dd.minStories) {
-      const top = [...byBh.entries()].sort((a, b) => b[1].length - a[1].length)[0];
-      if (top && top[1].length >= 1) { pickBh = top[0]; pick = top[1]; } else { pick = []; }
+    let pickBh = '';
+    if (eligible(rotate)) {
+      pickBh = rotate;
+    } else {
+      // Fall back to the eligible beachhead with the most material; skip if none qualifies.
+      const alt = [...byBh.keys()]
+        .filter(eligible)
+        .sort((a, b) => (byBh.get(b)?.length ?? 0) - (byBh.get(a)?.length ?? 0))[0];
+      if (alt) pickBh = alt;
     }
-    if (pick.length) {
-      pick.sort((a, b) => b.score - a.score);
-      ddStory = pick[0];
-      ddBeachhead = pickBh;
+    if (pickBh) {
+      // Anchor the pillar on the top-scored PRIMARY-sourced story in that beachhead.
+      const primaries = (byBh.get(pickBh) ?? []).filter(hasPrimary).sort((a, b) => b.score - a.score);
+      if (primaries.length) { ddStory = primaries[0]; ddBeachhead = pickBh; }
     }
   }
   const ddKey = ddStory?.key;
