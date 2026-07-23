@@ -3,6 +3,7 @@ import { chat } from './llm.ts';
 import { MODELS } from './config.ts';
 import { voiceSystem, synthesisUser } from './prompts.ts';
 import { parseGenerated, cleanSlug, governTags } from './publish.ts';
+import { detectEntities } from './entities.ts';
 import type { Story, DraftPost } from './types.ts';
 
 export async function synthesize(story: Story, spokes: { slug: string; title: string }[] = []): Promise<DraftPost> {
@@ -13,6 +14,12 @@ export async function synthesize(story: Story, spokes: { slug: string; title: st
   const p = parseGenerated(mdx);
   if (!p.title) throw new Error(`synthesize: no title produced for story ${story.key}`);
   const pubDate = new Date().toISOString().slice(0, 10);
+  // Provenance for citation/isBasedOn schema: the distinct sources this post drew on.
+  const sources: { title: string; url: string }[] = [];
+  const seenUrl = new Set<string>();
+  for (const it of story.items) {
+    if (it.url && !seenUrl.has(it.url)) { seenUrl.add(it.url); sources.push({ title: it.title, url: it.url }); }
+  }
   return {
     slug: cleanSlug(p.title, pubDate),
     title: p.title,
@@ -24,5 +31,7 @@ export async function synthesize(story: Story, spokes: { slug: string; title: st
     images: [],
     storyKey: story.key,
     tierKind: story.tier,
+    sources: sources.slice(0, 6),
+    entities: detectEntities(`${p.title}\n${p.body}`),
   };
 }

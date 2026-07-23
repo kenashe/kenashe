@@ -59,7 +59,13 @@ export function assembleMdx(draft: DraftPost): string {
   const heroBlock = hero
     ? `image:\n  src: ${path.relative(`src/content/blog`, hero.path)}\n  alt: ${q(hero.alt)}\n`
     : '';
-  return `---\ntitle: ${q(draft.title)}\ndescription: ${q(draft.description)}\npubDate: ${draft.pubDate}\ntags: [${draft.tags.map(q).join(', ')}]\ndraft: ${draft.draft}\n${heroBlock}---\n\n${draft.body}\n`;
+  const sourcesBlock = draft.sources?.length
+    ? `sources:\n${draft.sources.map((s) => `  - title: ${q(s.title)}\n    url: ${q(s.url)}`).join('\n')}\n`
+    : '';
+  const entitiesBlock = draft.entities?.length
+    ? `entities:\n${draft.entities.map((e) => `  - name: ${q(e.name)}\n    sameAs: ${q(e.sameAs)}`).join('\n')}\n`
+    : '';
+  return `---\ntitle: ${q(draft.title)}\ndescription: ${q(draft.description)}\npubDate: ${draft.pubDate}\ntags: [${draft.tags.map(q).join(', ')}]\ndraft: ${draft.draft}\n${heroBlock}${sourcesBlock}${entitiesBlock}---\n\n${draft.body}\n`;
 }
 
 export function writePost(repoRoot: string, draft: DraftPost): string {

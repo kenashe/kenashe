@@ -49,6 +49,8 @@ export interface DraftPost {
   images: ImageAsset[];
   storyKey: string;
   tierKind: TierKind;
+  sources?: { title: string; url: string }[];
+  entities?: { name: string; sameAs: string }[];
 }
 
 export interface GateResult {

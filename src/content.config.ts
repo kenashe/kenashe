@@ -26,6 +26,10 @@ const blog = defineCollection({
           message: 'tags must be non-empty and must not contain "|||"',
         }),
       draft: z.boolean().default(false),
+      // Provenance + entity grounding for JSON-LD (pipeline-emitted, optional so older
+      // posts stay valid). sources -> citation/isBasedOn; entities -> about (sameAs).
+      sources: z.array(z.object({ title: z.string(), url: z.string() })).optional(),
+      entities: z.array(z.object({ name: z.string(), sameAs: z.string() })).optional(),
     }),
 });
 
