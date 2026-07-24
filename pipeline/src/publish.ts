@@ -56,6 +56,17 @@ export function parseGenerated(mdx: string): { title: string; description: strin
 // feed/source titles containing LaTeX (e.g. "$n\geq 4$") don't emit an invalid YAML escape.
 const q = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
+// MDX parses `{ }` as JS expressions and `<Word` as JSX, so machine-generated prose that
+// carries LaTeX (e.g. $x_{\min}$) or "a<b" can break the build. Escape those to literals
+// OUTSIDE fenced/inline code (where braces are legitimate and must be preserved).
+function escapeMdx(seg: string): string {
+  return seg.replace(/[{}]/g, (c) => `\\${c}`).replace(/<(?=[A-Za-z])/g, '&lt;');
+}
+export function sanitizeMdxBody(body: string): string {
+  const parts = body.split(/(```[\s\S]*?```|`[^`]*`)/g);
+  return parts.map((p, i) => (i % 2 === 0 ? escapeMdx(p) : p)).join('');
+}
+
 export function assembleMdx(draft: DraftPost): string {
   const hero = draft.images.find((i) => i.role === 'hero');
   const heroBlock = hero
@@ -67,7 +78,7 @@ export function assembleMdx(draft: DraftPost): string {
   const entitiesBlock = draft.entities?.length
     ? `entities:\n${draft.entities.map((e) => `  - name: ${q(e.name)}\n    sameAs: ${q(e.sameAs)}`).join('\n')}\n`
     : '';
-  return `---\ntitle: ${q(draft.title)}\ndescription: ${q(draft.description)}\npubDate: ${draft.pubDate}\ntags: [${draft.tags.map(q).join(', ')}]\ndraft: ${draft.draft}\n${heroBlock}${sourcesBlock}${entitiesBlock}---\n\n${draft.body}\n`;
+  return `---\ntitle: ${q(draft.title)}\ndescription: ${q(draft.description)}\npubDate: ${draft.pubDate}\ntags: [${draft.tags.map(q).join(', ')}]\ndraft: ${draft.draft}\n${heroBlock}${sourcesBlock}${entitiesBlock}---\n\n${sanitizeMdxBody(draft.body)}\n`;
 }
 
 export function writePost(repoRoot: string, draft: DraftPost): string {
