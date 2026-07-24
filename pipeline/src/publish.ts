@@ -52,7 +52,9 @@ export function parseGenerated(mdx: string): { title: string; description: strin
   return { title: line('title'), description: line('description'), tags, body };
 }
 
-const q = (s: string) => `"${s.replace(/"/g, "'")}"`;
+// YAML-safe double-quoted scalar: escape backslashes FIRST, then double-quotes, so raw
+// feed/source titles containing LaTeX (e.g. "$n\geq 4$") don't emit an invalid YAML escape.
+const q = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 export function assembleMdx(draft: DraftPost): string {
   const hero = draft.images.find((i) => i.role === 'hero');
