@@ -1,0 +1,52 @@
+---
+title: "VLM-IE3D gives 2D video models a better sense of space"
+description: "The arXiv paper “3D-Aware VLMs with Implicit and Explicit Geometries” points to a practical middle path for spatial AI: keep RGB video as input, but add geometry-aware tokens before asking a VLM to reason about the world."
+pubDate: 2026-07-24
+tags: ["vision-language-models", "3d-ai", "spatial-reasoning"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-24-vlm-ie3d-gives-2d-video-models-a-better-sense-of-space/hero.png
+  alt: "VLM-IE3D gives 2D video models a better sense of space"
+sources:
+  - title: "3D-Aware VLMs with Implicit and Explicit Geometries"
+    url: "http://arxiv.org/abs/2607.21595v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: VLM-IE3D is interesting because it tries to make ordinary RGB video more spatially useful without requiring depth cameras, LiDAR, or full 3D scene inputs.
+
+## What problem is VLM-IE3D trying to solve?
+
+Most vision-language models are still mostly 2D creatures.
+
+They can caption an image, answer questions about a frame, and track visual patterns across video. But ask them to reason about fine-grained 3D relationships and the cracks show. Which object is behind another? Where is something grounded in a room? What is the spatial relationship between a moving camera, a table, and a person? Those are not just “better captioning” tasks. They require geometry.
+
+The primary source here is the arXiv cs.AI and cs.LG paper titled “3D-Aware VLMs with Implicit and Explicit Geometries.” The paper introduces VLM-IE3D, a framework that adds 3D awareness to VLMs using only RGB videos as input. That last part matters. Plenty of 3D systems assume extra sensors, reconstructed meshes, point clouds, or other 3D inputs. VLM-IE3D tries to pull more spatial signal out of video itself.
+
+The paper reports stronger performance across 3D video detection, 3D visual grounding, 3D dense captioning, and spatial reasoning. The supplied abstract does not give the actual benchmark numbers, so I would treat “superior performance” as a claim to verify in the full paper and code, not a blank check. The code and models are listed at `https://github.com/Vegetebird/VLM-IE3D`, which is good. This is the kind of claim that needs runnable evidence.
+
+## How does it add 3D awareness without 3D inputs?
+
+The design has three main parts.
+
+First, VLM-IE3D uses Implicit Geometry Tokens, or IGTs. These capture higher-level geometric priors from input videos. Think of this as the model learning spatial patterns that are not explicitly drawn as a depth map or mesh, but are still present in motion, viewpoint changes, object scale, occlusion, and perspective.
+
+Second, it uses Explicit Geometry Tokens, or EGTs. These encode detailed geometric structure from reconstructed 3D attributes. So the system is not only hoping the model “gets” space from pixels. It gives the VLM more concrete geometry-derived signals too.
+
+Third, a 3D-aware adapter fuses those implicit tokens, explicit tokens, and normal 2D visual cues. That adapter is the glue. The point is not to throw away existing VLM vision features. It is to add a spatial bias where today’s 2D-first models are weak.
+
+![a video scene splitting into a soft volumetric shape stream and a crisp wireframe geometry stream, then merging into one](../../assets/blog/2026-07-24-vlm-ie3d-gives-2d-video-models-a-better-sense-of-space/inline-1.png)
+
+This is a sensible architecture pattern. Don’t retrain everything from scratch if the base VLM already knows objects, language, and visual semantics. Add a structured pathway for the thing it lacks.
+
+## Where would this actually matter?
+
+The obvious applications are robotics, AR, indoor mapping, warehouse perception, embodied agents, and video analytics. Anywhere the system needs to understand not just what is visible, but where it is and how it sits in space.
+
+I would be careful with the robotics hype, though. RGB-only 3D reasoning is useful, but it is not magic depth sensing. Lighting, motion blur, reflective surfaces, transparent objects, unusual camera paths, and cluttered scenes can still break assumptions. If a robot arm is moving near people, I still want sensors and control systems built for safety, not a VLM guessing geometry from video.
+
+The more immediate builder use case is probably analysis, not actuation. Search a video for “the box on the lower shelf behind the blue cart.” Generate denser captions that include spatial relations. Ground a user’s instruction to a region in a 3D-ish scene. Help an agent maintain a better world model from camera footage.
+
+Practitioner’s take: if I were testing VLM-IE3D, I would not start with a flashy robot demo. I would build a small eval set from my own video domain: 50 to 200 clips with questions that require behind, inside, left of, occluded by, closer than, and moving toward. Compare a strong regular VLM against VLM-IE3D on those exact prompts. The catch most readers miss: “RGB-only” lowers deployment friction, but it also means your eval has to include the ugly camera conditions your product will actually see.

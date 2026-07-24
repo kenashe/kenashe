@@ -1,0 +1,54 @@
+---
+title: "Barzilai-Borwein’s superlinear convergence problem"
+description: "A new negative result for BB1 does not make the method useless, but it does shrink one of the nicer stories people tell about simple adaptive step-size optimization."
+pubDate: 2026-07-24
+tags: ["optimization", "machine-learning", "research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-24-barzilai-borweins-superlinear-convergence-problem/hero.png
+  alt: "Barzilai-Borwein’s superlinear convergence problem"
+sources:
+  - title: "Barzilai-Borwein Fails Superlinear Convergence on an Open Set of Quadratics for Every Dimension $n\geq 4$"
+    url: "http://arxiv.org/abs/2607.21579v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Barzilai-Borwein can still be a useful cheap optimizer, but the claim that BB1 almost always becomes superlinear on convex quadratics just took a real hit.
+
+## What did this paper actually show?
+
+The primary paper is **“Barzilai-Borwein Fails Superlinear Convergence on an Open Set of Quadratics for Every Dimension $n\geq 4$”**, cross-listed on arXiv in cs.AI and cs.LG.
+
+The result is narrow, but sharp. The Barzilai-Borwein method, specifically the long BB step known as BB1, has a strong practical reputation because it gives gradient descent a surprisingly good adaptive step size without the cost of full second-order methods. On many smooth problems, it looks smarter than plain gradient descent while staying cheap.
+
+One unresolved belief around BB has been that, for strictly convex quadratic problems, BB might converge superlinearly for almost every problem and initialization. That would mean not just steady geometric improvement, but improvement that accelerates beyond any fixed linear rate in the right asymptotic sense.
+
+This paper gives a negative answer. For every finite dimension $n \geq 4$, it constructs a nonempty open family of strictly convex quadratic problems and initial points where BB1 converges, but cannot converge root-superlinearly. Open matters here. This is not a single pathological point balanced on a knife edge. It is a positive-Lebesgue-measure set.
+
+The proof pins the behavior between geometric rates. The paper gives explicit constants, $ρ_{\min}=10^{-6}$ and $ρ_{\max}=0.61$, and shows every spectral component of the gradient stays bounded above and below by corresponding geometric sequences. The gradient norm and energy norm of the error get two-sided geometric estimates with the same rates. The objective gap gets the squared-rate version. Those lower bounds are the important part: they rule out superlinear convergence.
+
+![an optimizer path descending a smooth convex bowl, then settling into a repeating orbit-like pattern before reaching the](../../assets/blog/2026-07-24-barzilai-borweins-superlinear-convergence-problem/inline-1.png)
+
+## Why does a convex quadratic counterexample matter?
+
+Because convex quadratics are the lab mice of optimization.
+
+They are not deep nets. They do not have attention blocks, batch noise, layer norm, data order effects, or mixed precision weirdness. But they strip the problem down to curvature and step-size dynamics. If a clean method has a universal convergence story, quadratics are where that story usually shows up first.
+
+That is what makes this result interesting. BB1 is not being attacked on a wild nonconvex loss surface. The failure happens on strictly convex quadratics, and in every dimension at least 4. The construction starts in dimension 4, using a computer-assisted proof of a nonresonant, attracting seven-cycle in the projectivized BB dynamics, then extends to higher dimensions.
+
+Plain English: the method can fall into a stable repeating pattern in how its gradient components relate to the spectrum of the quadratic. It still moves toward the solution. It just does not enter the accelerating regime people hoped might be generic.
+
+That distinction matters. “Converges” and “converges superlinearly” are very different promises. The first can still be useful. The second is a much stronger asymptotic claim.
+
+## Does this change what builders should use?
+
+Probably not tomorrow morning. If you are training models with AdamW, Shampoo variants, Lion, Muon-style methods, SGD schedules, or custom second-order-ish tricks, this paper is not a direct product decision.
+
+But it is a good reminder about optimizer folklore. Practical performance often arrives before clean theory. Then the theory either catches up, narrows the claim, or breaks the folk version. BB is a good example because it is simple enough to study, useful enough to care about, and strange enough that the dynamics still surprise people.
+
+The lesson I take is not “BB is bad.” The paper explicitly studies cases where BB1 converges. The better lesson is: adaptive step-size rules can hide stable cycles that look harmless in experiments until someone asks for a stronger guarantee. If your optimizer story depends on “it probably accelerates eventually,” you need evidence for that exact claim, not just nice curves on a few benchmarks.
+
+For builders, I would treat BB-style methods as cheap tools worth testing in controlled settings, especially for smooth deterministic subproblems, least-squares-ish objectives, and inner-loop optimization where gradient cost dominates. Compare wall-clock, not just iteration count. Track objective gap, gradient norm, and sensitivity to initialization. The catch most readers miss is that “not superlinear” does not mean “slow,” and “fast in practice” does not mean the asymptotic story is true.
