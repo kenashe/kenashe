@@ -1,0 +1,56 @@
+---
+title: "Context engineering is becoming product design for Claude-style apps"
+description: "A thin Hacker News item points at a real shift: bigger model contexts do not remove the need for discipline. They move the hard work into retrieval, memory, tool traces, and deciding what the model should not see."
+pubDate: 2026-07-26
+tags: ["context-engineering", "claude", "ai-builders"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-26-context-engineering-is-becoming-product-design-for-claude-style-apps/hero.png
+  alt: "Context engineering is becoming product design for Claude-style apps"
+sources:
+  - title: "The new rules of context engineering for Claude 5 generation models"
+    url: "https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models"
+entities:
+  - name: "Anthropic"
+    sameAs: "https://www.wikidata.org/wiki/Q116758847"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: Context engineering is no longer prompt polish, it is the system design layer that decides what a model sees, remembers, ignores, and acts on.
+
+## What does “context engineering” mean now?
+
+The primary source here is a Hacker News item titled “The new rules of context engineering for Claude 5 generation models.” The item is thin in the material provided, so I’m not going to pretend we have Anthropic release notes, benchmark tables, or a full technical post behind it. But the phrase itself points at a real operator shift.
+
+Prompt engineering was mostly about phrasing the ask. Context engineering is about assembling the working state around the ask.
+
+That includes the user’s latest message, prior conversation, retrieved documents, tool results, system instructions, memory, schemas, examples, and constraints. For agentic systems, it also includes plans, failed attempts, scratch outputs, external observations, and sometimes the model’s own intermediate artifacts.
+
+The trap is simple: bigger context windows make teams less disciplined. They paste in more. They retrieve more. They preserve more history. Then they wonder why the model follows stale instructions, cites irrelevant documents, or gets slower and more expensive.
+
+A larger Claude-class model may tolerate more input. It does not turn every token into equally useful state. Context is not a storage bucket. It is an attention budget.
+
+![layers of selected documents, memory fragments, tool results, and user intent flowing through a narrow funnel into one m](../../assets/blog/2026-07-26-context-engineering-is-becoming-product-design-for-claude-style-apps/inline-1.png)
+
+## What should go into context, and what should stay out?
+
+The useful rule is not “give the model everything.” It is “give the model the smallest complete working set.”
+
+That means context should be curated by job. A coding agent needs the files that define the behavior being changed, nearby tests, relevant error logs, and project conventions. It probably does not need the whole repository on every turn. A customer support agent needs the current account state, policy snippets, recent tickets, and the exact user issue. It does not need every CRM note ever written.
+
+The same applies to memory. Persistent memory sounds magical until it becomes a junk drawer. A useful memory layer should separate durable preferences from temporary facts. “User prefers Python examples” may be worth keeping. “User asked about Stripe yesterday” may not be, unless the current task connects to it.
+
+Retrieval also needs ranking and refusal. If your RAG system always returns five chunks, it will feed the model weak evidence even when no good evidence exists. Better systems say, “no relevant context found,” then let the model answer with uncertainty or ask for input.
+
+This is where context engineering becomes product work. Someone has to decide what truth sources exist, how fresh they are, what outranks what, and when the model must stop instead of improvise.
+
+## Where does Claude 5 actually fit?
+
+The Hacker News title frames this around “Claude 5 generation models,” but the supplied material does not include confirmed model behavior, release claims, or Anthropic documentation. So I would not build around the phrase “Claude 5” as if it carries specific capabilities.
+
+The broader point still holds for Claude, Gemini, GPT, open models, and whatever comes next. As models get better at using long input, context quality matters more, not less. Weak context used to fail loudly because the model missed things. Now it may fail quietly because the model finds some plausible thread inside a pile of mixed signals.
+
+That changes evaluation too. You cannot only test final answers. You need to test context assembly. Did the system retrieve the right file? Did it include stale policy? Did tool output overwrite user intent? Did memory inject a preference that no longer applies? Did the model cite a document that was present but not authoritative?
+
+For builders, the practical move is to treat the context window like a runtime surface. Log what went in. Version your system prompts. Score retrieval separately from generation. Add tests for poisoned, stale, duplicated, and conflicting context. Start with one workflow where bad context already costs time, such as support escalation, code review, sales research, or internal policy Q&A. Build a context pack for that workflow, measure whether it improves task completion, then prune aggressively. The catch most teams miss: the best context system is not the one that remembers the most. It is the one that forgets on purpose.
