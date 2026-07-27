@@ -178,6 +178,17 @@ async function main(): Promise<void> {
         ddSourceKeys = new Set(anchorStories.map((s) => s.key));
       }
     }
+    // Observability: log the pick, or when skipping, why — per-beachhead story counts and
+    // how many carry a tier-1 primary (the eligibility bar), e.g. "ai-agents:3(1p)".
+    const bhSummary = BEACHHEADS.map((bh) => {
+      const g = byBh.get(bh) ?? [];
+      return `${bh}:${g.length}(${g.filter(hasPrimary).length}p)`;
+    }).join(' ');
+    console.log(
+      ddStory
+        ? `[deepdive] ${ddBeachhead} pillar from ${ddSourceKeys?.size ?? 1} primary stories | ${bhSummary}`
+        : `[deepdive] skipped: no beachhead with >=${dd.minStories} stories incl. a tier-1 primary | ${bhSummary}`,
+    );
   }
   const ddSelected: Story[] = ddStory ? [{ ...ddStory, tier: 'deepdive' as const }] : [];
   const flagBudget = ddStory ? Math.max(0, env.flagships - 1) : env.flagships;
