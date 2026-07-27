@@ -1,0 +1,56 @@
+---
+title: "Hyperball optimizers still need learning-rate discipline"
+description: "The arXiv paper “Hyperball May Not Be a Free Lunch” argues that Hyperball-style optimizer gains may come less from magical update directions and more from effective step-size behavior, which puts scheduling back at the center of training practice."
+pubDate: 2026-07-27
+tags: ["optimization", "model-training", "research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-27-hyperball-optimizers-still-need-learning-rate-discipline/hero.png
+  alt: "Hyperball optimizers still need learning-rate discipline"
+sources:
+  - title: "Hyperball May Not Be a Free Lunch"
+    url: "http://arxiv.org/abs/2607.22444v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Hyperball-style optimizers may help, but “constant angular velocity” does not remove the need to tune the learning-rate schedule.
+
+## What is Hyperball actually buying?
+
+The primary source today is the arXiv paper “Hyperball May Not Be a Free Lunch,” listed under cs.AI and cs.LG, with code released at `https://github.com/mangocrazz/hyperball-may-not-be-a-free-lunch`.
+
+The paper looks at a narrow but important claim in optimizer land: Hyperball-style methods can improve large-scale training by fixing the norms of matrix-valued parameters and normalizing updates. That sounds like a clean trick. If a network is scale-invariant, maybe the optimizer should care less about raw parameter size and more about motion on the surface of a sphere. Less radial thrashing. More angular progress.
+
+That framing has been part of the appeal around Muon-style optimizers and Hyperball variants. But the paper pushes on the part builders should care about: what is actually causing the win?
+
+The authors start from angular displacement between consecutive parameter states. Instead of measuring progress only through a conventional norm-based effective learning rate, they derive an angular effective learning rate that includes three things: the parameter-update angle, the parameter norm, and the update norm. They also show that the usual norm-based measure is a special case when the parameter and update are orthogonal.
+
+That matters because optimizer folklore often compresses too much into one scalar. If the angle changes, the same update norm can mean different movement on the parameter sphere.
+
+![two curved paths around a sphere, one taking small steady arcs and one taking uneven arcs before reaching a similar regi](../../assets/blog/2026-07-27-hyperball-optimizers-still-need-learning-rate-discipline/inline-1.png)
+
+## Is the update direction the magic?
+
+The tempting story is that Hyperball works because it produces better directions. Cleaner geometry, better training. Done.
+
+“Hyperball May Not Be a Free Lunch” complicates that. The authors decompose optimizer updates into radial and tangential components, then test how radial updates affect one-step angular displacement. Under the training setups they considered, the radial component has only a limited direct effect on the angular effective learning rate.
+
+That is a pretty useful negative result. It means the radial piece cannot explain the observed pattern where MuonH converges more slowly than MuonWD early in training, but later overtakes it. If the geometry story were the whole story, you would expect the directional advantage to show up more directly.
+
+The more interesting experiment is the schedule intervention. The authors modify only the learning-rate schedule so each optimizer’s dynamics mimic the other’s. That points to the main difference being the evolution of effective step size, not an intrinsically superior Hyperball update direction.
+
+This is the part I would underline for practitioners. If an optimizer seems better, ask whether it is giving you a better direction, a better implicit schedule, or just a different failure mode. Those are not the same thing.
+
+## Does constant angular velocity solve scheduling?
+
+No. That is the useful takeaway.
+
+The paper reports that more aggressive learning-rate decay can speed up MuonH early in pretraining, but may hurt later performance. So you can fix the early lag, but you may pay for it downstream. That is the same old optimizer tradeoff wearing nicer geometry.
+
+I like this result because it cuts against two lazy reactions. The first is hype: “Hyperball solves training dynamics.” It does not, at least not based on this evidence. The second is dismissal: “So Hyperball is useless.” Also not supported. The paper says careful scheduling remains essential to realizing the potential of Hyperball-style optimizers. That is not a dunk. It is a constraint.
+
+For teams training models, the question is less “Should we switch optimizers?” and more “Do we know what schedule this optimizer is secretly asking for?” If MuonH looks weak early, that may be a schedule mismatch. If it looks strong later, that may also be schedule behavior, not proof of a universally better direction.
+
+Practitioner’s take: if you are testing MuonH or another Hyperball-style optimizer, do not benchmark it with one inherited AdamW or MuonWD schedule and call the result. Track angular effective learning rate alongside loss, run at least one schedule that decays more aggressively early, and check whether late performance degrades. The catch most people miss: optimizer comparisons often compare schedules in disguise.
