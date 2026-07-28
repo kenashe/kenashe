@@ -1,0 +1,104 @@
+---
+title: "On-Policy Distillation Is Becoming the Default Move for Agent Training"
+description: "A controlled study of multi-turn planning, plus new work on data curation and medical MLLMs, shows on-policy distillation is quietly settling into the standard way to shape agent behavior across pre-training, post-training, and multi-teacher integration."
+pubDate: 2026-07-28
+tags: ["on-policy-distillation", "agents", "long-horizon-planning", "ai-agents", "deep-dive"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-28-on-policy-distillation-is-becoming-the-default-move-for-agent-training/hero.png
+  alt: "On-Policy Distillation Is Becoming the Default Move for Agent Training"
+sources:
+  - title: "The Physics of Multi-Turn Long-Horizon Planning: From Pre-training to Post-training via Single- and Multi-Teacher On-Policy Agentic Distillation"
+    url: "http://arxiv.org/abs/2607.24720v1"
+  - title: "ClinFusion: A Vision-Centric Multimodal LLM System for Holistic Medical Understanding"
+    url: "http://arxiv.org/abs/2607.24743v1"
+  - title: "DataOrchestra: Learning to Orchestrate Per-Example Curation of Pretraining Data"
+    url: "http://arxiv.org/abs/2607.24717v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The evidence is converging on a specific recipe for training capable agents: build a world model during pre-training, shape it with on-policy distillation rather than pure RL when data is noisy or horizons are long, and use multi-teacher distillation to merge capabilities, but only when the teachers' planning patterns actually agree.
+
+If you have been tracking the OPD (on-policy distillation) line of work here, this is the piece that ties it together. For a while, on-policy distillation looked like one clever trick among many. Now it is starting to look like the default answer to a specific, hard question: how do you get a model good at long, multi-step tasks without drowning it in opaque internet data and hoping for the best?
+
+The most useful new source on this is a controlled study titled "The Physics of Multi-Turn Long-Horizon Planning: From Pre-training to Post-training via Single- and Multi-Teacher On-Policy Agentic Distillation" on arXiv cs.AI. It is worth reading closely because it does something most agent papers refuse to do: it isolates variables. Instead of scraping trajectories off the web and reporting a benchmark bump, the authors build a controlled multi-turn environment where they can dial data format, quality, and horizon length up and down, then watch what each knob does to planning ability. Two other recent arXiv papers, "DataOrchestra: Learning to Orchestrate Per-Example Curation of Pretraining Data" and "ClinFusion: A Vision-Centric Multimodal LLM System for Holistic Medical Understanding," come at the same problem from different angles. Read together, they map where agent and multimodal training actually stand right now.
+
+## What problem is long-horizon planning actually about?
+
+A long-horizon task is one where the model has to take many steps, each depending on the last, and a mistake early on poisons everything downstream. Think of an agent booking travel across a dozen tool calls, or a research assistant that has to plan, search, read, and revise over twenty turns. Single-step accuracy tells you almost nothing here. What matters is whether errors compound or get corrected.
+
+The "Physics of Multi-Turn Long-Horizon Planning" authors make the core problem sharp: existing models are trained on "uncontrollable and opaque Internet data," so nobody can actually say how planning ability gets "acquired, shaped, and integrated." That opacity is the real issue. You cannot improve what you cannot attribute. Their fix is methodological, not just architectural: build an environment you control, then study planning across three stages, pre-training, post-training, and integration.
+
+![a single misstep near the start of a long branching path cascading into many diverging wrong paths downstream](../../assets/blog/2026-07-28-on-policy-distillation-is-becoming-the-default-move-for-agent-training/inline-1.png)
+
+This framing matters because it reframes what "capable agent" means. It is not one skill. It is three separable things: acquiring planning ability, shaping it, and integrating multiple sources of it. Most teams conflate all three and then wonder why more data does not help.
+
+## Where does planning ability come from in pre-training?
+
+The first finding is the one I would tape to the wall. According to the "Physics" authors, "explicit world model construction through CoT state transition modeling yields stronger long-horizon generalization." In plain terms: teaching the model to explicitly reason about how the state changes after each action, rather than just predicting the next action, produces a model that generalizes further across long horizons.
+
+That lines up with a theme running through recent work on [world models that edit their own context instead of their weights](/blog/2026-06-30-world-models-that-edit-their-own-context-instead-of-their-weights/). The consistent lesson is that models plan better when they carry an explicit, updatable representation of the world's state, not an implicit one baked into weights.
+
+Two more pre-training findings from the same source push against common assumptions. First, "atomic skills alone are insufficient for compositional generalization, whereas a little long-horizon data works." You cannot train a model on isolated one-step competencies and expect it to stitch them into long plans on its own. A small amount of genuinely long-horizon data does far more than a mountain of atomic examples. Second, and this is the sharp edge: "suboptimal trajectories severely impair performance because errors amplify over long horizons." Bad demonstrations do not just fail to help. They actively poison a long-horizon model, because the model learns the error patterns and then compounds them.
+
+That last point is where data curation stops being a separate topic and becomes part of the same story.
+
+## Why does data quality matter so much more here?
+
+If suboptimal trajectories poison long-horizon planning, then how you filter and rewrite pre-training data is not a hygiene step. It is a capability lever. This is exactly where "DataOrchestra: Learning to Orchestrate Per-Example Curation of Pretraining Data" fits.
+
+DataOrchestra's argument is that most pipelines "define a fixed processing strategy at the corpus or domain level and apply it uniformly," which is the wrong granularity. Instead, they train an orchestrator that makes a per-example decision: drop the chunk, leave it untouched, or clean it. If it cleans, it picks specific downstream operations, from programmatic editing to different forms of LLM rewriting, and generates a concrete instruction for each. The authors report "stable average gains over individual data-processing methods across 11 benchmarks" for models pretrained from 0.5B to 7B, plus gains on math continued pretraining, "while reducing processing compute by skipping unnecessary downstream operations."
+
+![an orchestrator routing individual data chunks down different processing paths, some dropped, some passed through untouc](../../assets/blog/2026-07-28-on-policy-distillation-is-becoming-the-default-move-for-agent-training/inline-2.png)
+
+Put the two papers next to each other and the implication is clean. The "Physics" work says bad trajectories are actively harmful over long horizons. DataOrchestra says you should be making that keep/clean/drop decision per example rather than per corpus. If you buy the first claim, the second stops being an optimization and becomes a requirement. For long-horizon agents specifically, a corpus-level filter that lets a fraction of suboptimal trajectories through is not "mostly fine." It is seeding the exact failure mode that compounds.
+
+The honest caveat: DataOrchestra's benchmarks are general pretraining and math, not agentic long-horizon tasks. The connection I am drawing is an inference across two papers, not a result either one reports directly. Treat it as a strong hypothesis, not a settled fact.
+
+## When should you use on-policy distillation instead of RL?
+
+Here is the part that turns OPD from a trick into a default. The "Physics" authors compare GRPO (a reinforcement learning method) against OPD for shaping planning ability, and they do not just declare a winner. They map regions.
+
+Using mutual information, they separate two things a model learns: general "planning patterns" and task-specific "planning knowledge." For planning patterns, they identify "three application regions of post-training: unnecessary, effective, and unsupported." The key result: "OPD has a broader effective region than GRPO under low-quality and long-horizon settings, as it provides more consistent update directions."
+
+That phrase, "more consistent update directions," is the whole argument. RL reward signals get noisy and sparse over long horizons, so the gradient wanders. On-policy distillation, where a teacher scores or corrects the student's own rollouts, gives a denser and more stable signal. So the more your setting looks like the hard case, noisy data, long horizons, the more OPD pulls ahead of RL.
+
+This is consistent with a body of work The Lab has tracked. [OPD2's attempt to distill reasoning by subtracting the base model](/blog/2026-07-17-opd2-tries-to-distill-reasoning-by-subtracting-the-base-model/) and the case for [reusing RL gains across model sizes with Direct-OPD](/blog/2026-07-07-reusing-rl-gains-across-model-sizes-the-case-for-direct-opd/) both lean on the same intuition: an on-policy teacher signal is more transferable and more stable than a raw reward. And the [chess study of what RL actually does to a reasoning model](/blog/2026-07-20-chess-shows-what-rl-actually-does-to-a-reasoning-model/) is a useful counterweight, because it shows RL sharpening existing capability rather than adding new knowledge. That distinction matters here.
+
+Because the "Physics" authors add a warning about the other half, planning knowledge: "distilling unseen procedures from a teacher with different knowledge may impair student's prior world modeling without fully establishing new knowledge." In other words, distillation is great for shaping patterns the student already half-knows, and dangerous for injecting genuinely foreign procedures. You can end up degrading the world model the student had while failing to install the new one. OPD is not a universal knowledge-transfer machine. It is a shaping tool, and it is best when teacher and student overlap.
+
+## Can you merge multiple teachers without breaking the model?
+
+The third stage is integration, and this is where multi-teacher on-policy distillation (MOPD) enters. The dream is obvious: you have a teacher good at coding, one good at web navigation, one good at math, and you want a student that inherits all three. MOPD is the mechanism the "Physics" authors propose, and their finding is refreshingly conditional.
+
+They report that MOPD "integrates capabilities by converging to shared planning-pattern across environments," but the outcome depends entirely on how compatible the teachers are. Three cases: "compatible patterns enable cross-environment generalization, partially shared patterns support continual learning, while completely conflicting patterns cause severe interference."
+
+![three teacher sources merging into one student, one merge clean and aligned, one partial, one colliding and fracturing](../../assets/blog/2026-07-28-on-policy-distillation-is-becoming-the-default-move-for-agent-training/inline-3.png)
+
+That is the load-bearing sentence for anyone planning to build a general agent from specialized teachers. It is not "throw all your best models at the student and average them." If the teachers' underlying planning patterns conflict, you get interference that is worse than either teacher alone. The compatibility of the teachers matters more than their individual strength.
+
+This rhymes with earlier work that treats teacher disagreement as information rather than noise. [DemoPSD's approach of using teacher disagreement as a training signal](/blog/2026-07-03-demopsd-treats-teacher-disagreement-as-a-training-signal/) is the constructive version of the same insight: where teachers disagree tells you something, and how you handle that disagreement determines whether you get generalization or collapse. The "Physics" MOPD result is the diagnostic version: measure compatibility first, or accept the interference risk.
+
+## Does any of this hold outside toy environments?
+
+Fair question, and the honest answer is that the "Physics" study runs in a controlled environment by design. Controlled environments give you clean attribution and weak external validity. That is the tradeoff. So the useful move is to check whether the same recipe shows up in a messy, real domain, and that is where "ClinFusion: A Vision-Centric Multimodal LLM System for Holistic Medical Understanding" is instructive.
+
+ClinFusion is not an agent-planning paper, but it is a data point on where the frontier of applied multimodal training sits. Its authors report state-of-the-art results across a suite of 2D and 3D medical benchmarks, claiming ClinFusion "outperforms leading open-source medical MLLMs (e.g., Hulu-Med, Lingshu) on 20 out of 24 benchmarks" and beats "powerful proprietary models such as GPT-5.2 and Gemini-3-Flash on 13 out of 16 benchmarks." Read those numbers as reported by the ClinFusion team, not as independently confirmed. Benchmark self-reports in a hot subfield deserve skepticism until others reproduce them.
+
+Two things from ClinFusion connect back to the throughline. First, the authors frame the medical problem as "fundamentally a vision-centric challenge" where "evaluation protocols must align with radiologists' clinical practice," and they build a region-of-interest-grounded evaluation that a "blinded evaluation by board-certified radiologists" validated as "achieving the strongest correlation with expert judgment among all automatic evaluation metrics examined." That is the same discipline the "Physics" work applies to planning: if you cannot measure the thing correctly, you cannot improve it. Grounded, task-aligned evaluation is doing quiet, heavy lifting in both papers.
+
+Second, ClinFusion notes it "can be further augmented with agentic tool use for retrieval-augmented and tool-assisted clinical workflows." So even a vision-centric medical model reaches for the agent layer once it wants to be actually useful. The planning story and the multimodal story are not separate tracks. They meet at the point where a capable model has to act over multiple steps in a real workflow.
+
+## What should a practitioner actually do right now?
+
+Start by separating your training into the three stages the "Physics" work separates, because conflating them is the most common mistake. If your agent is weak at long tasks, the fix depends on which stage is failing.
+
+If it is a pre-training gap, the highest-leverage change is teaching explicit state-transition reasoning rather than just next-action prediction, and adding a small slice of genuinely long-horizon trajectories rather than piling on atomic skills. Then police your data hard, because over long horizons suboptimal trajectories do not just waste capacity, they compound into failure. This is where a per-example curation approach like DataOrchestra earns its keep: a corpus-level filter is too blunt for long-horizon training.
+
+If it is a shaping gap, reach for on-policy distillation before pure RL when your data is noisy or your horizons are long, because that is precisely the regime where the "Physics" authors found OPD's effective region is broader than GRPO's. But do not expect OPD to install genuinely foreign procedures. It shapes patterns the student already partly has. For truly new knowledge, distillation can quietly damage the world model the student started with.
+
+If it is an integration gap, and you are trying to merge specialized teachers, measure teacher compatibility before you commit. Compatible planning patterns generalize, partially shared ones support continual learning, and conflicting ones interfere badly. The strength of your teachers matters less than whether they agree.
+
+The catch most readers will miss: none of this is a single lever. The reason on-policy distillation is becoming the default move is not that it beats RL everywhere, because it does not. It is that it degrades gracefully in exactly the conditions, noisy data, long horizons, imperfect teachers, that real agent training always has. That robustness under bad conditions is the actual product. And the one caveat I would hold onto: the cleanest evidence here comes from a controlled environment. The recipe is well-motivated and internally consistent across these papers, but the field still owes us the messy, real-world replication. Watch for that next. Whoever runs the "Physics" three-stage framework on an open, uncontrolled agent benchmark and reproduces the OPD-beats-RL-under-noise result will have moved this from strong hypothesis to settled practice.
