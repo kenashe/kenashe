@@ -1,0 +1,58 @@
+---
+title: "Tabular foundation models still stumble when the rows change"
+description: "A new OOD evaluation of nine tabular foundation models finds the same practical problem teams already know from classic ML: strong benchmark scores do not guarantee stable performance when labels, geography, or socioeconomic context shifts."
+pubDate: 2026-07-29
+tags: ["tabular-ai", "model-evaluation", "mlops"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-29-tabular-foundation-models-still-stumble-when-the-rows-change/hero.png
+  alt: "Tabular foundation models still stumble when the rows change"
+sources:
+  - title: "Empirical Evaluation of Out-Of-Distribution Performance of Tabular Foundation Models"
+    url: "http://arxiv.org/abs/2607.26000v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Tabular foundation models look useful, but the arXiv preprint “Empirical Evaluation of Out-Of-Distribution Performance of Tabular Foundation Models” shows they still need shift testing before anyone trusts them in real deployment.
+
+## Do tabular foundation models handle real-world drift better than old ML?
+
+Not by default.
+
+The primary result from “Empirical Evaluation of Out-Of-Distribution Performance of Tabular Foundation Models,” listed on arXiv cs.AI and cs.LG, is simple: all nine evaluated tabular foundation models degraded under distribution shift. Not some. All.
+
+The models tested were TabPFNv2, TabPFNv2.5, TabPFNv2.6, TabPFNv3, TabICL, TabICLv2, Mitra, LimiX, and TabFM. That is a decent spread of current tabular foundation model approaches, including different pre-training strategies and architectures.
+
+The evaluation used three TableShift datasets: HELOC, Voting, and Childhood Lead. Those are not toy CSVs. They represent the kinds of structural shifts that matter in real systems: label shift, socioeconomic shift, and geographic shift.
+
+The reported shift gaps ranged from 0.003 to 0.060 depending on the shift type. That range matters. A 0.003 drop may be operational noise in some settings. A 0.060 gap can be a real product, compliance, or safety issue, especially in credit, public health, and civic data.
+
+This does not mean TFMs are bad. It means they are not magic drift shields. The old tabular lesson still applies: if your training data and production population differ, your model can look good in validation and disappoint in the field.
+
+![two similar spreadsheet-like grids flowing into a model, then one shifted grid bending away before reaching a weaker out](../../assets/blog/2026-07-29-tabular-foundation-models-still-stumble-when-the-rows-change/inline-1.png)
+
+## What actually transfers from classic tabular ML?
+
+The paper reports that the relationship between in-distribution and out-of-distribution predictive performance, already documented for classical tabular models, extends into TFMs.
+
+That is the part I would underline for operators.
+
+Foundation model branding can make tabular ML sound like it has crossed into a new regime, closer to language models where pre-training sometimes creates surprising general behavior. Maybe that happens in pockets. But this evaluation suggests the practical ranking problem remains familiar: models that perform well in-distribution tend to remain relatively strong OOD, yet they still take a hit when the data-generating process changes.
+
+So the right comparison is not “TFM or XGBoost, which wins forever?” The right question is narrower: under your expected shifts, does a TFM beat a strong tree-based baseline after accounting for latency, memory, explainability, monitoring, retraining, and failure cost?
+
+That last part is not academic. The paper flags a scalability gap: high-performing models can demand memory and compute beyond what standard deployment infrastructure can support. For a Kaggle-style benchmark, that is annoying. For a loan approval workflow, hospital triage support tool, or public agency model running in constrained infrastructure, it can be the difference between viable and dead on arrival.
+
+## Where should builders use this signal?
+
+I would treat TFMs as serious candidates for tabular prediction, not automatic replacements.
+
+They are especially interesting when teams have many small or medium tabular tasks, limited feature engineering capacity, and enough infrastructure to run comparisons cleanly. They may also help as strong baselines during exploration, where speed to a credible first model matters.
+
+But this paper is a reminder to stop evaluating tabular models only on random train-test splits. Random splits answer a narrow question: can the model interpolate across rows drawn from the same pool? Real products usually ask a harder one: can the model behave when next quarter’s applicants, voters, patients, devices, regions, or policies are different?
+
+For high-stakes tabular systems, I would make shift evaluation a required gate. Split by geography if geography can change. Split by time if behavior changes over time. Split by socioeconomic group if access, exposure, or measurement varies. If labels are delayed or policy-driven, simulate label shift. Then compare TFMs against boring baselines, including gradient-boosted trees and calibrated linear models.
+
+The catch most readers miss: OOD testing is not a research luxury, it is product discovery. Before adopting a tabular foundation model, build a small TableShift-style harness around your own data, measure the gap, and check whether the better model can actually run where it needs to run. If the TFM wins only on the clean split and loses under the shift you expect, the benchmark win is trivia.

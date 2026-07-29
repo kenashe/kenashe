@@ -1,0 +1,72 @@
+---
+title: "When Your RAG Sources Disagree: Kontrast and Cross-Modal Knowledge Auditing"
+description: "A new framework called Kontrast compares text, tables, and knowledge graphs to find where they contradict each other, exposing a blind spot in most RAG pipelines that quietly trust whatever source they retrieve first."
+pubDate: 2026-07-29
+tags: ["rag", "knowledge-graphs", "llm-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-29-when-your-rag-sources-disagree-kontrast-and-cross-modal-knowledge-auditing/hero.png
+  alt: "When Your RAG Sources Disagree: Kontrast and Cross-Modal Knowledge Auditing"
+sources:
+  - title: "Detecting Knowledge Inconsistencies Across Text, Tables, and Knowledge Graphs"
+    url: "http://arxiv.org/abs/2607.25959v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+---
+
+TL;DR: Most retrieval pipelines assume their sources agree with each other, and Kontrast is a framework that systematically checks whether text, tables, and knowledge graphs actually do, turning silent contradictions into a signal you can audit.
+
+Here is the problem nobody puts on a slide. When you build a RAG system on Wikipedia and Wikidata, you are pulling from three different shapes of the same knowledge: prose, tables, and a structured graph. The prose says one thing. The infobox table says something slightly different. The knowledge graph is missing the fact entirely or still lists last year's value. Your retriever grabs one of these, hands it to the model, and the model answers with total confidence. The disagreement never surfaces.
+
+The paper "Detecting Knowledge Inconsistencies Across Text, Tables, and Knowledge Graphs" (arXiv, cs.AI and cs.CL) names this cleanly as modality-level inconsistency detection and ships a framework called Kontrast to measure it. Code and data are on GitHub at ECLADATTA/KONTRAST. I want to walk through what it actually catches, because the categories matter more than the tool.
+
+## What kinds of disagreement are we actually talking about?
+
+The authors lay out a taxonomy, and this is the part worth memorizing even if you never touch their code.
+
+First, information granularity differences. The text says "born in California," the table says "born in Los Angeles." Neither is wrong. They just resolve at different levels. A naive consistency check flags this as a conflict; a useful one recognizes it as a zoom level.
+
+Second, direct conflicts. The text and the graph give genuinely different answers to the same question. This is the case everyone imagines when they think "hallucination," except here it lives in the source data, not the model.
+
+Third, temporal changes. The population figure, the job title, the team roster. One modality got updated and the others did not. This is not a conflict so much as a snapshot taken at different times, and treating it as an error would be its own error.
+
+Fourth, knowledge graph incompleteness. The graph simply lacks the structure to answer, so the "disagreement" is really an absence. Wikidata is famously uneven this way. Some entities are richly connected, others are stubs.
+
+![three differently shaped containers holding the same glowing object, one showing it whole, one showing it partial, one s](../../assets/blog/2026-07-29-when-your-rag-sources-disagree-kontrast-and-cross-modal-knowledge-auditing/inline-1.png)
+
+That four-way split is the real contribution. Once you separate granularity and temporal drift from actual conflict and missing structure, "the sources disagree" stops being one problem and becomes four problems with different fixes. A granularity gap needs normalization. A temporal gap needs a timestamp. A true conflict needs a human. An incomplete graph needs enrichment, not correction.
+
+## How does Kontrast decide two sources conflict?
+
+Mechanically, Kontrast takes a table-based answer, generates a SPARQL query from natural language (Text-to-SPARQL) to pull the corresponding evidence out of the knowledge graph, and then uses LLM reasoning to compare the two and drop the result into one of the taxonomy buckets. The evaluation runs across several Table-QA datasets.
+
+The honest finding: cross-modal inconsistencies are common and, more usefully, informative. They do not just flag noise. They surface true knowledge conflicts, expose where the graph is missing structure, and catch temporal mismatches. Systematic comparison lets text, tables, and graphs correct each other rather than each being trusted in isolation.
+
+The equally honest catch, which the authors state plainly, is that the pipeline is limited by Text-to-SPARQL errors and noise. If the query generation step produces a malformed or semantically wrong SPARQL query, you get a phantom disagreement. The graph didn't contradict the table; your translation layer botched the question. So some fraction of flagged "inconsistencies" are artifacts of the tooling, not the data.
+
+I appreciate that this is in the abstract and not buried. It sets a realistic ceiling. Kontrast is a screening tool that finds candidates for review, not an oracle that hands you a clean verdict. Anyone who has written Text-to-SQL for a messy warehouse knows exactly how brittle the natural-language-to-query hop gets once schemas get weird, and SPARQL over Wikidata's property tangle is not gentler.
+
+## Why should anyone building RAG care about this?
+
+Because the standard RAG mental model is "retrieve the relevant chunk, ground the answer in it," and that model has a hidden assumption: that the retrieved chunk is the truth. Kontrast is a direct challenge to that assumption. If you retrieve from a corpus that internally contradicts itself, grounding does not save you. It just picks a winner at random and calls it faithfulness.
+
+![a single query splitting into three retrieval paths that return three subtly different shapes, converging on one confide](../../assets/blog/2026-07-29-when-your-rag-sources-disagree-kontrast-and-cross-modal-knowledge-auditing/inline-2.png)
+
+This matters most for the systems people actually ship on top of encyclopedic or enterprise data. Product catalogs where the spec sheet, the description, and the structured attributes drift apart. Internal wikis where the runbook text and the config table disagree. Compliance corpora where a policy document and its summary table say different things about the same threshold. Every one of these is a modality-level inconsistency waiting to poison a grounded answer, and none of them show up in a standard retrieval-quality metric like recall@k.
+
+The taxonomy is what makes this actionable. You do not need to run Kontrast specifically. You need to internalize that "my sources agree" is a claim you have never actually tested, and that when they disagree, the reason falls into a small number of buckets with different responses.
+
+## What is missing, and what would I want next?
+
+The evaluation lives on Wikipedia and Wikidata, which are the friendliest possible testbed: broad, clean-ish, and already aligned by entity IDs. Enterprise data has none of that. No shared identifiers across the table and the doc, no curated graph, far more temporal chaos. So I read the results as a proof of concept for the method, not a benchmark that transfers to your messy internal stack out of the box.
+
+I also want to see the false-positive rate broken out by the Text-to-SPARQL failure mode specifically, because that number determines whether a human reviewer trusts the flags or learns to ignore them. A screening tool that cries wolf gets muted fast. The abstract acknowledges the noise but the operator question is how much, and under what query types.
+
+![a magnifying glass over a web of connected nodes, some nodes bright and confirmed, some dim and flagged for review](../../assets/blog/2026-07-29-when-your-rag-sources-disagree-kontrast-and-cross-modal-knowledge-auditing/inline-3.png)
+
+And the temporal category deserves its own tooling. Half the "conflicts" in any living knowledge base are just versions of the truth from different dates. Kontrast can categorize a temporal mismatch, but the real win would be attaching a timestamp to every fact and turning "these disagree" into "this one is newer." That is a data-provenance problem more than an LLM problem, and it is where I would put the next round of effort.
+
+Practitioner's take: do not adopt Kontrast wholesale, adopt its four buckets. Before your next RAG launch, pull a sample of say 200 questions where your corpus has more than one source shape (prose plus a table, or a doc plus a structured field) and hand-check whether the sources agree. Bucket every disagreement as granularity, temporal, true conflict, or missing structure. That single afternoon tells you more about your system's real ceiling than any retrieval metric. The catch most people miss: the tooling's own errors, the Text-to-SPARQL failures here, will masquerade as data conflicts, so measure your detector's false-positive rate before you trust a single flag it raises. A knowledge auditor you cannot audit is just another confident source.

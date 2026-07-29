@@ -1,0 +1,62 @@
+---
+title: "Relay-OPD and the prefix failure problem in on-policy distillation"
+description: "A new distillation method lets the teacher model briefly take over when a small student commits to a wrong reasoning path early, cutting wasted compute and lifting math benchmark scores. Here is what it changes for builders training small models."
+pubDate: 2026-07-29
+tags: ["distillation", "small-models", "reasoning"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-29-relay-opd-and-the-prefix-failure-problem-in-on-policy-distillation/hero.png
+  alt: "Relay-OPD and the prefix failure problem in on-policy distillation"
+sources:
+  - title: "Pass the Baton: Trajectory-Relayed On-Policy Distillation"
+    url: "http://arxiv.org/abs/2607.26057v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: On-policy distillation wastes most of its compute supervising reasoning chains that were already doomed by an early wrong turn, and Relay-OPD fixes this by letting the teacher briefly grab the wheel at the exact moment the student veers off, cutting training trajectory length by over half while raising math scores.
+
+If you train small models by distilling from bigger ones, you have probably felt this without naming it. The student generates a long chain of thought, gets the answer wrong, and you dutifully compute loss over the whole thing. Most of that supervision is garbage, because the mistake happened in the first few tokens and everything after was just the student being confidently wrong for a thousand more tokens.
+
+That is the problem "Pass the Baton: Trajectory-Relayed On-Policy Distillation" (arXiv cs.CL / cs.AI) sets out to solve, and the fix is clean enough that I want to walk through it.
+
+## What is prefix failure and why does it waste so much compute?
+
+On-policy distillation (OPD) is the technique where you supervise a student model on its own generations rather than on the teacher's. The student writes the trajectory, the teacher scores it token by token, and you push the student toward the teacher's distribution. Grounding supervision in the student's own text is the whole point: you learn from mistakes the student actually makes, not hypothetical ones.
+
+The catch the paper names is prefix failure. Reasoning is sequential. Once the student commits to a wrong direction early, say it misreads the problem or picks the wrong first step, every token after that builds on the deviation. The continuation is coherent but pointed at the wrong target. You still spend full forward and backward passes supervising all of it, and the signal you get back is unreliable because the teacher is being asked to grade a path it never would have taken.
+
+![a single path branching wrong near its start, with a long doomed stretch trailing off, versus a short correction near th](../../assets/blog/2026-07-29-relay-opd-and-the-prefix-failure-problem-in-on-policy-distillation/inline-1.png)
+
+So the cost is double. You burn compute on long trajectories, and the supervision quality on those long tails is low. The authors report that Relay-OPD cuts training trajectory length by over 50 percent, which tells you how much of the typical OPD trajectory was dead weight.
+
+## How does the teacher-student asymmetry become a handoff signal?
+
+Here is the part I find genuinely clever. The authors identify what they call a teacher-student continuation asymmetry on failed prefixes. Give both models the same wrong prefix and ask them to continue. The teacher tends to redirect, catching the error and steering back. The student tends to keep going in the original wrong direction.
+
+That gap is a signal. If the teacher and student diverge hard at a given point, that point is probably where the student went wrong. And critically, you can detect this without labels. You do not need a ground-truth answer to notice that teacher and student sharply disagree about what should come next. The paper turns this into what it calls a label-free handoff trigger.
+
+This matters because label-free is the difference between a method you can run at scale and one that needs annotation. Most reasoning datasets do not come with per-step correctness labels. Using the divergence between two models as the trigger sidesteps that entirely.
+
+![two runners on the same track diverging sharply at one point, one veering off, one turning back](../../assets/blog/2026-07-29-relay-opd-and-the-prefix-failure-problem-in-on-policy-distillation/inline-2.png)
+
+## What does Relay-OPD actually do during training?
+
+The mechanism is a relay, hence the baton metaphor. The student generates. When a trigger point is detected, the teacher briefly takes over and produces a short teacher leg, redirecting the trajectory. Then the student resumes from there and gets optimized on the resulting mixed trajectory.
+
+Two design choices keep this from going off the rails. First, a limited relay budget. The teacher does not get to rewrite the whole chain. Intervention is concentrated on critical early positions, which is where prefix failures do the most damage, and the budget caps how far the trajectory departs from the student's own policy. That preservation of on-policy-ness is the whole reason OPD works in the first place, so you do not want to blow it up by letting the teacher dominate.
+
+Second, the handoff is brief. The teacher nudges, the student drives. You get the benefit of correcting the early error without turning the exercise into plain off-policy distillation where the student just copies teacher text and learns nothing about its own failure modes.
+
+The results, on a Qwen3-4B-Instruct-2507 teacher with Qwen3-0.6B and 1.7B Non-Thinking students across eight math reasoning benchmarks: best or second-best on every benchmark. Against standard OPD, plus 5.73 percent average for the 1.7B student. Against the strongest baseline the paper names, FastOPD, plus 1.49 percent average. Consistent gains at 0.6B too.
+
+Read those two numbers together. The gap over vanilla OPD is large. The gap over FastOPD, which is already an efficiency-focused OPD variant, is modest at 1.49 points. That is honest to note. Relay-OPD is a solid step over the best existing efficient method, not a landslide over it. The bigger story is the combination: comparable-or-better accuracy while cutting trajectory length in half. Efficiency and quality usually trade against each other. Here they move the same way, because the thing being cut was mostly waste.
+
+## Does this generalize beyond math?
+
+I would hold off on assuming it does. Every result here is on mathematical reasoning benchmarks, and math is the friendliest possible domain for this idea. Errors are localizable, there is usually one right path, and teacher-student divergence on a wrong step is sharp and easy to detect. In open-ended generation, summarization, or dialogue, "wrong direction" is fuzzier and the asymmetry may be weaker or noisier. The paper does not claim otherwise, and the honest read is that Relay-OPD is validated for structured reasoning, full stop.
+
+The model sizes are also small on purpose. A 4B teacher distilling into 0.6B and 1.7B students is the sweet spot for this kind of work, where the teacher is meaningfully smarter but not so distant that its corrections are unreachable for the student. Whether the asymmetry trigger holds when the gap is a 70B teacher and a 1.5B student is an open question.
+
+Practitioner's take: if you are distilling a small reasoning model and running standard OPD, the immediate experiment is to instrument your training trajectories and check how much of your loss is being spent on tokens downstream of an early error. If a lot of it is, you have prefix failure, and you are paying for it in both compute and signal quality. The Relay-OPD recipe is worth reproducing: detect divergence points between teacher and student on the student's own generations, let the teacher patch a short leg at the earliest sharp divergence, then hand back to the student and optimize on the relayed trajectory. The catch most readers will miss is the relay budget. The value is not the teacher fixing everything, it is the teacher fixing the earliest thing and getting out of the way, because the moment the teacher writes most of the trajectory you have quietly converted an on-policy method into off-policy imitation and lost the reason you chose OPD at all. Start with a tight budget, verify trajectory length actually drops, and only loosen if accuracy stalls.

@@ -1,0 +1,66 @@
+---
+title: "What Anthropic's Two-Day MCP SDK Scramble Says About Protocol Versioning"
+description: "Two patch releases of the Anthropic Python SDK in one day, both about MCP version constraints, reveal how much dependency risk the Model Context Protocol quietly pushes onto builders who wire it into production."
+pubDate: 2026-07-29
+tags: ["mcp", "anthropic", "dependency-management"]
+draft: true
+image:
+  src: ../../assets/blog/2026-07-29-what-anthropics-two-day-mcp-sdk-scramble-says-about-protocol-versioning/hero.png
+  alt: "What Anthropic's Two-Day MCP SDK Scramble Says About Protocol Versioning"
+sources:
+  - title: "anthropics/anthropic-sdk-python v0.120.2"
+    url: "https://github.com/anthropics/anthropic-sdk-python/releases/tag/v0.120.2"
+  - title: "anthropics/anthropic-sdk-python v0.120.1"
+    url: "https://github.com/anthropics/anthropic-sdk-python/releases/tag/v0.120.1"
+entities:
+  - name: "Anthropic"
+    sameAs: "https://www.wikidata.org/wiki/Q116758847"
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+---
+
+TL;DR: Anthropic shipped two Python SDK patches on the same day, first pinning the MCP dependency below version 2, then adding support for MCP SDK v2 alongside v1, and that small dance is a live example of the versioning pain you inherit the moment you build on a fast-moving protocol.
+
+The primary sources here are two GitHub releases: `anthropics/anthropic-sdk-python` v0.120.1 and v0.120.2, both dated 2026-07-28. Neither is a headline. Both are one-line bug fixes. But read together they tell a story that matters more than most model launches for anyone running MCP in production.
+
+## What actually changed in these two releases?
+
+Version 0.120.1 did one thing: it pinned the `mcp` extra to `<2` (issue #1783, commit fb66371). In plain terms, Anthropic told the SDK to refuse the newly released MCP SDK v2 and stay on the v1 line.
+
+Then, same day, 0.120.2 reversed course. It added support for "mcp sdk v2 alongside v1" (issue #300, commit 177f88c). So within hours the story went from "block v2" to "support both v1 and v2."
+
+You can read the sequence two ways. The generous reading: MCP SDK v2 dropped, something broke, Anthropic slammed a version ceiling on to protect users from a hard break, then quickly did the real work of supporting both versions and lifted the ceiling. The less generous reading: the pin was a panic patch, and the "alongside" fix was rushed out before it was fully soaked. I lean toward the first. Pinning first and widening compatibility second is exactly the responsible order of operations. But the fact that it all happened in one day tells you the v2 release caught the SDK team off guard.
+
+![a stream splitting into two parallel channels that then rejoin, one channel briefly dammed shut then reopened](../../assets/blog/2026-07-29-what-anthropics-two-day-mcp-sdk-scramble-says-about-protocol-versioning/inline-1.png)
+
+## Why does a version pin matter this much?
+
+Because the Model Context Protocol sits underneath everything an agent touches. MCP is the wiring between a model and the tools, files, and services it calls. When the SDK that speaks MCP changes its dependency rules, every app that imports it feels it, whether or not the developer knew MCP was even in the tree.
+
+Here is the concrete failure mode. You have an agent in production. You run a routine dependency update. Your resolver grabs the newest compatible MCP SDK, which is now v2. If the Anthropic SDK you rely on assumed v1 semantics, your agent's tool calls start failing in ways that are hard to trace, because the break is two layers down from your code. A pin to `<2` prevents exactly that. It says "do not let the resolver wander into v2 territory until we say it's safe."
+
+The catch is that a pin is a blunt instrument. It protects you from breakage today and blocks you from improvements tomorrow. That is why the follow-up release matters more than the pin. Supporting v1 and v2 "alongside" means the SDK now negotiates rather than dictates, which is the only sustainable answer when a protocol has multiple live major versions in the wild.
+
+## What does this reveal about the state of MCP?
+
+MCP crossed a threshold that every successful protocol eventually hits: it now has a major version bump that breaks things. That is a sign of maturity, not decay. HTTP, TLS, Python itself, all of them went through this. A v1-to-v2 jump means somebody decided the old shape was worth breaking to fix.
+
+But maturity has a cost, and the cost lands on builders. When a protocol is young and single-versioned, you can be sloppy about pinning and get away with it. Once v2 exists alongside v1, sloppiness gets punished. Your agent's behavior now depends on which MCP major version resolved into your environment, and that resolution can differ between your laptop, your CI, and your production box unless you lock it down explicitly.
+
+![a foundation layer under a building where one brick is being swapped while the structure above stays standing](../../assets/blog/2026-07-29-what-anthropics-two-day-mcp-sdk-scramble-says-about-protocol-versioning/inline-2.png)
+
+I want to be careful about what these two release notes actually support. They do not tell us what changed between MCP SDK v1 and v2. They do not tell us how many users hit breakage. They do not even confirm the v2 release date. All I can say with confidence is that the Anthropic Python SDK team treated v2's arrival as urgent enough to ship two patches in a single day, and that the resolution was compatibility with both versions rather than a forced migration. Everything beyond that is inference, and I'll flag it as such.
+
+## How should a builder handle protocol version churn?
+
+The lesson here is not "MCP is fragile." The lesson is that any dependency close to the metal of your agent needs to be treated as a first-class risk, not an afterthought your package manager handles for you.
+
+Pin your transitive dependencies, not just your direct ones. The MCP SDK is almost certainly not something you imported by hand. It came in as an extra on the Anthropic SDK. That is precisely the kind of dependency that surprises you, because it is invisible in your own `requirements` or `pyproject` until it breaks. Use a lockfile that captures the full resolved tree, and treat a change in a transitive major version as a change that needs review, not a rubber stamp.
+
+Watch the SDK changelogs of the vendors underneath you, not just the model announcements. The interesting risk in this story never showed up in a keynote. It showed up as a one-line bug fix on GitHub, twice in a day. That is where the real operational signal lives.
+
+![a magnifying glass hovering over a small gear buried deep in a stack of larger gears](../../assets/blog/2026-07-29-what-anthropics-two-day-mcp-sdk-scramble-says-about-protocol-versioning/inline-3.png)
+
+And when you see a vendor pin then unpin within hours, do not rush to match their bleeding edge. Let the "alongside" support soak for a release or two before you widen your own constraints. The Anthropic team absorbed the surprise for you. Your job is to not re-inherit it by upgrading blindly the same afternoon.
+
+The move most people will miss: this is a free early-warning system. Anthropic just told you, via two commits, that MCP SDK v2 is now real and that the compatibility surface between v1 and v2 is non-trivial enough to require explicit handling. If you run MCP anywhere near production, open your lockfile today, find which MCP major version you're actually resolving, and decide on purpose instead of letting your next `pip install` decide for you. That five-minute check is the whole return on reading two boring release notes.
