@@ -1,0 +1,68 @@
+---
+title: "APEX-Accounting: The 2.6% Number That Should Scare AI Bookkeeping Startups"
+description: "Mercor and Ramp built a closed accounting benchmark where the best frontier model reconciles books 56% of the time on average but succeeds all eight tries only 2.6% of the time. Here is what that gap means for anyone shipping AI accounting."
+pubDate: 2026-07-30
+tags: ["benchmarks", "agents", "applied-ai", "ai-agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-30-apex-accounting-the-2-6-number-that-should-scare-ai-bookkeeping-startups/hero.png
+  alt: "APEX-Accounting: The 2.6% Number That Should Scare AI Bookkeeping Startups"
+sources:
+  - title: "APEX-Accounting"
+    url: "http://arxiv.org/abs/2607.27189v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: On APEX-Accounting, frontier models can look competent on a single accounting task (56.4% average criteria met) while being nowhere near reliable enough to trust unattended (2.6% pass rate across eight tries), and that gap is the whole story for anyone building AI bookkeeping.
+
+The benchmark is APEX-Accounting, built by Mercor in partnership with Ramp and posted to arXiv. Read the abstract carefully and it tells you more about where AI-for-work actually stands than a dozen demo videos. It is a private eval of 160 tasks across 10 "worlds," each with its own accounting system, spreadsheets, PDFs, and source files. Experts in accounting authored every task, solved it themselves, and wrote the grading rubrics. This is not multiple choice. It is reconciling accounts, accruing expenses, posting transactions, and producing reports. The real job.
+
+## What did the best model actually score?
+
+Two numbers, and you need both.
+
+Claude-Fable-5 (Max) leads with 56.4% Mean Criteria@3, just ahead of Muse-Spark-1.1 (xHigh) at 52.6%. Mean Criteria@3 means: run the task three times, average how many rubric criteria the model satisfied. So on a typical task, the best model gets a bit more than half the checklist right on average. That sounds like a junior hire on a bad day. Not great, not useless.
+
+Then the second number lands. No model scores more than 2.6% Pass^8. That was GPT-5.6-Sol (Max+Pro). Pass^8 means the model has to nail the task on all eight attempts. Nail it every single time. The best any of nine frontier models managed was to do that on 2.6% of tasks.
+
+![a tall bar next to a nearly invisible sliver, both feeding into a single ledger](../../assets/blog/2026-07-30-apex-accounting-the-2-6-number-that-should-scare-ai-bookkeeping-startups/inline-1.png)
+
+That is the gap. Roughly 56% of the criteria on average, versus 2.6% consistent success. The difference between those two numbers is not a rounding error. It is the difference between "impressive in a demo" and "safe to run your close on."
+
+There is a middle number too. The highest Pass@8 was 21.5%, from Muse-Spark-1.1 (xHigh). Pass@8 means: succeed on at least one of eight tries. So on about a fifth of tasks, the best model could get it right if you let it try eight times and had a way to spot the winner. Which raises the obvious problem in accounting: how do you know which of the eight answers is correct without an accountant checking? If you could tell, you probably didn't need the model.
+
+## Why does the pass-rate gap matter more than the average?
+
+Because accounting has no partial credit in the real world. A reconciliation that is 56% right is not 56% useful. It is wrong. A misposted transaction propagates. An accrual booked to the wrong period fails an audit. The value of bookkeeping is precisely its consistency, and consistency is exactly what Pass^8 measures.
+
+Most benchmark marketing quotes the friendly average and buries the reliability number. APEX-Accounting reports both, which is why it is worth taking seriously. The models here are genuinely capable of doing accounting work. They are not capable of doing it dependably, and dependability is the product.
+
+I want to be careful about the model names. Claude-Fable-5, Muse-Spark-1.1, GPT-5.6-Sol are the labels in the paper. I am not going to pretend I can map every one of those to a public release, and neither should you. The names matter less than the shape of the result, which held across all nine models tested: high-ish average, near-zero consistency. When a pattern is that uniform across the whole frontier, it is telling you something structural about the task, not something specific about one lab's model.
+
+## What is the Simpson's paradox finding and should you care?
+
+This is the part I keep thinking about. Mercor experimented with token budgets from $1 to $50 per task and hit an instance of Simpson's paradox.
+
+Across budgets, more spend meant higher scores. Give the model a bigger token allowance and it does better. Fine, expected.
+
+But within any single budget-constrained harness, scores were lower on the tasks where the model spent more tokens. Flip it around: inside a fixed budget, the tasks that ate the most tokens were the ones the model did worst on.
+
+![two arrows pointing opposite directions, one rising across groups and one falling within each group](../../assets/blog/2026-07-30-apex-accounting-the-2-6-number-that-should-scare-ai-bookkeeping-startups/inline-2.png)
+
+Read that as a diagnostic. When a model burns tokens on an accounting task, it is usually because the task is hard or the model is lost, thrashing through the spreadsheet and the PDFs without converging. Token spend is a distress signal inside a budget. Yet across budgets, raw compute still buys you accuracy, so both things are true at once. That is the paradox: the aggregate trend and the within-group trend point opposite ways, and if you only look at one you draw the wrong conclusion.
+
+For an operator this is directly actionable. If you are running agents against messy financial data, token consumption per task is a live confidence proxy. A task that suddenly costs 4x your median is probably a task the model is failing. That is where a human review gate belongs.
+
+## What should a builder do with this?
+
+Do not read this as "AI can't do accounting." It clearly can do meaningful chunks of it, better than most people expected two years ago. Read it as a map of where the reliability cliff sits.
+
+The honest catch is that APEX-Accounting is a closed benchmark. The eval set is private, and Mercor runs leaderboard evals on request. That is defensible for benchmark integrity (a public accounting eval would leak into training data fast) but it means you cannot independently reproduce these numbers or probe which task types break. You are trusting the methodology described. I think the methodology is sound and the incentives are reasonable, but "trust us" is still "trust us."
+
+![a human hand and a robotic hand jointly holding a magnifying glass over a ledger](../../assets/blog/2026-07-30-apex-accounting-the-2-6-number-that-should-scare-ai-bookkeeping-startups/inline-3.png)
+
+If you are shipping AI accounting, three moves fall out of this directly. First, design for verification, not autonomy. The 21.5% Pass@8 says the right answer often exists in the model's output distribution; your product's job is to surface and confirm it, which means a human or a hard rule check, not blind acceptance. Second, instrument token spend per task and treat spikes as an escalation trigger, straight from the Simpson's paradox result. Third, price and market on the reliability number, not the average, because your customer's auditor will. The team that quotes Pass^8 to a CFO and builds the human-in-the-loop around that 2.6% honestly will outlast the team that demoed the 56% and called it done. The catch most people miss is that the 56% is the easy part. Closing the gap to the 2.6% is the entire remaining business.

@@ -1,0 +1,56 @@
+---
+title: "MindForge trains coding agents on blank-repo software work"
+description: "MindForge turns open-source command-line tools into source-free coding environments, giving smaller models practice building programs from scratch rather than only patching existing repos. The result is a useful signal for teams training agents, but not proof that autonomous software engineering is solved."
+pubDate: 2026-07-30
+tags: ["coding-agents", "software-engineering", "model-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-30-mindforge-trains-coding-agents-on-blank-repo-software-work/hero.png
+  alt: "MindForge trains coding agents on blank-repo software work"
+sources:
+  - title: "MindForge: Teaching Small Language Models Whole-Life-Cycle Software Engineering via Source-Free Program Synthesis"
+    url: "http://arxiv.org/abs/2607.27146v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: MindForge points to a practical training path for coding agents: hide the source, keep the docs and executable behavior, then teach models to rebuild whole programs instead of only editing existing code.
+
+## What problem is MindForge actually trying to solve?
+
+Most coding-agent benchmarks still reward repo editing. Fix a bug. Add a feature. Modify code that already has structure, tests, dependencies, naming conventions, and implied design decisions.
+
+That matters, but it is not the same as starting from zero.
+
+The arXiv cs.CL/cs.LG paper, "MindForge: Teaching Small Language Models Whole-Life-Cycle Software Engineering via Source-Free Program Synthesis," targets that harder setting: whole-life-cycle software engineering from scratch. The paper says frontier models evaluated on ProgramBench fully resolve fewer than 1% of tasks when asked to construct complete programs. That is the headline I would pay attention to, not the usual “AI writes code now” storyline.
+
+MindForge’s trick is simple and useful. Take open-source command-line programs. Remove the source code from the training environment. Keep a compiled reference executable and the documentation. Now the model has to infer behavior, plan an implementation, write files, run checks, debug, and iterate.
+
+That is closer to the job of building a small real tool than the job of applying a patch to a known repo.
+
+![a compiled program and documentation on one side, an agent rebuilding a hidden codebase through repeated test and debug ](../../assets/blog/2026-07-30-mindforge-trains-coding-agents-on-blank-repo-software-work/inline-1.png)
+
+## Why does source-free training matter?
+
+Source-free environments create pressure in the right place.
+
+If the model can see the original source, it can imitate structure too directly. If it only sees docs and executable behavior, it has to learn product behavior, edge cases, architecture, and verification loops. That is a better proxy for building than autocomplete on a familiar codebase.
+
+MindForge uses GLM-5.2 as the teacher agent to generate program synthesis trajectories, then fine-tunes Qwen3.6-27B on those trajectories. The reported jump is not small: Qwen3.6-27B moves from 37.98% to 49.51% average test pass rate on ProgramBench. The paper also reports gains across seven unseen software engineering benchmarks, including 31.00 points on RepoZero-C2Rust, 14.16 on DeepSWE, 10.70 and 4.56 on NL2Repo-Bench depending on test availability, and roughly five-point gains on SWE-bench Verified, SWE-bench Pro, SWE-bench Multilingual, and FeatBench.
+
+That cross-benchmark lift is the interesting part. A training setup built around from-scratch synthesis seems to transfer back into repo translation, bug fixing, feature work, and multilingual issue resolution.
+
+I would still be careful with the claim. “Average test pass rate” is not the same as fully resolving production work. ProgramBench full-resolution performance being under 1% for frontier models tells us this task family is brutal. Passing more tests is progress, but it does not mean the model understands maintainability, security, packaging, ambiguous stakeholder intent, or the ugly parts of deployment.
+
+## What should builders take from this?
+
+The lesson is not “use Qwen3.6-27B and your coding agent is fixed.” The lesson is about environment design.
+
+Good agent training needs more than prompts and larger context windows. It needs tasks with hidden implementation, observable behavior, feedback loops, and enough variety that the model cannot memorize a house style. MindForge shows one scalable way to get those tasks from existing CLI tools.
+
+For internal engineering teams, this maps cleanly to private training and evaluation. Take old internal tools, service utilities, data converters, migration scripts, and command-line workflows. Preserve specs, examples, golden outputs, and black-box behavior. Hide the code. Ask the agent to rebuild. Score not just final tests, but planning, file organization, debugging behavior, and recovery after failed assumptions.
+
+That gives you a better read on whether an agent can build, not just patch.
+
+The catch most readers will miss: source-free does not mean spec-complete. Real docs are often incomplete, and executable behavior can encode bugs, weird defaults, and accidental contracts. So I would use this pattern first as an evaluation harness and training-data generator, then manually inspect the failures. The failures will tell you where your agent lacks engineering judgment, and where your own software behavior is under-specified.

@@ -1,0 +1,58 @@
+---
+title: "Average coverage is not enough for high-stakes classifiers"
+description: "A conformal prediction benchmark shows a practical failure mode in imbalanced decision systems: the model can look statistically covered overall while rare, costly cases get almost no protection."
+pubDate: 2026-07-30
+tags: ["conformal-prediction", "high-stakes-ai", "human-in-the-loop"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-30-average-coverage-is-not-enough-for-high-stakes-classifiers/hero.png
+  alt: "Average coverage is not enough for high-stakes classifiers"
+sources:
+  - title: "Cost-Sensitive Conformal Prediction and Human-in-the-Loop Abstention for Imbalanced High-Stakes Decision Support: A Multi-Domain Benchmark"
+    url: "http://arxiv.org/abs/2607.27143v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If your classifier handles rare but costly events, overall uncertainty guarantees can hide exactly the failures you care about, so evaluate coverage by class and route the expensive ambiguous cases to review.
+
+## What breaks when coverage is only average?
+
+The primary source here is the arXiv paper titled “Cost-Sensitive Conformal Prediction and Human-in-the-Loop Abstention for Imbalanced High-Stakes Decision Support: A Multi-Domain Benchmark.”
+
+The paper’s practical warning is simple: standard marginal conformal prediction can keep its overall coverage promise and still fail badly on the minority class.
+
+That matters because many real decision systems are imbalanced by design. Fraud is rare. Industrial safety failures are rare. Certain medical outcomes are rare. Defaults may be rare, depending on the credit product. But those are often the cases where a wrong call costs the most.
+
+The benchmark reports minority-class coverage dropping as low as 0.5% on some datasets under standard marginal conformal prediction. That is the kind of number that should stop a deployment review cold. Not because conformal prediction is broken. Because the guarantee being used is the wrong one for the job.
+
+Marginal coverage answers, roughly, “Across the whole population, are we covering the true label at the promised rate?” In an imbalanced dataset, the majority class dominates that math. You can look good in aggregate while the rare class gets nearly no useful uncertainty protection.
+
+This is the same measurement trap operators run into with accuracy. A fraud model can be “accurate” by saying almost nothing is fraud. A conformal wrapper can be “valid” overall while giving weak protection to the class that legal, compliance, medical, or safety teams actually care about.
+
+## What did Mondrian conformal prediction fix?
+
+The benchmark compares marginal conformal prediction, class-conditional Mondrian conformal prediction, and cost-controlled abstention across 15 real-world imbalanced tabular datasets, 7 classification models, 3 probability calibration techniques, and 10 random seeds. That totals 3,150 experimental runs.
+
+The reported result is not subtle. Mondrian conformal prediction improved average minority-class coverage by 61.7 percentage points over marginal conformal prediction, with p < 1e-80.
+
+Mondrian conformal prediction conditions coverage by class. In plain terms, it stops letting the majority class subsidize the guarantee. Each class gets its own coverage behavior, which is exactly what you want when the minority class carries the bigger consequence.
+
+That does not make the problem free. Better minority coverage often means larger prediction sets, more uncertainty exposed, and more cases where the system refuses to pretend it knows. But that is a feature in high-stakes workflows, not a bug. The point is not to make the model sound confident. The point is to make the decision process honest enough to operate.
+
+![wide stream of routine cases passing through an automated path while a small uncertain stream splits toward a human revi](../../assets/blog/2026-07-30-average-coverage-is-not-enough-for-high-stakes-classifiers/inline-1.png)
+
+## Where does the human fit?
+
+The more interesting part is the abstention layer.
+
+The arXiv benchmark reports that combining Mondrian conformal prediction with cost-controlled abstention reduced expected decision cost compared with standard decision boundaries, confidence-based rejectors, and risk-controlled rejectors under realistic human review budgets.
+
+That phrase, “human review budgets,” is doing a lot of work. Human-in-the-loop systems fail when every uncertain case gets tossed to a reviewer. Then the queue explodes, turnaround times slip, and the team quietly starts ignoring the alerts. A useful abstention policy has to ask a harder question: when is review worth it?
+
+The paper says it quantifies dataset-specific break-even thresholds where deferring ambiguous instances to human experts becomes cost-effective. That is the operator’s number. Not model accuracy. Not leaderboard score. The number is: at what error cost, review cost, and review capacity does deferral actually pay for itself?
+
+I would still be careful about porting these thresholds directly into production. The abstract does not tell us how stable the break-even points are under changing base rates, reviewer fatigue, label noise, or policy constraints. In credit, healthcare, fraud, and safety, those details are not footnotes. They are the system.
+
+Practitioner's take: if you run an imbalanced classifier in a costly domain, add class-level coverage checks to your eval suite before you celebrate any conformal guarantee. Try Mondrian conformal prediction as the uncertainty layer, then simulate abstention with real review costs and capacity limits. The catch most teams miss: the goal is not fewer human reviews, it is spending scarce human judgment on the cases where automation is most likely to be confidently wrong.

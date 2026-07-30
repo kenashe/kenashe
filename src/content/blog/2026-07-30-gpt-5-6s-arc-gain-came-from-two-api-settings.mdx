@@ -1,0 +1,60 @@
+---
+title: "GPT-5.6’s ARC gain came from two API settings"
+description: "OpenAI says GPT-5.6 tripled ARC-AGI-3 scores by retaining reasoning and enabling compaction, which points to a practical lesson: for hard tasks, inference setup, memory policy, and context management can change outcomes as much as the model name on the invoice."
+pubDate: 2026-07-30
+tags: ["openai", "benchmarks", "ai-builders"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-30-gpt-5-6s-arc-gain-came-from-two-api-settings/hero.png
+  alt: "GPT-5.6’s ARC gain came from two API settings"
+sources:
+  - title: "How enabling two settings tripled our scores on the ARC-AGI-3 benchmark"
+    url: "https://openai.com/index/how-two-settings-tripled-our-arc-agi-3-scores"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+---
+
+TL;DR: OpenAI’s ARC-AGI-3 jump is a reminder that inference configuration can matter as much as model choice when tasks require extended reasoning.
+
+## What did OpenAI actually change?
+
+OpenAI’s primary announcement, “How enabling two settings tripled our scores on the ARC-AGI-3 benchmark,” says GPT-5.6 improved its ARC-AGI-3 performance by turning on two API settings: retaining reasoning and enabling compaction.
+
+That is the whole story, and it is also the interesting part.
+
+This was not framed as a new model release. It was not a bigger context window claim. It was not a new training run, at least not from what OpenAI described in the material here. The reported gain came from how the model was run.
+
+“Retaining reasoning” points to a system that does not throw away useful intermediate work between steps. “Compaction” points to managing accumulated context so the model can keep moving without dragging every raw token along forever. Together, these settings make the inference loop less like a one-shot answer box and more like a working session with notes that get compressed as the task continues.
+
+That matters for ARC-AGI-3 because these tasks are not mainly about recalling facts. They test whether a system can infer patterns, try transformations, and keep track of what worked. If the model’s prior attempts vanish, or if its context gets too noisy, performance can collapse even when the base model is capable.
+
+![a small model core surrounded by scattered reasoning fragments on one side and a compressed organized memory stream feed](../../assets/blog/2026-07-30-gpt-5-6s-arc-gain-came-from-two-api-settings/inline-1.png)
+
+## Why should builders care about a benchmark setting?
+
+Because this is exactly where many AI products leak quality.
+
+Teams spend weeks comparing model A against model B, then run both through a thin wrapper that discards state, truncates context badly, and retries with no memory of the failure. Then they conclude the model is the ceiling.
+
+OpenAI’s ARC-AGI-3 result suggests a different lesson: the ceiling may be your runtime.
+
+For builders, the practical question is not “Is GPT-5.6 smart?” It is “What does the model get to keep while it works?” That question shows up everywhere. Coding agents need to remember failed approaches. Research agents need to preserve source distinctions. Support agents need to carry the actual customer state, not just the last turn. Data-cleaning workflows need to remember transformations and exceptions.
+
+Compaction is especially underrated. Long context is useful, but it is not magic. Stuffing everything into the prompt can make the model slower, more expensive, and less focused. A good system decides what stays verbatim, what becomes a summary, what becomes structured state, and what gets dropped.
+
+That is product design, not just prompting.
+
+## Is this a real capability gain or benchmark plumbing?
+
+Both, probably.
+
+OpenAI reported a tripling of scores on ARC-AGI-3, and that is a meaningful claim. But the material here does not include the underlying score table, task breakdown, baseline settings, or independent replication. So I would not read this as “ARC is solved” or “GPT-5.6 crossed some clean AGI line.”
+
+I would read it as evidence that benchmark results can be highly sensitive to inference policy. That is not cheating by default. Humans also use scratch paper, notes, summaries, and working memory tricks. The question is whether the setup reflects the kind of system people will actually use.
+
+There is a catch. Retained reasoning and compaction can make systems harder to inspect. If important state lives outside the visible prompt, debugging gets trickier. If compaction drops the wrong detail, the model may become confidently wrong later. If the retained reasoning includes stale assumptions, errors can compound.
+
+So the win is not “turn on two settings and forget it.” The win is that state management is now part of model performance.
+
+Practitioner’s take: before switching models, run an eval with three variants: stateless calls, retained task state, and retained state plus compression. Track not only accuracy, but latency, cost, recoverability after errors, and whether you can inspect what the system kept. The missed catch is that better reasoning often comes from boring infrastructure around the model, and that infrastructure needs its own tests.
