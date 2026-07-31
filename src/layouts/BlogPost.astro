@@ -5,6 +5,7 @@ import BaseLayout from './BaseLayout.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { readingTime } from '../utils/reading-time';
+import { personKenAshe, websiteKenAshe } from '../data/schema';
 import { SITE_URL, AUTHOR, DEFAULT_OG_IMAGE } from '../consts';
 
 interface Props {
@@ -32,7 +33,6 @@ const url = new URL(`/blog/${id}/`, SITE_URL).toString();
 const articleImage = new URL(image ? image.src.src : DEFAULT_OG_IMAGE, SITE_URL).toString();
 
 const articleSchema = {
-  '@context': 'https://schema.org',
   '@type': 'Article',
   headline: title,
   description,
@@ -62,13 +62,20 @@ const articleSchema = {
 };
 
 const breadcrumbSchema = {
-  '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
     { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog/` },
     { '@type': 'ListItem', position: 3, name: title, item: url },
   ],
+};
+
+// One @graph per page: the page-specific nodes PLUS the canonical site + person
+// entities, so the author/isPartOf @id references resolve on this page alone
+// (single-page parsers, i.e. most LLM scrapers, don't crawl the homepage first).
+const postSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [articleSchema, breadcrumbSchema, websiteKenAshe, personKenAshe],
 };
 ---
 
@@ -86,7 +93,7 @@ const breadcrumbSchema = {
   }}
 >
   <Fragment slot="jsonld">
-    <JsonLd data={[articleSchema, breadcrumbSchema]} />
+    <JsonLd data={postSchema} />
   </Fragment>
 
   <article class="post">

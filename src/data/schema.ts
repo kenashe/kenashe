@@ -34,3 +34,23 @@ export const personKenAshe = {
     'Domain acquisition',
   ],
 };
+
+// `websiteKenAshe` is the canonical WebSite node. Same rule as the Person above:
+// define it once here and import it; never inline a second, hand-written copy.
+// Every page that REFERENCES https://kenashe.ai/#website (blog posts, topic hubs,
+// the homepage) should also emit this node, so a consumer reading ONE page in
+// isolation - which is how most LLM scrapers read the site - resolves the entity
+// instead of a dangling @id. Key order matches the homepage's previous inline copy
+// so the rendered output is unchanged.
+export const websiteKenAshe = {
+  '@type': 'WebSite',
+  '@id': 'https://kenashe.ai/#website',
+  name: 'KenAshe.ai',
+  url: 'https://kenashe.ai/',
+  sameAs: ['https://www.linkedin.com/company/kenashe-ai'],
+  description: 'Personal publication and public AI build log from Ken Ashe.',
+  creator: { '@id': 'https://kenashe.ai/#ken-ashe' },
+  publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
+  mainEntity: { '@id': 'https://kenashe.ai/#ken-ashe' },
+  inLanguage: 'en-US',
+};

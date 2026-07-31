@@ -4,6 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import { topics } from '../../data/topics';
+import { personKenAshe, websiteKenAshe } from '../../data/schema';
 import { SITE_URL } from '../../consts';
 
 export async function getStaticPaths() {
@@ -24,7 +25,6 @@ const listPosts = pillar ? posts.filter((p) => p.id !== pillar.id) : posts;
 
 const url = new URL(`/topics/${topic.slug}/`, SITE_URL).toString();
 const collectionSchema = {
-  '@context': 'https://schema.org',
   '@type': 'CollectionPage',
   '@id': url,
   url,
@@ -45,7 +45,6 @@ const collectionSchema = {
   },
 };
 const breadcrumbSchema = {
-  '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
@@ -53,11 +52,18 @@ const breadcrumbSchema = {
     { '@type': 'ListItem', position: 3, name: topic.title, item: url },
   ],
 };
+
+// One @graph: hub nodes + the canonical site/person entities, so this page's
+// isPartOf/about @id references resolve without crawling the homepage first.
+const hubSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [collectionSchema, breadcrumbSchema, websiteKenAshe, personKenAshe],
+};
 ---
 
 <BaseLayout title={topic.title} description={topic.blurb}>
   <Fragment slot="jsonld">
-    <JsonLd data={[collectionSchema, breadcrumbSchema]} />
+    <JsonLd data={hubSchema} />
   </Fragment>
 
   <div class="hub">
