@@ -1,0 +1,62 @@
+---
+title: "Computer-use agents need stricter judges, not prettier demos"
+description: "OSReward shows a practical bottleneck for computer-use agents: judging whether a desktop task actually succeeded is still unreliable, especially at scale. The useful move is to treat agent verification as its own model layer, not an afterthought bolted onto demos."
+pubDate: 2026-07-31
+tags: ["agents", "evaluation", "reward-models", "ai-agents", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-07-31-computer-use-agents-need-stricter-judges-not-prettier-demos/hero.png
+  alt: "Computer-use agents need stricter judges, not prettier demos"
+sources:
+  - title: "OSReward: Instituting Standardized Evaluation for Cross-Platform Computer-Use Reward Models"
+    url: "http://arxiv.org/abs/2607.28609v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Computer-use agents will not get much better until we can cheaply and reliably judge whether their messy desktop trajectories actually succeeded.
+
+## Are VLM judges good enough for computer-use agents?
+
+The primary source here is **“OSReward: Instituting Standardized Evaluation for Cross-Platform Computer-Use Reward Models”**, posted on arXiv in cs.AI and cs.CL, with code, benchmark, dataset, and model checkpoints at https://os-copilot.github.io/OSReward-Home/.
+
+The paper takes aim at a quiet assumption in agent evals: if a vision-language model can look at screenshots and reasoning traces, it can judge whether an agent completed a computer task.
+
+That assumption is shaky.
+
+Computer-use agents, or CUAs, do not just answer questions. They click, type, wait, scroll, recover from popups, and sometimes declare victory after doing the wrong thing. A trajectory includes the agent’s actions, states, and reasoning. The hard part is not collecting those traces. The hard part is verifying them.
+
+Human-written verifiers do not scale across arbitrary apps and websites. Human annotators are expensive and slow. So teams increasingly use VLMs as judges. OSReward asks the basic question that should have come earlier: are those judges reliable enough?
+
+The answer is: not really. OSReward reports that even state-of-the-art VLM judges fall short of an ideal judge, with a systematic leniency bias. They mark failed runs as successes too often. That matters because false positives poison everything downstream: benchmarks, training data, reinforcement learning signals, and product dashboards.
+
+A flaky judge makes a flaky agent look competent.
+
+## What does OSReward add beyond another benchmark?
+
+OSReward is useful because it focuses on full CUA trajectories across platforms, not isolated screenshots or toy interactions. The trajectories come from diverse agent backbones executing human-verified instructions, then get ground-truth verdicts through multi-stage human annotation.
+
+That gives the benchmark a more realistic target: did the agent actually fulfill the instruction?
+
+The team also introduces OSReward-Hard, a challenge set for genuinely hard cases, and OSReward-Multi, aimed at fine-grained efficiency and alignment scoring. That split matters. A judge that works on easy completions can still fail where agents actually need help: partial progress, confusing UI states, hidden failure modes, and tasks where the final screen looks plausible but the work is wrong.
+
+![a desktop agent trail with branching paths, where one path appears complete on the surface while a separate evaluator sp](../../assets/blog/2026-07-31-computer-use-agents-need-stricter-judges-not-prettier-demos/inline-1.png)
+
+The cost finding is also practical. OSReward says the few judges reliable enough to trust are too expensive to run at scale, while affordable open models trail far behind. That is the real operator problem. It is not enough to find a great judge for a leaderboard. You need one you can run thousands or millions of times during data curation, regression testing, and training.
+
+Their answer is OS-Shepherd-100K, an open corpus of reasoning-annotated trajectory judgments. On that data, they train OS-Shepherd in 9B and 35B sizes. OSReward reports that these open reward models provide lower-cost, stable reward signals, matching commercial judges at 30 to 60 percent lower cost than the frontier.
+
+I would read that carefully. “Matching commercial judges” does not mean solved. It means the verification layer is becoming something teams can own, tune, and afford.
+
+## What should builders change now?
+
+The biggest shift is architectural. Do not treat agent evaluation as a final QA step. Treat it as a product component.
+
+If you are building a computer-use agent, keep full trajectories. Store actions, screenshots, intermediate states, model reasoning where allowed, tool calls, and final claims. Then evaluate the trajectory, not just the last screen. A lot of agent failure is invisible if you only inspect the output.
+
+Also separate “task success” from “agent confidence.” Agents are good at sounding done. OSReward’s leniency finding suggests VLM judges can share that weakness. A judge should be trained to find failure, not reward plausible completion.
+
+This also changes how I would run internal evals. I would keep a hard set of messy real tasks, especially cases where previous agents falsely passed. Then I would track false-success rate as a first-class metric. Not just pass rate. Not just latency. False success is the bug that reaches users.
+
+The catch most readers miss: better agents need better critics before they need more autonomy. Try OSReward-style trajectory judgment on your own workflows, even with a small labeled set. Compare a frontier VLM judge, a cheaper model, and a human review sample. If the model judge is too forgiving, do not use it as your reward signal without calibration. You may be training your agent to fake completion.
