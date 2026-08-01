@@ -1,0 +1,55 @@
+---
+title: "AI reasoning can look right while taking shortcuts"
+description: "A thin Hacker News prompt raises a useful builder question: when a model explains an answer, are we seeing real reasoning, a lucky shortcut, or a polished story after the fact?"
+pubDate: 2026-08-01
+tags: ["ai-evaluation", "reasoning-models", "builder-tools", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-01-ai-reasoning-can-look-right-while-taking-shortcuts/hero.png
+  alt: "AI reasoning can look right while taking shortcuts"
+sources:
+  - title: "Is AI reasoning right for the wrong reasons?"
+    url: "https://www.quantamagazine.org/is-ai-reasoning-right-for-the-wrong-reasons-20260731/"
+---
+
+TL;DR: Treat model reasoning traces as useful debugging hints, not proof that the model solved the problem the way it says it did.
+
+## Is AI reasoning right for the wrong reasons?
+
+The primary source here is the Hacker News discussion titled “Is AI reasoning right for the wrong reasons?” That is a thin source, but the question is the right one.
+
+A model can land on the correct answer through a path that would not survive contact with a slightly changed problem. It can pattern-match the shape of a benchmark. It can infer the expected answer from phrasing. It can produce a convincing chain of thought after it already “knows” the answer. It can also genuinely decompose the problem, check intermediate steps, and recover from a bad first guess.
+
+From the outside, those cases can look annoyingly similar.
+
+This matters because “reasoning” has become a product claim. Models are sold as better at math, code, planning, research, and agents because they can spend more tokens before answering. Sometimes that extra computation helps. Sometimes it just gives the model more room to rationalize.
+
+The practical mistake is treating a neat explanation as evidence of a reliable internal process. It is evidence of a neat explanation.
+
+![two paths through a maze, one careful winding route through checkpoints and one hidden shortcut to the same exit](../../assets/blog/2026-08-01-ai-reasoning-can-look-right-while-taking-shortcuts/inline-1.png)
+
+## What should builders test instead of the explanation?
+
+Test whether the model’s behavior survives pressure.
+
+Change surface details while keeping the same underlying task. If the answer flips, the model may have been leaning on wording instead of structure. Ask for the same result through a different format. If a coding agent only succeeds when the prompt resembles a known benchmark task, that tells you something. Remove a clue. Add irrelevant information. Swap names, units, order, or framing.
+
+For workflows, I care less about whether the model can narrate a smart path and more about whether it can recover from friction. Can it notice that a tool returned empty results? Can it ask for a missing input instead of making one up? Can it hold constraints across a long session? Can it explain what would change its answer?
+
+This is where many “reasoning” demos are too clean. They show the model in a friendly setting with a single answerable task. Real operator work is messier. The user contradicts themselves. The database has stale fields. The API times out. The policy has an exception. A model that sounds brilliant on the happy path can be expensive noise in production.
+
+One useful test is to separate answer quality from process quality. Let one evaluator check final output. Let another check intermediate actions against expected invariants. For agents, log tool calls, retries, skipped steps, and assumptions. The trace is not truth, but it is still telemetry.
+
+## Why this is not just benchmark nerd stuff
+
+Wrong-reason reasoning is not only an academic annoyance. It changes how you design products.
+
+If you are building a customer support agent, a correct refund decision for the wrong reason is a policy incident waiting to happen. If you are building an internal analyst, a correct number from a fragile spreadsheet guess is not reliable work. If you are building code tools, a patch that passes visible tests while breaking edge cases is not success. It is deferred cleanup.
+
+The fix is not to reject reasoning models. I use them because they often do better on tasks with many constraints. The fix is to stop anthropomorphizing the transcript. The chain is an interface. The behavior is the product.
+
+Good systems give the model less room to bluff. They ground work in tools. They make assumptions explicit. They run checks outside the model. They compare multiple attempts when the cost justifies it. They route high-risk cases to humans. They keep examples of failures, not just wins.
+
+The Hacker News question is useful because it punctures a lazy story: longer thinking equals deeper thinking. Sometimes, yes. Often, maybe. Always, no.
+
+For a builder, the move is simple: pick one workflow where you currently trust the model’s explanation, then add three perturbation tests and one external check. Change the wording, remove a hint, add irrelevant noise, and verify the result with code, retrieval, policy logic, or a second reviewer. The catch most teams miss is that the model’s most confident explanation is often produced exactly when the system most needs independent evidence.
