@@ -1,0 +1,56 @@
+---
+title: "DeepSeek-V4-Flash on a Mac is an I/O story, not a parameter-count story"
+description: "A r/LocalLLaMA build claims DeepSeek-V4-Flash can run on roughly 5.3GB of memory by streaming MoE experts from SSD, which is useful less as a daily-driver breakthrough and more as a clue about where local inference is headed."
+pubDate: 2026-08-02
+tags: ["local-ai", "inference", "open-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-02-deepseek-v4-flash-on-a-mac-is-an-i-o-story-not-a-parameter-count-story/hero.png
+  alt: "DeepSeek-V4-Flash on a Mac is an I/O story, not a parameter-count story"
+sources:
+  - title: "DeepSeek-V4-Flash 284B on 5.3GB of memory"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1vdbix4/deepseekv4flash_284b_on_53gb_of_memory/"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+---
+
+TL;DR: The interesting part of running DeepSeek-V4-Flash 284B on a small Mac is not “284B on 5GB,” it is the shift from fitting models in memory to scheduling model parts from disk.
+
+## How can a 284B model fit in 5.3GB?
+
+The primary source here is the r/LocalLLaMA post “DeepSeek-V4-Flash 284B on 5.3GB of memory” by /u/Blahblahblakha, describing a new local inference engine called Mference.
+
+The trick is not magic compression. It is MoE arithmetic.
+
+DeepSeek-V4-Flash 284B-A13B is a mixture-of-experts model. That means the full model may contain 284B parameters, but only a smaller slice is active for each token. In this case, the post describes an A13B setup, roughly 13B active parameters per token. Mference keeps the shared core and KV cache resident, then streams the selected experts from SSD as needed.
+
+That changes the question. Instead of “can my laptop hold the whole model in RAM,” the question becomes “can my laptop read the right expert weights from disk fast enough to keep decoding tolerable?”
+
+/u/Blahblahblakha reported DeepSeek-V4-Flash using about 6.8GB peak memory, mostly around 5.3GB in practice, with a 2-bit dynamic quantized model taking about 91GB on disk. On a 24GB M5 Pro, they saw up to 4.8 tokens per second. They also reported Gemma 4 26B-A4B at about 2GB and 31 to 35 tokens per second, plus Qwen 3.6 35B-A3B at about 1.45GB and 19 to 23 tokens per second.
+
+That spread tells the real story. Parameter count is becoming a less useful headline for local inference. Active parameters, disk bandwidth, expert routing, quantization, and scheduling matter more.
+
+![small model core staying in memory while different expert blocks stream in from storage and feed a single response path](../../assets/blog/2026-08-02-deepseek-v4-flash-on-a-mac-is-an-i-o-story-not-a-parameter-count-story/inline-1.png)
+
+## Is this useful, or just a stunt?
+
+Both.
+
+Running a 284B-class MoE model on an 8GB Mac, even if “not very useful beyond a few turns,” is a real engineering signal. It says the boundary for local AI is softer than the simple VRAM table suggests.
+
+But I would not confuse this with a general-purpose local frontier model experience. The reported DeepSeek-V4-Flash speed, up to 4.8 tokens per second on a 24GB M5, is usable for experiments and maybe slow drafting. It is not a snappy coding partner. The post also says context needs work past 4K, and decode is about 53% I/O right now, serialized with compute. That is the bottleneck. Not ideology. Not licensing. Reading experts from disk is expensive.
+
+The other practical detail is disk footprint. “5.3GB of memory” sounds tiny. “91GB on disk” sounds like a real local system. That matters if you are shipping this to normal users, not just people with model folders measured in terabytes.
+
+Still, Mference is interesting because it wraps the experiment in operator-shaped features: a native Mac app, multi-turn chat, an OpenAI-compatible server, and local attachments for PDF, DOCX, PPTX, and XLSX. That is the right direction. Local inference becomes more useful when it looks like infrastructure, not a weekend binary you babysit in Terminal.
+
+## What changes if disk streaming keeps improving?
+
+If Mference or engines like it cut expert-read waits by overlapping I/O with compute, the floor for local models moves. Not all at once. Not to “frontier model on a toaster.” But enough to matter.
+
+The likely near-term win is not massive models for everyone. It is more choice in constrained settings. A small business Mac mini handling private document QA. A developer running local fallbacks behind an OpenAI-compatible API. A field machine doing low-volume reasoning without sending files out. A personal workstation where privacy matters more than speed.
+
+The catch is that MoE streaming has a narrow shape. It helps when only a few experts activate per token and the engine can predict, fetch, and compute without stalling. Dense models do not get the same free lunch. Long context also complicates the memory picture because the KV cache grows. Attachments make that worse, not better.
+
+Practitioner’s take: try this class of engine if you care about local privacy, offline workflows, or model experimentation on consumer hardware. Do not evaluate it by the “284B” headline. Test tokens per second, first-token latency, context length, disk use, and whether your actual documents fit the workflow. The missed catch is that local AI performance is now a systems problem as much as a model problem. The model file is only one piece. Storage, routing, quantization, API shape, and UI decide whether anyone uses it twice.

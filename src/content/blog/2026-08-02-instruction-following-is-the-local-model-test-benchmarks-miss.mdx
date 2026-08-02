@@ -1,0 +1,51 @@
+---
+title: "Instruction following is the local model test benchmarks miss"
+description: "A LocalLLaMA report on Deepseek v4 flash 0731 points at a practical failure mode for coding agents: models can look strong on benchmarks while still losing the exact rules that make them useful in a real workspace."
+pubDate: 2026-08-02
+tags: ["local-models", "coding-agents", "model-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-02-instruction-following-is-the-local-model-test-benchmarks-miss/hero.png
+  alt: "Instruction following is the local model test benchmarks miss"
+sources:
+  - title: "Deepseek v4 flash 0731 still not holding up."
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1vct09w/deepseek_v4_flash_0731_still_not_holding_up/"
+---
+
+TL;DR: If a model cannot reliably preserve and obey your project rules, skills, and system prompts, it is not production-ready for your workflow, no matter how good its benchmark sheet looks.
+
+## What failed in actual use?
+
+The primary source here is /u/Juulk9087’s r/LocalLLaMA post, “Deepseek v4 flash 0731 still not holding up.”
+
+The complaint is simple and familiar: Deepseek v4 flash 0731 performs well enough to attract attention, but fails the boring operator test. It does not consistently follow rules prompts and skills. The poster says they tried first person and second person instructions, Chinese and English, and ran the model locally at full precision. Same failure pattern.
+
+That matters more than people like to admit.
+
+For coding, “follow the repo rules” is not a garnish. It is the product. Use this package manager. Do not touch this folder. Prefer these APIs. Write tests in this style. Never fabricate migrations. Ask before changing auth. These are not vibes. They are the control surface between a general model and a useful local assistant.
+
+Benchmarks can miss that. A model can solve isolated tasks and still be annoying or unsafe inside a real workspace. The Reddit poster calls this “benchmaxxed,” which is blunt but not wrong as a category. If the model can answer a benchmark question but cannot keep a standing instruction alive across a coding session, the operator feels the gap fast.
+
+## Is context compression the culprit?
+
+The interesting part is the poster’s update. They say two users provided a credible explanation, which they believe they partially verified: Deepseek v4 stores rules, skills, and prompts as compressed summaries rather than raw text. The claimed structure is specific: 43 layers, with 20 layers seeing the whole context squeezed into a single 128-token entry, 21 seeing it at 4:1 compression, and only two fully dense. They also say each layer gets the last 128 tokens uncompressed.
+
+Treat that as a user-level technical claim, not confirmed architecture documentation. Still, it fits the symptom.
+
+If your durable instructions sit outside the most recent uncompressed window, exact wording may degrade. The rule “never edit generated files” can become a softer memory like “be careful with files.” The model did not forget that instructions exist. It lost the precision that makes them enforceable.
+
+![an instruction sheet squeezed through a narrow funnel into layered blocks while a small recent snippet bypasses the funn](../../assets/blog/2026-08-02-instruction-following-is-the-local-model-test-benchmarks-miss/inline-1.png)
+
+The poster mentions a vLLM startup argument, `--hf--overrides '{"index_topk": 1024}'`, as a possible mitigation. Their summary: raising `index_topk` could double selected compressed entries in the 4:1 layers, from 512 to 1024, increasing the amount of fine detail retrievable from elsewhere in context. They also report asking Opus 5 whether this would solve the issue, and getting “most likely not.”
+
+That is the right level of confidence. Maybe it helps. It probably does not turn a rule-lossy model into a dependable agent by itself.
+
+## What should builders test instead of chasing the leaderboard?
+
+I would test instruction fidelity before I test cleverness.
+
+Give the model a project rule file with five annoying constraints. Put two of them near the top, two in the middle, one at the end. Then run a realistic coding task that tempts violations. Ask it to modify code, write tests, and explain choices. Do not score whether the answer sounds smart. Score whether it obeyed the constraints without reminders.
+
+Then repeat with a longer context. Add logs, docs, old files, and irrelevant code. That is where these failures show up. The poster’s move back to Qwen 27B is not a universal recommendation, but it is a useful reminder: the best local model is the one that behaves inside your setup, not the one with the cleanest public ranking.
+
+For builders, the practical move is to keep rules close to the working turn, not only in a giant persistent prompt. Restate critical constraints immediately before high-risk actions. Add automated checks where possible. Use linters, tests, file allowlists, and patch review instead of trusting prompt obedience. And when evaluating a new local model, include a “rule retention under long context” test in your harness. The catch most readers miss: instruction following is not one capability. It is partly model training, partly inference setup, partly context architecture, and partly workflow design.

@@ -1,0 +1,57 @@
+---
+title: "DeepSeek-V4-Flash on a 3090 shifts the bottleneck to DDR5"
+description: "A LocalLLaMA field report shows DeepSeek-V4-Flash-0731 running on a 24 GB RTX 3090 by spilling MoE experts into 128 GB of DDR5. The useful lesson is not that VRAM stopped mattering, but that local inference is becoming a memory-bandwidth engineering problem."
+pubDate: 2026-08-02
+tags: ["local-ai", "inference", "llama-cpp"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-02-deepseek-v4-flash-on-a-3090-shifts-the-bottleneck-to-ddr5/hero.png
+  alt: "DeepSeek-V4-Flash on a 3090 shifts the bottleneck to DDR5"
+sources:
+  - title: "DeepSeek-V4-Flash-0731 UD-IQ3_S 12.5 tok/s on RTX 3090 +128GB DDR5"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1vcz61x/deepseekv4flash0731_udiq3_s_125_toks_on_rtx_3090/"
+---
+
+TL;DR: Big local MoE models are no longer only a VRAM question, they are turning into a whole-machine memory bandwidth problem.
+
+## What actually happened on the RTX 3090?
+
+The primary report is the r/LocalLLaMA post, “DeepSeek-V4-Flash-0731 UD-IQ3_S 12.5 tok/s on RTX 3090 +128GB DDR5.”
+
+A LocalLLaMA poster reported running DeepSeek-V4-Flash-0731 UD-IQ3_S in text-generation-webui on an RTX 3090 with 24 GB of VRAM, plus 128 GB of DDR5 overclocked to 5600 MHz using AMD EXPO. The reported speed was 12.5 tokens per second.
+
+That number is not a lab benchmark. It is a field report. Still useful.
+
+The important bit is not the 3090. It is the workaround. The poster replaced the llama.cpp binaries bundled inside text-generation-webui with the latest official ggml-org llama.cpp release, copied into `textgen\venv\lib\site-packages\llama_cpp_binaries\bin`. That is a very local-AI sentence. Powerful, fragile, and one update away from confusion.
+
+The decisive flag was `--n-cpu-moe 39`. According to the poster, that keeps part of the MoE experts in system RAM instead of VRAM. The loader estimated about 136 GB to load the model, so the 128 GB DDR5 kit was doing much of the work. The GPU was still important, with `gpu-layers: 44`, but this was not a clean “fits in 24 GB VRAM” story.
+
+It was a hybrid memory story.
+
+![desktop machine with a compact glowing graphics card connected to large memory banks, both feeding separate clusters of ](../../assets/blog/2026-08-02-deepseek-v4-flash-on-a-3090-shifts-the-bottleneck-to-ddr5/inline-1.png)
+
+## Is 24 GB VRAM enough for frontier-ish local models now?
+
+Sometimes. With asterisks big enough to matter.
+
+This report shows that a 24 GB card can participate in running a much larger MoE model when llama.cpp can park experts in CPU memory. That is the real shift. MoE architectures already avoid activating every expert for every token, but the weights still have to live somewhere. If they do not fit in VRAM, system RAM becomes the overflow tank.
+
+The catch is speed. Once you move meaningful work off the GPU memory path, CPU, RAM speed, memory channels, PCIe behavior, batching, and loader implementation all start to show up in the user experience. The poster explicitly said performance depends heavily on CPU and RAM bandwidth.
+
+So the headline should not be “3090 runs anything.” It should be “RAM bandwidth is now part of your inference stack.”
+
+That matters for builders because local inference advice has been too VRAM-centric. VRAM still matters. But if you are testing MoE models locally, the machine is a system: GPU memory, system memory, CPU, storage, llama.cpp version, quant format, context settings, and frontend glue.
+
+The configured `ctx-size` was 384000, which is eye-catching. But configured context is not the same as useful long-context behavior. Long prompts bring their own costs, and quality at extreme context lengths is model-dependent. I would treat that setting as an experiment to validate, not a guarantee.
+
+## Why does this matter beyond one Reddit build?
+
+Because this is how local AI often moves first. Not through polished product pages. Through someone swapping binaries, finding the right flag, and posting the exact weird path that worked.
+
+The useful pattern is that inference software is getting better at splitting model placement across GPU and CPU memory. That makes older 24 GB cards more interesting again, especially for solo developers and tinkerers who already own them. It also raises the floor for system RAM. A 3090 plus 32 GB RAM is a different machine from a 3090 plus 128 GB fast DDR5.
+
+I would not build a production plan around this one report. I would build a test plan from it.
+
+Try the current llama.cpp release directly before assuming your web UI bundle is current. Track tokens per second, prompt processing speed, RAM use, and output quality separately. Change one variable at a time. If MoE CPU offload is available, test it against your actual workload, not a single short prompt. Coding, summarization, long-context retrieval, and agent loops stress the machine differently.
+
+For a builder, the move is simple: stop asking only “what GPU do I need?” and start profiling the whole local box. If you have a 24 GB GPU and 96 to 128 GB of fast system RAM, MoE offload may put larger models within reach. The catch most readers miss is that “runs” is not the same as “serves.” A 12.5 tok/s local demo may feel fine for one person, but batching, long context, tool use, and multiple users can erase that comfort fast.
