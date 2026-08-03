@@ -1,0 +1,50 @@
+---
+title: "ExtractBench tests document extraction where demos usually fail"
+description: "ExtractBench is useful because it evaluates document extraction the way operators feel the pain: wrong values, missing rows, weak citations, and cost. The early signal is clear, short-document wins do not predict long-document production behavior, especially when schemas demand complete record lists and source evidence."
+pubDate: 2026-08-03
+tags: ["document-ai", "evals", "agents", "ai-agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-03-extractbench-tests-document-extraction-where-demos-usually-fail/hero.png
+  alt: "ExtractBench tests document extraction where demos usually fail"
+sources:
+  - title: "ExtractBench: A Benchmark for Schema-Guided Enterprise Document Extraction"
+    url: "http://arxiv.org/abs/2607.29677v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: ExtractBench is a useful reality check for enterprise document extraction because it scores the whole job, not just whether a model found a few obvious fields.
+
+## What does ExtractBench actually measure?
+
+The primary source is the arXiv cs.AI paper titled “ExtractBench: A Benchmark for Schema-Guided Enterprise Document Extraction.” Its target is not generic OCR or chat over PDFs. It is schema-guided extraction: give an agent a document and a user-defined schema, then ask it to return the right structured output with source evidence attached.
+
+That distinction matters. A lot of document AI demos are really “find me the invoice total” demos. Useful, but narrow. Enterprise extraction is messier. The schema may ask for every line item, every party, every effective date, every exemption, every clause, or every repeated record across a long PDF. The hard part is often not reading one value. It is not dropping the 47th value.
+
+ExtractBench covers 4,869 pages across 370 enterprise documents, spanning 8 business domains and 67 document types. It scores four things operators actually care about together: value accuracy, record completeness at scale, grounding, and measured cost.
+
+The value metric is order-insensitive value F1, which is the right instinct for extraction. If the model returns the right records in a different order, that should not be punished like a factual miss. For source traceability, ExtractBench reports word-level and page-level grounding F1. That also maps to real workflows. A downstream reviewer does not just need “the answer.” They need to know where it came from.
+
+![stack of varied documents flowing into a structured table, with a separate evidence trail linking table cells back to do](../../assets/blog/2026-08-03-extractbench-tests-document-extraction-where-demos-usually-fail/inline-1.png)
+
+## Why do good VLMs still fail on long documents?
+
+The most interesting result is not that one system wins. It is the failure pattern.
+
+ExtractBench reports that commercial VLMs perform well on short documents but often truncate record lists on long ones. That is the kind of production bug that hides in a polished demo. The first few fields look great. The first page looks great. Then the model quietly stops extracting repeated entries, and nobody notices until reconciliation fails.
+
+Coding agents show the opposite tradeoff. According to ExtractBench, they retain higher accuracy, but at much higher cost. That makes sense. More tool use, more decomposition, more validation, more calls. You can get better behavior by treating extraction like a programmatic workflow instead of a single model response, but the bill and latency move too.
+
+LlamaExtract Agentic Plus ranks first on all three reported metrics in the paper: value accuracy, word-level grounding, and page-level grounding. ExtractBench also reports its accuracy is comparable to coding agents at a fraction of the cost. That is the part to watch, because it suggests the near-term market may not be won by the biggest general VLM alone. It may be won by systems that combine vision, schema following, chunking, grounding, and retry logic in a boring but disciplined way.
+
+## What should builders take from this benchmark?
+
+The benchmark is useful because it refuses to treat extraction as a one-number problem. Accuracy without completeness is dangerous. Completeness without grounding is hard to audit. Grounding without cost control is hard to deploy. Cost without quality is just a cheaper mess.
+
+I would still be careful about over-reading the leaderboard. Enterprise documents are wildly local. Your contracts, claims packets, bills of lading, lab reports, onboarding forms, and compliance PDFs will have their own traps. ExtractBench’s 67 document types are a strong start, not a substitute for your eval set.
+
+The practical move is to copy the shape of the evaluation. Build a small internal benchmark with real schemas, long documents, repeated records, and required citations. Track value F1, missing-record rate, page citations, word citations if you can, latency, and cost per completed document. Then separate short-document performance from long-document performance. If you average them together, you will miss the exact bug that matters.
+
+For a builder, I would try three baselines before buying the story from any vendor: a strong commercial VLM with careful prompting, an agentic extraction workflow with validation and retries, and a specialized extraction system like LlamaExtract Agentic Plus if it fits your stack. The catch most teams miss is that extraction quality is not mostly about the prettiest JSON on one sample PDF. It is about whether the system keeps returning every required record, with evidence, when the document gets long and boring.
