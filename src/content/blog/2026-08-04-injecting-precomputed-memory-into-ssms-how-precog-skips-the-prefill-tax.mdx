@@ -1,0 +1,64 @@
+---
+title: "Injecting Precomputed Memory into SSMs: How PRECOG Skips the Prefill Tax"
+description: "A new arXiv paper claims a 4500x prefill speedup for edge RAG by precomputing document corpora as state-space model hidden states and injecting them at query time. Here is what actually holds up and where the trade-offs hide."
+pubDate: 2026-08-04
+tags: ["state-space-models", "rag", "edge-ai"]
+draft: true
+image:
+  src: ../../assets/blog/2026-08-04-injecting-precomputed-memory-into-ssms-how-precog-skips-the-prefill-tax/hero.png
+  alt: "Injecting Precomputed Memory into SSMs: How PRECOG Skips the Prefill Tax"
+sources:
+  - title: "Structured Memory for Edge Language Models: Persistent Context and Corpus Retrieval via O(1) SSM State Injection"
+    url: "http://arxiv.org/abs/2608.02560v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: PRECOG turns retrieval-augmented generation on a state-space model into a lookup-and-inject operation, dropping prefill latency on edge hardware from about 27 seconds to under 6 milliseconds, but the trick only works because SSMs carry a fixed-size hidden state that a Transformer KV-cache can never mimic.
+
+The paper is "Structured Memory for Edge Language Models: Persistent Context and Corpus Retrieval via O(1) SSM State Injection," posted to arXiv under both cs.AI and cs.LG. It introduces two ideas built on the same mechanism: PRECOG (Pre-Computed Context Injection) for corpus retrieval, and SMC (Structured Memory Consolidation) for persistent per-session memory. Both are demonstrated on TENNs-LLM, a 1.2B-parameter gated-SSM model with a 192 KB hidden state.
+
+Let me walk through what is genuinely new here, because the framing matters more than the headline number.
+
+## What is actually being sped up here?
+
+Standard RAG has two costs. First, prefill: before the model can answer, it has to read the retrieved documents. That cost scales with how much context you retrieved, written as O(L_context). Second, with a Transformer, the KV-cache grows with every token you generate, which is a separate memory drag.
+
+State-space models already dodge the second cost. Their recurrent hidden state is fixed size and does not grow as generation continues. That is old news in the SSM world. What this paper attacks is the first cost, the prefill.
+
+The insight is specific to how SSMs work. In an SSM, the hidden state after reading a document is a complete, position-agnostic summary of everything the model has read. It is fixed size no matter how long the document was. So instead of feeding documents into the model at query time and paying to re-read them, you read them once, offline, and save the resulting hidden state. At query time you retrieve the best-matching saved state and inject it directly.
+
+![a long scroll of documents being compressed into a single small fixed-size cube, ready to be slotted in](../../assets/blog/2026-08-04-injecting-precomputed-memory-into-ssms-how-precog-skips-the-prefill-tax/inline-1.png)
+
+That is the whole move. No re-ingestion. The prefill for retrieved context collapses from proportional-to-length to constant, O(1) per query. On the edge hardware they tested, that is the difference between roughly 27 seconds and under 6 milliseconds, which they call a ~4500x speedup. The paper is blunt that this crosses "the threshold from unusable to interactive," and on those numbers I believe it. Waiting 27 seconds before a local model starts answering is a dead product. Six milliseconds is invisible.
+
+## Why can a Transformer not do the same thing?
+
+This is the part worth sitting with, because it explains why the technique is narrow rather than universal.
+
+A Transformer's KV-cache is position-entangled. Every cached key and value is tied to where the token sat in the sequence, and the cache grows linearly with context length. You cannot lift the cache from one document and paste it into an arbitrary position in another prompt and expect coherent behavior. The positions do not line up, and the size is not fixed. The paper states flatly that the mechanism is "architecturally impossible for Transformer KV-caches."
+
+The SSM hidden state has neither problem. It is one fixed-size object, and it does not carry positional baggage in the same way. That is what makes it injectable. You are handing the model a compressed memory, not replaying a transcript.
+
+So this is not a general RAG speedup you can port to a Llama or a GPT-class model. It is a property you get only by choosing an SSM backbone. That is the real cost of the trick, and it is a strategic one, not a runtime one.
+
+## What does the memory system add on top?
+
+PRECOG handles static corpus retrieval. SMC, Structured Memory Consolidation, is the more interesting long-term idea. It uses the same state-injection mechanism to build a hierarchical persistent memory: short-term episodic states from a session get consolidated into long-term semantic memory, and at query time the system fuses that persistent memory with retrieved corpus states.
+
+There is a fidelity-versus-storage dial, which is the honest part. You can keep more detail at the cost of storage, or compress harder and lose some. And session initialization is O(1), meaning a returning user's context loads instantly instead of being rebuilt from a transcript.
+
+![short-term episodic memory clusters merging into a smaller long-term semantic memory, with a retrieved external memory j](../../assets/blog/2026-08-04-injecting-precomputed-memory-into-ssms-how-precog-skips-the-prefill-tax/inline-2.png)
+
+The cognitive-domain clustering framing (episodic to semantic, short-term to long-term) is borrowed from how people talk about human memory. I would treat that vocabulary as a design metaphor, not a claim about biological fidelity. What matters operationally is simpler: a small local model can hold persistent, structured memory across sessions without re-reading everything, and it can do so on a device.
+
+## How much of the headline should you trust?
+
+The 4500x figure is a latency comparison on one model, TENNs-LLM at 1.2B parameters, on edge hardware. That is exactly the regime where prefill hurts most, so the speedup is largest there. On a datacenter GPU with a small corpus, the absolute numbers would look far less dramatic. The ratio is real; the shock value is partly a function of how slow the baseline was on constrained hardware.
+
+The claim I want to see stress-tested is "PRECOG matches in-context RAG answer quality." Matching quality is the entire ballgame, because a lossy compressed state that quietly degrades answers is worse than a slow one that is correct. The abstract asserts the match but the summary I have does not spell out the benchmark suite, the number of documents, or how quality holds up as the corpus grows and states get fused. Two arXiv listings, cs.AI and cs.LG, carry identical abstracts, so there is no second independent framing to check against here. Injecting a single best-matching state is clean; fusing multiple retrieved states plus episodic plus semantic memory is where I would expect interference, and the abstract does not quantify that.
+
+None of this sinks the idea. It sharpens where to look.
+
+For a builder shipping on-device or on cheap edge boxes, this is the paper to read this week if you have already committed to an SSM or Mamba-style backbone. The play is concrete: precompute your static corpus (product docs, a manual, a knowledge base) into hidden states once, ship those states with the app, and inject at query time so cold-start retrieval feels instant. Add SMC if you need per-user memory that survives restarts without a transcript. The catch most readers will miss is that this is architecture-locked. You cannot bolt PRECOG onto a Transformer product, so the real decision is upstream: are you willing to build on an SSM to get O(1) memory injection, knowing SSMs still trail top Transformers on some reasoning tasks? Verify the quality-match claim on your own corpus before you bet a roadmap on it, because the speedup is only a feature if the answers stay right.
