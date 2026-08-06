@@ -16,6 +16,9 @@ export interface Item {
   source: string;
   sourceType: SourceType;
   tier: 1 | 2;
+  // Original reporting (trade newsroom), even when tier 2. Lets a deep-dive pillar
+  // anchor on it; a tier-2 COMMENTARY item (reaction channels) never can.
+  primary?: boolean;
   weight: number;
   url: string;
   title: string;

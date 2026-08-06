@@ -33,7 +33,7 @@ async function getTextRetry(url: string, tries = 3, baseMs = 600): Promise<strin
 }
 
 function base(src: SourceConfig, extra: Partial<Item>): Item {
-  return { source: src.name, sourceType: src.type, tier: src.tier, weight: src.weight, id: '', url: '', title: '', text: '', publishedAt: new Date().toISOString(), ...extra };
+  return { source: src.name, sourceType: src.type, tier: src.tier, primary: src.primary === true, weight: src.weight, id: '', url: '', title: '', text: '', publishedAt: new Date().toISOString(), ...extra };
 }
 
 // AI keyword gate for topic-intersection feeds (e.g. digital-asset sources): keep only

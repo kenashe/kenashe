@@ -1,5 +1,6 @@
 // Daily orchestrator: ingest -> embed -> cluster -> dedup -> rank -> select tiers ->
 // synthesize -> gate -> images -> publish -> digest. `--shadow` = draft-only, no commit.
+import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { env, loadSources, loadDeepDive } from './config.ts';
@@ -45,7 +46,7 @@ const withCanonicalTags = (tags: string[]): string[] => {
 // Heuristic and selection-only — the synthesizer and gate still decide quality.
 const BH_KEYWORDS: Record<string, string[]> = {
   'ai-agents': ['agent', 'agentic', 'tool use', 'tool-use', 'eval', 'benchmark', 'langchain', 'autonomous', 'multi-agent'],
-  'marketing-ops': ['marketing', ' seo', 'brand', 'campaign', 'advertis', 'go-to-market', 'growth', 'crm', 'content ops', 'copywrit'],
+  'marketing-ops': ['marketing', ' seo', 'brand', 'campaign', 'advertis', 'go-to-market', 'growth', 'crm', 'content ops', 'copywrit', 'martech', 'attribution', 'demand gen', 'lifecycle', 'positioning', 'email marketing', 'ppc', 'search engine', 'ai overview', 'funnel'],
   'building-with-ai': ['shipped', 'build', 'workflow', 'developer', 'coding', 'codebase', 'automation', 'pipeline', 'devtool', 'ide '],
 };
 const BEACHHEADS = ['ai-agents', 'marketing-ops', 'building-with-ai', 'digital-assets'] as const;
@@ -60,6 +61,31 @@ function storyBeachhead(s: Story): string | null {
   }
   return bestN > 0 ? best : null;
 }
+// When did each beachhead last get a pillar? Derived from the published posts (the repo
+// IS the state - no extra schema): a pillar is tagged 'deep-dive' plus its beachhead tag,
+// and the filename is date-prefixed. Used to fall back to the least-recently-covered
+// beachhead instead of the biggest one, which would otherwise always be ai-agents.
+function lastPillarByBeachhead(root: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const dir = path.join(root, 'src/content/blog');
+  let files: string[] = [];
+  try { files = fs.readdirSync(dir); } catch { return out; }
+  for (const f of files) {
+    if (!f.endsWith('.mdx')) continue;
+    let fm = '';
+    try { fm = /^---\n([\s\S]*?)\n---/.exec(fs.readFileSync(path.join(dir, f), 'utf8'))?.[1] ?? ''; } catch { continue; }
+    const tags = /^tags:\s*\[(.*)\]\s*$/m.exec(fm)?.[1] ?? '';
+    if (!tags.includes('deep-dive')) continue;
+    const date = f.slice(0, 10); // YYYY-MM-DD prefix sorts lexicographically
+    for (const bh of BEACHHEADS) {
+      if (!tags.includes(`"${bh}"`)) continue;
+      const prev = out.get(bh);
+      if (!prev || date > prev) out.set(bh, date);
+    }
+  }
+  return out;
+}
+
 // ISO week number (UTC) so the beachhead rotation is deterministic and even across the year.
 function isoWeek(d: Date): number {
   const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -139,7 +165,10 @@ async function main(): Promise<void> {
     // A pillar may only form around a cluster that carries a citable primary (tier-1)
     // source, so it is defensible by construction; a commentary-only cluster is never
     // eligible (that is what sank the shadow-tested Exploit Gym pillar at gate).
-    const hasPrimary = (s: Story) => s.items.some((i) => i.tier === 1);
+    // Anchor-eligible = a tier-1 origin OR a `primary` trade newsroom (see sources.yaml).
+    // Commentary/reaction sources never qualify, however many of them corroborate:
+    // the rumor pillar this rule exists to block was covered by four YouTube channels.
+    const hasPrimary = (s: Story) => s.items.some((i) => i.tier === 1 || i.primary === true);
     const byBh = new Map<string, Story[]>();
     for (const s of kept) {
       const bh = storyBeachhead(s);
@@ -155,10 +184,18 @@ async function main(): Promise<void> {
     if (eligible(rotate)) {
       pickBh = rotate;
     } else {
-      // Fall back to the eligible beachhead with the most material; skip if none qualifies.
+      // Rotation pick isn't eligible this week. Fall back to the LEAST-RECENTLY-COVERED
+      // eligible beachhead (never-covered wins), tie-broken by material, so coverage
+      // spreads instead of defaulting to whichever hub has the most stories.
+      const lastPillar = lastPillarByBeachhead(repoRoot);
       const alt = [...byBh.keys()]
         .filter(eligible)
-        .sort((a, b) => (byBh.get(b)?.length ?? 0) - (byBh.get(a)?.length ?? 0))[0];
+        .sort((a, b) => {
+          const la = lastPillar.get(a) ?? '';
+          const lb = lastPillar.get(b) ?? '';
+          if (la !== lb) return la < lb ? -1 : 1;
+          return (byBh.get(b)?.length ?? 0) - (byBh.get(a)?.length ?? 0);
+        })[0];
       if (alt) pickBh = alt;
     }
     if (pickBh) {
