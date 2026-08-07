@@ -22,6 +22,10 @@ const hash = (s: string) => crypto.createHash('sha1').update(s).digest('hex').sl
 // a guaranteed selection slot so the beachhead surfaces; split domains/crypto for balance.
 const DA_DOMAINS = new Set(['Domain Name Wire', 'DomainInvesting', 'TheDomains']);
 const DA_CRYPTO = new Set(['Decrypt', 'CoinDesk', 'The Block', 'CoinTelegraph', 'The Defiant']);
+// AI x marketing & ops beachhead source names (must match config/sources.yaml). These
+// feeds are tier 2 and single-source, so on merit they never outrank an arXiv story;
+// without a reserved slot the marketing hub only ever grows via the monthly pillar.
+const MK_SOURCES = new Set(['Marketing AI Institute', 'Search Engine Journal', 'Martech']);
 const inSources = (s: Story, names: Set<string>) => s.items.some((i) => names.has(i.source));
 
 // Canonical beachhead tags: add the hub's canonical tag when a post carries any family
@@ -241,12 +245,18 @@ async function main(): Promise<void> {
   const cryptoPick = pool.find((s) => inSources(s, DA_CRYPTO));
   if (cryptoPick) daPicks.push(cryptoPick);
   const daKeys = new Set(daPicks.map((s) => s.key));
-  const rest = pool.filter((s) => !daKeys.has(s.key));
+  // Same guarantee for the marketing & ops beachhead: reserve the top-ranked marketing
+  // story so that hub grows daily rather than only when a pillar lands.
+  const mkPick = pool.find((s) => inSources(s, MK_SOURCES) && !daKeys.has(s.key));
+  const reserved: Story[] = [...daPicks, ...(mkPick ? [mkPick] : [])];
+  const reservedKeys = new Set(reserved.map((s) => s.key));
+  const rest = pool.filter((s) => !reservedKeys.has(s.key));
   const flagships = rest.slice(0, flagBudget).map((s) => ({ ...s, tier: 'flagship' as const }));
-  const notesRoom = Math.max(0, env.notesMax - daPicks.length);
+  const notesRoom = Math.max(0, env.notesMax - reserved.length);
   const notes = rest.slice(flagBudget, flagBudget + notesRoom).map((s) => ({ ...s, tier: 'note' as const }));
-  const selected: Story[] = [...ddSelected, ...flagships, ...notes, ...daPicks.map((s) => ({ ...s, tier: 'note' as const }))];
+  const selected: Story[] = [...ddSelected, ...flagships, ...notes, ...reserved.map((s) => ({ ...s, tier: 'note' as const }))];
   report.selected = selected.length;
+  console.log(`[select] reserved -> domains:${domainPick ? 1 : 0} crypto:${cryptoPick ? 1 : 0} marketing:${mkPick ? 1 : 0} | flagships:${flagships.length} notes:${notes.length}`);
 
   let gatePass = 0;
   for (const story of selected) {
@@ -268,6 +278,9 @@ async function main(): Promise<void> {
       if (inSources(story, DA_DOMAINS) || inSources(story, DA_CRYPTO)) {
         const half = inSources(story, DA_DOMAINS) ? 'domains' : 'crypto';
         draft.tags = [...new Set([...draft.tags, 'digital-assets', half])];
+      }
+      if (inSources(story, MK_SOURCES)) {
+        draft.tags = [...new Set([...draft.tags, 'marketing-ops'])];
       }
       draft.tags = withCanonicalTags(draft.tags);
       const g = await gate(draft); // sets draft.draft based on tier threshold
