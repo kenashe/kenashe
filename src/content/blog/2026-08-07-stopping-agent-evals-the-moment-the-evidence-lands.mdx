@@ -1,0 +1,62 @@
+---
+title: "Stopping Agent Evals the Moment the Evidence Lands"
+description: "A new arXiv paper pairs variance reduction with anytime-valid statistics to cut poker-agent evaluation costs by a median of 74x, and the method transfers to any noisy A/B comparison where each trial costs real money or inference."
+pubDate: 2026-08-07
+tags: ["agent-evaluation", "statistics", "llm-benchmarks"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-07-stopping-agent-evals-the-moment-the-evidence-lands/hero.png
+  alt: "Stopping Agent Evals the Moment the Evidence Lands"
+sources:
+  - title: "AV-AIVAT: 74x Cheaper Agent Evaluation with Certified Anytime-Valid Stopping in Imperfect-Information Games"
+    url: "http://arxiv.org/abs/2608.06362v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A paper called AV-AIVAT shows you can decide which of two agents is stronger with a median of 74x fewer trials by combining variance reduction with statistics that let you peek at results without breaking the guarantee, and the trick generalizes far beyond poker.
+
+The primary source is "AV-AIVAT: 74x Cheaper Agent Evaluation with Certified Anytime-Valid Stopping in Imperfect-Information Games," posted to arXiv across cs.AI, cs.CL, and cs.LG. It is a statistics paper wearing a poker costume. The poker is real (71,439 paired Heads-Up No-Limit Hold'em hands across 15 LLM agent configurations), but the useful part is the machinery for answering a question every operator faces: is model A actually better than model B, or did I just get lucky, and how many expensive runs do I need before I can stop?
+
+## Why does comparing two agents cost so much?
+
+Because the answer is buried in noise. When you pit two agents against each other in anything with luck (poker hands, sampled prompts, randomized user sessions), a lot of the score swing comes from variance, not skill. So you play more games to average it out. Every game costs money, model inference, or expert time, and the number of games you need is unknown up front.
+
+That unknown is the whole trap. Fixed-budget evaluation forces you to guess. Guess too high and you keep paying after the result was already clear. Guess too low and you stop before the agents can be told apart, so you ship a coin flip dressed as a decision.
+
+The obvious hack is to watch the results roll in and stop when your 95% confidence interval clears zero. Do not do this. The paper is blunt about why: naive optional stopping with an ordinary confidence interval invalidates the stated level. A 95% interval is only 95% if you decided the sample size before looking. Peek repeatedly and stop on the first favorable moment and your real error rate is much worse than the number you are reporting. This is the same statistical sin behind a lot of bad A/B tests, just applied to agents.
+
+![two agents facing off across a table, a jagged noisy signal slowly settling into a clear gap between them](../../assets/blog/2026-08-07-stopping-agent-evals-the-moment-the-evidence-lands/inline-1.png)
+
+## What are the two moving parts here?
+
+The paper stacks two independent ideas, and it helps to keep them separate.
+
+The first is variance reduction. AIVAT (the Action-Informed Value Assessment Tool) uses conditional mean-zero corrections to strip out swing that comes from luck rather than decision quality. In imperfect-information games you can partly account for the cards dealt, so a hand that a player won on a lucky river gets corrected toward what the situation was actually worth. The reported median reduction is 54x variance across those 15 configurations. Corrections that are mean-zero do not bias the answer, they just tighten it.
+
+The second is anytime-valid stopping. This is where Confidence Sequences (CSs) come in. A confidence sequence, unlike a fixed confidence interval, is valid at every moment simultaneously. You can monitor it continuously, peek as often as you want, and stop whenever the evidence suffices, and the stated 95% still holds. That is the actual product here: legal peeking.
+
+Combine them and you get AV-AIVAT. There is a subtle honesty move worth flagging. Its online value model learns only from past games, so no game scores its own correction. If a hand were allowed to inform the model that then corrects that same hand, you would leak information and quietly break the guarantee. Keeping the correction strictly out-of-sample is the kind of detail that separates a method that works from a method that looks like it works.
+
+## How big is the 74x, and where does it shrink?
+
+Here is where you have to read carefully, because the paper reports two different numbers under two different regimes and they are not the same claim.
+
+Under the Asymptotic CS (AsympCS), at the nominal 95% level and a target precision of plus or minus 1 Big Blind, raw outcomes need a median of 74x as many hands as AIVAT-corrected outcomes to stop. That is the headline. It is an asymptotic guarantee, meaning the coverage holds in the limit, which is fine for screening but not a finite-sample certificate.
+
+If you want exact finite-sample certification, you switch to the Empirical-Bernstein CS (EB-CS), and this is where the paper is refreshingly self-critical. The EB-CS needs an independently justified bound on corrected payoffs. The authors establish such a bound structurally for Leduc hold'em, a stripped-down toy poker game, but for full HUNL they can only run it descriptively. And the descriptive HUNL EB-CS runs show a median 1.37x stopping-time ratio. Not 74x. 1.37x.
+
+![a wide funnel labeled by shape narrowing to a small certified core, showing a large screening region and a much smaller ](../../assets/blog/2026-08-07-stopping-agent-evals-the-moment-the-evidence-lands/inline-2.png)
+
+So the honest reading is: screening cheaply (asymptotic) buys you roughly 74x. Certifying exactly (finite-sample) currently buys you about 1.37x in the hard, uncapped game, and the gap is governed by a width floor set by the CS's bet cap and the payoff bound. The paper says this plainly rather than burying it, which is the tell of a serious result. The 74x is real for its regime. It is not a free lunch across all regimes.
+
+## Does this matter if you never touch poker?
+
+Yes, and this is why I bothered writing about a poker paper. Strip the felt away and the structure is generic. Two agents, noisy per-trial outcomes, expensive trials, and a decision you need to defend. That describes evaluating two LLM configs on a sampled benchmark, comparing two retrieval pipelines on user queries, or judging two coding agents on a task suite where each run burns tokens.
+
+The two transferable lessons: first, if you have any side information that predicts the noise (the equivalent of AIVAT's card corrections), use it to build mean-zero corrections and your effective sample size jumps. Second, if you want to stop early based on incoming results, you need confidence sequences, not confidence intervals, or your reported significance is fiction.
+
+There is also an auditability angle the paper leans on. AV-AIVAT can hand a third party everything needed to recheck the verdict at that very stopping time. As agent benchmarking becomes something labs cite in launch posts and regulators eventually poke at, "here is the exact evidence at the moment we stopped, recheck it" is a stronger posture than "trust our number."
+
+A builder should treat this as two tools you can adopt separately. Start with the cheaper win: swap fixed-sample A/B tests for a confidence sequence library so you can peek without lying, which costs almost nothing and immediately makes early stopping honest. Layer variance reduction on top only if you have a real signal that predicts per-trial noise, and keep that model strictly out-of-sample or you will fool yourself. The catch most readers will miss is the regime split: the 74x lives in asymptotic screening, and the moment you demand a hard finite-sample certificate the advantage collapses toward 1.37x because you need a provable payoff bound you probably do not have for your domain. Screen fast, certify slow, and never quote the screening number as if it were the guarantee.
