@@ -1,48 +1,86 @@
 # kenashe content pipeline
 
-Rebuild of the AI-blog pipeline: from "1 YouTube video → 1 post" to **cluster everything in AI each day → synthesize the best stories into tiered posts**, with a real de-dup memory. Replaces the n8n workflow. Design doc lives in the project thread.
+The autonomous job that writes [kenashe.ai](https://kenashe.ai). Runs daily on GitHub
+Actions: reads ~36 AI feeds, clusters them into stories, de-duplicates against everything
+already published, writes and self-reviews posts with LLMs, generates images, commits the
+MDX and triggers a deploy.
 
-> Status: **scaffold / WIP**. The de-dup core is proven; live LLM/image/DB/connector calls are wired but need keys. Not yet run end-to-end in production. Keep n8n running until shadow mode passes.
+**Status: in production.** Publishing autonomously since June 2026; ~544 posts. The n8n
+workflow it replaced is retired.
 
-## Pipeline shape (`src/run.ts`)
-`ingest → embed → cluster → dedup(vs memory) → rank → select tiers → synthesize → gate → images → publish → digest`
+> Full documentation lives at the repo root: [ARCHITECTURE.md](../ARCHITECTURE.md) ·
+> [DECISIONS.md](../DECISIONS.md) · [DATA_SOURCES.md](../DATA_SOURCES.md) ·
+> [PRODUCT.md](../PRODUCT.md) · [AGENTS.md](../AGENTS.md)
 
-- **Tiered:** 2-3 flagships (deep, multi-source) + up to 7 notes/day; only what clears the gate publishes.
-- **Autonomous:** pass → `draft:false`; fail → `draft:true` (auto-drafted, never deleted). Daily Telegram digest for spot-checks.
-- **De-dup (the core fix):** `src/core.ts` clusters items into stories and checks each against covered memory before drafting — the old pipeline wrote a topic history it never read.
+## Shape (`src/run.ts`)
+
+```
+ingest → embed → cluster → dedup(vs memory) → rank → select → synthesize → gate
+       → images → publish(+related.json) → digest
+```
+
+- **Tiered:** ~3 flagships + ~7 notes/day, plus one deep-dive pillar on Tuesdays.
+- **Reserved slots:** 1 domains, 1 crypto, 1 marketing story per run — those beachheads are
+  tier-2 and would never outrank an arXiv paper on merit. A slot is not a publish; each is
+  still gated.
+- **De-dup is the core:** `core.ts` clusters items into stories and checks each against the
+  `covered` embedding memory before drafting. The old pipeline kept a topic history it never
+  read.
+- **Autonomous:** gate pass → `draft:false`; fail → `draft:true` (written, never deleted).
+  Telegram digest each run; hard failures send an error ping.
 
 ## Dev quickstart (no keys, no DB)
+
 ```sh
 cd pipeline && npm install
-npm run core:demo      # proves the dedup/cluster core on the live corpus (no deps/keys)
-npm run run:shadow     # dry run: STORE_BACKEND=file, lexical embedder, no images, nothing published
+npm test               # unit tests — no network, no keys
+npm run typecheck
+npm run core:demo      # dedup/cluster core against the live corpus
+npm run run:shadow     # full dry run: file store, lexical embedder, no images, no publish
 ```
-Shadow mode degrades gracefully without provider keys (connectors that need keys just return nothing).
 
-## Going live
-1. **Provision** (see `.env.example`): Postgres+pgvector (`DATABASE_URL`), and keys for Anthropic / OpenAI / Google / DeepSeek / Supadata; Vercel deploy hook + Telegram for the digest.
-2. `psql "$DATABASE_URL" -f db/schema.sql`
-3. Seed covered memory with the current published posts (so day 1 knows what exists) — see TODO below.
-4. Copy the CI template `pipeline/ci/pipeline.yml` to `.github/workflows/pipeline.yml` and commit it yourself (automation tokens can't push workflow files). Add the keys as **GitHub Actions secrets**, set repo variable `PIPELINE_ENABLED=true`, and run it via *Run workflow → shadow* for ~5 days.
-5. When the shadow output looks right, run with mode **live** and let the daily cron take over. Retire n8n.
+Shadow mode degrades gracefully: connectors needing keys return nothing, and nothing is
+committed.
 
-## Config
-- `config/sources.yaml` — the source registry (edit freely; tiers + weights).
-- `src/config.ts` — model assignments (`MODELS`), tier counts, gate thresholds (`GATE`), image counts (`IMAGES`), thresholds via env.
+## Running in production
 
-## Production wiring (implemented)
-- `store.ts` `PostgresStore` — pgvector-backed covered memory, seen-items, run logs.
-- `run.ts` — semantic embeddings (`embedMany`) when `OPENAI_API_KEY` is set; lexical fallback otherwise.
-- `ingest.ts` — all connectors live (rss, youtube, arxiv, hackernews, github_releases, reddit).
-- `npm run backfill` — one-time: embeds existing published posts into `covered` so dedup works from run 1.
+Runs happen in GitHub Actions (`.github/workflows/pipeline.yml`), not locally.
 
-## Remaining to go live
-- `psql "$DATABASE_URL" -f db/schema.sql` (create tables), then `npm run backfill`.
-- Copy `pipeline/ci/pipeline.yml` to `.github/workflows/pipeline.yml` and commit it (PATs can't push workflow files).
-- Set GitHub secrets + repo variable `PIPELINE_ENABLED=true`; run in **shadow** ~5 days, then **live**.
+1. Set secrets in **Settings → Secrets and variables → Actions** (names in
+   [`.env.example`](.env.example)).
+2. Set repo **variable** `PIPELINE_ENABLED=true` — the kill switch.
+3. Apply the DB schema once: `psql "$DATABASE_URL" -f db/schema.sql`, then `npm run backfill`
+   to embed existing posts into `covered` so dedup works from run 1.
+4. Cron `0 13 * * *` publishes **live**; manual dispatch defaults to **shadow** (drafts to
+   the `pipeline-shadow` branch).
 
-## Why this fixes the old bugs
-- **Slugs:** `publish.ts` `cleanSlug()` removes apostrophes (no more `vibe-checks-don`) and truncates on a word boundary (no more `…own-wo`).
-- **Duplicates:** semantic dedup against covered memory + story clustering, instead of a never-read history + a prompt nudge.
-- **Tags:** `governTags()` maps a controlled vocabulary.
-- **Reliability:** durable store, structured run logs, Telegram digest + error path.
+⚠️ Commits must be authored `Ken Ashe <kenashe@gmail.com>` or Vercel Hobby silently skips
+the deploy — see [DECISIONS.md](../DECISIONS.md#d3).
+
+## Configuration
+
+| What | Where |
+|---|---|
+| Feeds | `config/sources.yaml` |
+| Weekly pillar cadence/tuning | `config/deepdive.json` |
+| Models, gate thresholds | `src/config.ts` |
+| Voice, prompts, image art direction | `src/prompts.ts` |
+| Run shape (posts/day, similarity floors) | env vars — see `.env.example` |
+| DB schema | `db/schema.sql` |
+
+## Layout
+
+```
+src/run.ts         orchestrator (selection, deep-dive, reserved slots)
+src/ingest.ts      six source connectors + AI keyword gate
+src/core.ts        embedding, clustering, dedup
+src/synthesize.ts  draft generation
+src/gate.ts        independent quality review
+src/images.ts      hero + inline image generation
+src/publish.ts     MDX assembly, YAML/MDX sanitizing, commit/push/deploy
+src/related.ts     related-post map from stored embeddings
+src/store.ts       Postgres+pgvector store / JSON file store
+src/entities.ts    Wikidata entity detection for schema.org `mentions`
+src/backfill.ts    one-time: embed existing posts into covered memory
+test/              unit tests (node:test)
+```
