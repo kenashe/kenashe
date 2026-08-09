@@ -1,0 +1,64 @@
+---
+title: "The OpenAI and Hugging Face incident is a crawler safety story"
+description: "A Hacker News timeline framed OpenAI traffic to Hugging Face as an accidental attack. The useful lesson is not blame, it is that AI companies now need production-grade limits, identification, and rollback paths for automated data access."
+pubDate: 2026-08-09
+tags: ["ai-infrastructure", "hugging-face", "openai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-09-the-openai-and-hugging-face-incident-is-a-crawler-safety-story/hero.png
+  alt: "The OpenAI and Hugging Face incident is a crawler safety story"
+sources:
+  - title: "Timeline of the OpenAI accidental attack against Hugging Face"
+    url: "https://simonwillison.net/2026/Aug/7/openai-timeline/"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+  - name: "Anthropic"
+    sameAs: "https://www.wikidata.org/wiki/Q116758847"
+  - name: "Hugging Face"
+    sameAs: "https://www.wikidata.org/wiki/Q108943604"
+  - name: "Google"
+    sameAs: "https://www.wikidata.org/wiki/Q95"
+  - name: "xAI"
+    sameAs: "https://www.wikidata.org/wiki/Q120599684"
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+---
+
+TL;DR: Treat large-scale AI data access like production infrastructure, because an automated job without good limits can look exactly like an attack.
+
+## Was this really an attack?
+
+The primary source here is the Hacker News AI item titled “Timeline of the OpenAI accidental attack against Hugging Face.” That wording is doing a lot of work. “Attack” implies harm from the receiver’s side. “Accidental” implies lack of intent from the sender’s side. Both can be true.
+
+That is the uncomfortable part for AI infrastructure now.
+
+A crawler, downloader, benchmark harness, eval job, agentic scraper, or internal data pipeline can create the same symptoms as hostile traffic: high request volume, repeated retries, hot endpoints, cache misses, degraded service, and angry downstream users. The server does not care whether the traffic came from a red-team operator, a bored botnet, or an OpenAI job with a bad config.
+
+I am not going to fill in missing details that are not in the provided material. The Hacker News item names OpenAI and Hugging Face, and frames the event as an accidental attack with a timeline. That is enough to talk about the operational lesson, not enough to assign precise fault.
+
+The bigger point: AI labs are no longer just model builders. They are some of the largest automated consumers of the open web, public repositories, model hubs, datasets, docs, and APIs. At that scale, “oops” is an incident class.
+
+## What should AI crawlers and data jobs be required to do?
+
+The old norm was simple: identify with a user agent, respect robots.txt where relevant, and do not hammer servers. That is not enough for 2026 AI systems.
+
+A serious AI data job should have a named owner, contact path, rate limits, circuit breakers, retry budgets, per-domain quotas, and a kill switch that someone can actually use at 3 a.m. If a system touches shared infrastructure like Hugging Face, GitHub, npm, PyPI, Common Crawl mirrors, arXiv, or documentation sites, it needs the same care as any customer-facing production system.
+
+The hard part is that AI teams often treat data acquisition as pre-production. It sits upstream of training, evals, retrieval, or product experiments, so it can feel less dangerous than serving traffic to users. That is backwards. Data jobs are production traffic for everyone else.
+
+![two large automated streams flowing into a shared service, one controlled by gates and one overflowing around them](../../assets/blog/2026-08-09-the-openai-and-hugging-face-incident-is-a-crawler-safety-story/inline-1.png)
+
+There is also a trust problem. Hugging Face is not just a website. It is shared AI infrastructure. Researchers, startups, enterprise teams, and hobbyists all depend on it. If a major lab accidentally overloads part of that ecosystem, the harm is not limited to the lab and the host. It hits everyone waiting on models, datasets, Spaces, or CI jobs.
+
+## The missing standard is accountability, not etiquette
+
+Crawler etiquette is too soft for where AI has gone. We need a clearer norm: if your automated systems can create load at internet scale, you are responsible for making them observable, attributable, and stoppable.
+
+That means publishing useful bot identity where appropriate. It means honoring rate-limit signals. It means backoff that actually backs off. It means not letting retries multiply during partial failures. It means giving infrastructure operators a real escalation channel, not a generic support inbox. It also means internal incident reviews that include affected third parties, not only the company that launched the job.
+
+OpenAI, Anthropic, Google, Meta, xAI, Perplexity, and every serious agent startup should assume their automation will be judged by its worst failure mode. “We did not mean to” is relevant, but it is not sufficient. Intent matters for ethics. Impact matters for operations.
+
+For builders, the practical move is simple: audit every automated fetcher, crawler, dataset sync, eval runner, and agent tool that can touch outside services. Add per-host limits, hard stop conditions, owner metadata, and a tested disable path. The catch most teams miss: the riskiest system is often not the fancy agent in the demo. It is the boring background job someone wrote months ago and forgot was still running.
