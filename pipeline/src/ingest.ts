@@ -21,9 +21,12 @@ async function getJson(url: string, headers: Record<string, string> = {}): Promi
   return r.json();
 }
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-// Retry a text fetch with linear backoff. YouTube's feed endpoint intermittently 404/500s
-// against datacenter IPs (transient), so a couple of retries recover most of them.
-async function getTextRetry(url: string, tries = 3, baseMs = 600): Promise<string> {
+// Retry a text fetch with linear backoff. Datacenter IPs get transient failures that a
+// browser never sees: YouTube's feed endpoint flips 404/500 on the same channel, and RSS
+// hosts (e.g. Martech) intermittently 429. Retrying recovers most of them.
+// Deliberately retries every error rather than only 5xx/429 — YouTube's transient failure
+// IS a 404, so status-based filtering would break that case.
+export async function getTextRetry(url: string, tries = 3, baseMs = 600): Promise<string> {
   let last: unknown;
   for (let i = 0; i < tries; i += 1) {
     try { return await getText(url); }
@@ -42,7 +45,8 @@ const AI_KEYWORDS = ['AI', 'LLM', 'LLMs', 'GPT', 'ChatGPT', 'OpenAI', 'Anthropic
 const kwRegex = (words: string[]): RegExp[] => words.map((w) => new RegExp(`\\b${w}\\b`, 'i'));
 
 async function rss(src: SourceConfig): Promise<Item[]> {
-  const feed = xml.parse(await getText(String(src.url)));
+  // 1s/2s backoff: rate-limited hosts need a longer pause than YouTube's transient blips.
+  const feed = xml.parse(await getTextRetry(String(src.url), 3, 1000));
   const items = arr<any>(feed?.rss?.channel?.item ?? feed?.feed?.entry);
   const mapped = items.slice(0, 15).map((it) => {
     const link = typeof it.link === 'string' ? it.link : it.link?.['@_href'] ?? '';
