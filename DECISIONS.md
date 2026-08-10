@@ -89,6 +89,7 @@ locally proves nothing; **only a live run does**.
 | r/MachineLearning | 429 when fetched right after r/LocalLLaMA | moved **last** in `sources.yaml` — keep it there |
 | YouTube feeds | intermittent 404/500 in bursts | jitter + retry-with-backoff in `ingest.ts` |
 | Search Engine Land | 403 from the runner only | dropped; Martech promoted to `primary` in its place |
+| Martech | intermittent 429 from the runner (fine 08-07 and 08-10, 429 on 08-08/09) | tolerated: a 429 just yields 0 items that day. `rss()` has no retry, unlike `youtube()`. Marketing AI Institute is the reliable second `primary` anchor. Reuse `getTextRetry` in `rss()` if it worsens. |
 | Anthropic, Meta, DNJournal, namepros | dead / 403 | removed |
 
 ## <a id="d7"></a>D7 — Only primary sources may anchor a deep-dive
