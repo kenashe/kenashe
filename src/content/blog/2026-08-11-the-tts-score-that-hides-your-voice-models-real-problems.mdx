@@ -1,0 +1,62 @@
+---
+title: "The TTS Score That Hides Your Voice Model's Real Problems"
+description: "A new benchmark breaks 'naturalness' into 10 perceptual dimensions and finds that both MOS predictors and Audio-LLM judges miss the linguistic errors human listeners actually catch, which changes how you should evaluate voice models."
+pubDate: 2026-08-11
+tags: ["text-to-speech", "evaluation", "audio-llm", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-11-the-tts-score-that-hides-your-voice-models-real-problems/hero.png
+  alt: "The TTS Score That Hides Your Voice Model's Real Problems"
+sources:
+  - title: "Beyond Naturalness: Probing Automated Text-To-Speech Evaluators on Linguistically Grounded Dimensions"
+    url: "http://arxiv.org/abs/2608.09930v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The automated scores you use to pick a TTS model mostly measure whether the audio sounds clean, not whether it says the words correctly, so a single "naturalness" number can hide real linguistic errors your users will hear.
+
+If you ship anything with synthetic speech, you have probably trusted a MOS score to tell you which model is better. That trust is shakier than it looks. The paper "Beyond Naturalness: Probing Automated Text-To-Speech Evaluators on Linguistically Grounded Dimensions" (arXiv, cs.CL and cs.AI) takes the word "naturalness" apart and shows that the automated tools we lean on collapse a rich, multi-dimensional judgment into something much narrower than we assume.
+
+## What does "naturalness" actually measure?
+
+Here is the quiet problem the field has lived with for years. When you evaluate a TTS system, you usually get a Mean Opinion Score: a number, often on a 1 to 5 scale, meant to capture how natural the speech sounds. One number. But "natural" is doing a lot of work in that sentence. Does it mean the audio has no artifacts? That the prosody rises and falls like a human? That the model pronounced the homograph correctly, put the stress on the right syllable, handled the pause before the subordinate clause?
+
+The authors argue those are all different things, and they built a schema to prove it. They deconstruct naturalness into 10 distinct perceptual dimensions, then had trained linguist raters annotate 860 utterances against that schema. This is the first dimension-level meta-evaluation benchmark for TTS, meaning it does not just ask "is this evaluator good," it asks "good at what, specifically."
+
+That framing matters. A single MOS score treats a mispronounced word and a slightly robotic cadence as the same kind of deduction. A dimension-level view says they are different failures with different fixes, and an evaluator that catches one but not the other is not a general judge of quality. It is a narrow instrument wearing a general label.
+
+![a single blurred number resolving into ten separate colored threads fanning out](../../assets/blog/2026-08-11-the-tts-score-that-hides-your-voice-models-real-problems/inline-1.png)
+
+## Why do MOS predictors miss linguistic errors?
+
+The finding on MOS predictors is the one I keep coming back to. Across four MOS predictors tested, the authors report that these models "collapse onto acoustic signal quality." In plain terms: the predictor is largely scoring how clean and artifact-free the audio is, not whether the speech is linguistically correct.
+
+Think about what that means in practice. A model can produce crisp, clear, pleasant-sounding audio that puts the stress on the wrong syllable, mangles a proper noun, or reads "read" in the past tense when it should be present. The waveform sounds great. The MOS predictor rewards it. Your listener, who understands the language, winces.
+
+This is not a bug in any one predictor. It is a structural consequence of how these systems were trained and what they learned to correlate with human ratings. Signal quality is easy to detect and correlates decently with old-generation TTS where artifacts were the dominant failure mode. But modern neural TTS mostly sounds clean now. The remaining errors are linguistic, and that is exactly the axis these predictors are weakest on. The metric was calibrated for a problem we mostly solved, and it is blind to the problem that is left.
+
+## Are Audio-LLM judges any better?
+
+You might hope the newer approach saves us. Instead of a purpose-built predictor, use an Audio Large Language Model as a judge, prompt it, ask it to rate the speech. The authors tested four Audio-LLM judges too.
+
+The result is more interesting than a clean win or loss. They describe the judges as showing "selective, prompt-dependent detection that does not generalise across all dimensions." So the Audio-LLM can catch some kinds of errors, and which ones depends heavily on how you prompt it. Ask about pronunciation and it might notice pronunciation. But it does not reliably cover the full breadth of linguistically structured speech errors, and its performance swings with the prompt.
+
+That prompt dependence is the catch most people will underweight. If your evaluation quality changes based on phrasing, then your leaderboard is partly measuring your prompt engineering, not the model under test. Two teams evaluating the same TTS system with different judge prompts could reach different conclusions and both feel rigorous.
+
+The blunt summary from the authors covers both camps: neither MOS predictors nor Audio-LLM judges "reliably captures a breadth of linguistically structured speech errors." One class is stuck on acoustics, the other is inconsistent by design. There is no drop-in automated judge that sees what a linguist sees.
+
+![two mechanical inspectors examining a soundwave, one only looking at surface smoothness, the other looking through a shi](../../assets/blog/2026-08-11-the-tts-score-that-hides-your-voice-models-real-problems/inline-2.png)
+
+## How should a builder evaluate TTS after this?
+
+The honest answer: stop treating any single automated score as a verdict, and start evaluating along the dimensions that matter for your product.
+
+The good news is the authors released the dataset, the annotation schema, and the evaluation code publicly. That schema is the practically useful artifact here. Even if you never run their exact benchmark, the 10-dimension breakdown gives you a checklist for what "naturalness" was papering over: pronunciation correctness, stress and emphasis, prosody, pausing, and the rest of the linguistic structure that a single MOS number smears together.
+
+![a checklist grid with distinct filled and empty cells over a soundwave background](../../assets/blog/2026-08-11-the-tts-score-that-hides-your-voice-models-real-problems/inline-3.png)
+
+For an operator, that changes the workflow. If you are building an audiobook narrator, pronunciation of proper nouns and correct emphasis probably dominate your quality bar, and a MOS predictor that only sees signal cleanliness will lie to you about the models that matter. If you are building a voice assistant reading short confirmations, prosody and pacing might matter more than perfect handling of rare homographs. The point is to know which dimensions you care about and measure those, not to trust a scalar that averages them into mush.
+
+Practitioner's take: before your next TTS model comparison, write down the three or four linguistic dimensions that actually break your product, then build a small targeted eval set that stresses each one, ideally with real names, numbers, and edge-case words from your own domain. Use MOS predictors and Audio-LLM judges as cheap first-pass filters, not as final judges, and keep a human in the loop for the dimensions the paper flags as unreliable. The catch most readers will miss: this is not a reason to distrust automated evaluation entirely, it is a reason to stop using it as a single number. A dimension-level scorecard, even a rough one you build yourself, will tell you more about which model to ship than any leaderboard MOS. And if a vendor quotes you one naturalness score with no breakdown, ask them which of the ten dimensions it was actually measuring. They may not know, which is the whole problem.
