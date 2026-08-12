@@ -1,0 +1,64 @@
+---
+title: "Consistency checks are not truth checks for probabilistic AI"
+description: "The arXiv paper “How to Verify Consistency of Probabilistic Claims” gives AI safety a useful target: making probabilistic predictors prove they are internally coherent. That matters, but it is not the same thing as proving they are right."
+pubDate: 2026-08-12
+tags: ["ai-safety", "probabilistic-ai", "verification"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-12-consistency-checks-are-not-truth-checks-for-probabilistic-ai/hero.png
+  alt: "Consistency checks are not truth checks for probabilistic AI"
+sources:
+  - title: "How to Verify Consistency of Probabilistic Claims"
+    url: "http://arxiv.org/abs/2608.11181v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The useful idea in “How to Verify Consistency of Probabilistic Claims” is not that an AI can prove its predictions are true, but that it may be able to prove its many probability claims do not contradict each other.
+
+## What does “consistency” actually buy you?
+
+The arXiv paper “How to Verify Consistency of Probabilistic Claims” starts with a clean problem: if a predictor answers many conditional probability questions, can we efficiently check whether those answers fit together as one coherent probability distribution?
+
+That sounds abstract. It is not.
+
+A system might say there is a 5% chance an action causes a failure, a 40% chance of a related sub-event, and a 2% chance of both. Across one answer, that may look fine. Across thousands or millions of conditional claims, contradictions can hide. The paper is about catching that kind of inconsistency without enumerating every claim.
+
+This matters for AI safety because many practical safety cases are probabilistic. “This deployment is unlikely to cause harm.” “This plan has low risk.” “This model is confident the action is safe.” If those numbers are internally incoherent, the safety story is weaker before we even ask whether the world model is accurate.
+
+But this is the key distinction: consistency is not truth.
+
+A perfectly consistent predictor can still be wrong. It can assign coherent probabilities from a bad model of the world. It can be calibrated on the wrong distribution. It can miss a causal pathway entirely. What consistency gives you is a lower-level guarantee: the model is not making mutually incompatible probability claims, at least under the approximation being checked.
+
+That is still useful. It is the difference between auditing a spreadsheet for formula contradictions and proving the business forecast is correct. The first does not solve the second. But you still want the first.
+
+## How can you check exponentially many probability claims?
+
+The paper’s central move is to treat a predictive model as two circuits: a probability circuit P, and a circuit Q that outputs confidence in predictions. Together, P and Q implicitly define exponentially many probabilistic claims.
+
+Naively, that is hopeless. You cannot check them one by one.
+
+The arXiv paper proposes an interactive PCP, a probabilistically checkable proof protocol. A polynomial-time verifier evaluates P and Q at only a few points. It also reads a few locations from a proof oracle, described as an encoding of a witnessing probability distribution that is allegedly consistent with the predictor’s claims. The verifier interacts with a single untrusted prover.
+
+In plain English: the predictor does not just make probability claims. It comes with a compact-ish proof object that says, “these claims can all come from one underlying distribution.” The verifier spot-checks that proof instead of recomputing the whole universe.
+
+![a small inspector examining a few bright nodes from a vast cloud, with thin lines connecting those nodes to a compact hi](../../assets/blog/2026-08-12-consistency-checks-are-not-truth-checks-for-probabilistic-ai/inline-1.png)
+
+There is another important piece. The paper first handles explicit probabilistic claims, for example m claims like Pr[Y = 1 | X = x] = p over n Boolean variables. Building on work initiated by Nilsson in Artificial Intelligence in 1986, it places l2-approximate probabilistic consistency of explicit claims in NP, with certificates of length O(mn + log B), where B is the input bit-precision. It also reports that a small additive completeness-soundness gap can remove the dependence on B.
+
+That certificate result matters because the interactive protocol needs a sparse witnessing distribution to exist. Without that, the proof system has nothing compact to point at.
+
+## Where does the hype line sit?
+
+The paper’s own framing is careful: it calls the interactive PCP “a first step toward training predictive models to prove their own consistency.”
+
+That is the right level of ambition.
+
+This is not a drop-in safety layer for frontier models. The setup uses circuits P and Q, proof oracles, approximate consistency, and complexity-theoretic guarantees. Real deployed systems are messier. LLMs do not naturally expose all their conditional probability claims as neat circuits. Their confidence estimates are often poorly calibrated. Tool-using agents mix learned predictions, retrieved text, code execution, and policy layers.
+
+Still, the direction is practical in a way a lot of AI safety theory is not. It suggests a concrete interface for future systems: if you make probabilistic claims, you should be able to attach a checkable consistency certificate. Not a vibe. Not a paragraph of reasoning. A proof object a verifier can sample.
+
+I would especially watch this for domains where models already produce structured risk estimates: medical triage, cyber risk scoring, financial compliance, autonomous operations, and eval systems that estimate failure probabilities across task families. The first commercial version will probably not look like an interactive PCP. It may look like a constrained predictor that logs claims in a formal schema, runs consistency checks across batches, and flags contradictions before those numbers reach a human operator.
+
+For builders, the near-term move is simple: separate “is this probability true?” from “are these probabilities mutually coherent?” Start logging model probability claims in structured form, especially conditional claims, and test them for basic consistency before treating them as decision inputs. The catch most teams miss is that explanations are not certificates. A model can sound careful while giving numbers that cannot all be true together.

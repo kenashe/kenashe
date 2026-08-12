@@ -1,0 +1,56 @@
+---
+title: "TORF Keeps the Forecast Mean While Modeling the Mess Around It"
+description: "Two-stage Odd Residual Flows separates deterministic time series forecasting from uncertainty modeling, aiming to keep point accuracy intact while still producing useful probabilistic forecasts for risk-sensitive planning."
+pubDate: 2026-08-12
+tags: ["time-series", "forecasting", "probabilistic-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-12-torf-keeps-the-forecast-mean-while-modeling-the-mess-around-it/hero.png
+  alt: "TORF Keeps the Forecast Mean While Modeling the Mess Around It"
+sources:
+  - title: "Two-stage Odd Residual Flows for Mean-Preserving Probabilistic Time Series Forecasting"
+    url: "http://arxiv.org/abs/2608.11114v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: TORF is a clean forecasting pattern: train the best point forecaster you can, then model uncertainty around it without moving the mean.
+
+## What problem is TORF trying to fix?
+
+The primary source is the arXiv paper titled **“Two-stage Odd Residual Flows for Mean-Preserving Probabilistic Time Series Forecasting”**, listed under cs.AI and cs.LG. Its core complaint is practical: probabilistic forecasting often makes you trade away the thing operators still care about most, the point forecast.
+
+That is not a small issue. In energy, staffing, supply chain, finance ops, traffic, and capacity planning, teams often need both answers. They need “what is our best estimate?” and “how bad could the miss be?” If the uncertainty model improves the distribution but drags the mean away from the strongest deterministic forecast, the business user may not care that the likelihood score improved.
+
+The TORF paper frames the usual options this way. Mean Variance Estimation can degrade point accuracy when trained jointly with Negative Log-Likelihood. More flexible generative approaches, including Normalizing Flows and Diffusion Models, can represent richer distributions, but often depend on Monte Carlo sampling and may still produce weak mean estimates.
+
+That matches a pattern I see in applied AI. The model that wins a probabilistic metric is not always the model that planning teams trust on Monday morning. If the mean jumps around, the spreadsheet breaks. If the tails are missing, the risk model lies. TORF tries to keep both concerns separate.
+
+## How does a mean-preserving residual flow work?
+
+TORF has two stages.
+
+First, it uses a pre-trained deterministic model to produce the mean forecast. The paper does not make that stage exotic. That is part of the appeal. You can imagine using whatever point forecaster is already strongest in your setting, assuming it is trained and validated properly.
+
+Second, TORF fits a Restricted Normalizing Flow over the residuals around that forecast. The key design choice is that the flow uses strictly odd functions. In the paper’s framing, that lets the residual distribution stay centered so the learned uncertainty does not shift the mean produced by stage one.
+
+So the architecture is not “one model to do everything.” It is closer to a division of labor. One component owns the central estimate. Another owns the shape of the uncertainty.
+
+![central forecast path surrounded by flexible symmetric uncertainty bands that widen and bend around it](../../assets/blog/2026-08-12-torf-keeps-the-forecast-mean-while-modeling-the-mess-around-it/inline-1.png)
+
+That is useful because real residuals are rarely simple Gaussian noise. Forecast misses can be skewed, heavy-tailed, horizon-dependent, or shaped by regime changes. A flexible residual distribution can capture more of that mess. But by constraining the transformation, TORF aims to avoid paying for flexibility by corrupting the point forecast.
+
+The paper also emphasizes that TORF preserves the mean without sampling. That matters. Monte Carlo sampling is fine in research code and small batch analysis. It gets annoying in production when you need predictable latency, repeatable outputs, and easy monitoring.
+
+## What should builders take from this?
+
+The reported results are strong but narrow in the way academic forecasting results usually are. The TORF paper says the method achieves state-of-the-art deterministic accuracy measured by NMAE, while also delivering strong density estimation measured by CRPS across short and long forecast horizons.
+
+Good. But I would not read that as “replace your forecasting stack.” I would read it as a design pattern worth testing: decouple the point forecast from the uncertainty layer, then enforce a constraint so the uncertainty layer cannot quietly rewrite the point forecast.
+
+That is especially relevant for teams that already have a decent deterministic forecasting model in production. You may not need to rip it out. You may need a calibrated residual model around it.
+
+The catch is evaluation. If you only track NMAE or MAE, you will miss whether the uncertainty bands are useful. If you only track CRPS or NLL, you may accept a model that breaks operational planning. TORF’s value proposition depends on measuring both sides at the same time.
+
+Practitioner’s take: try this as a wrapper around your current best point forecaster. Freeze or preserve the deterministic mean, train an uncertainty model on residuals, then evaluate point accuracy and probabilistic quality separately by horizon. The catch most teams miss is governance: once users trust the mean forecast, any uncertainty system that moves it becomes a product bug, not just a modeling choice.

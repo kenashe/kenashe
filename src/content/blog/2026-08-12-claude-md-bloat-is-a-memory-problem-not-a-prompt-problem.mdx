@@ -1,0 +1,62 @@
+---
+title: "CLAUDE.md bloat is a memory problem, not a prompt problem"
+description: "This note reads the catastrophic remembering paper as an operator warning: agent instruction files grow because deletion gets risky once rationale disappears, and prompt comments may be the boring fix. The real lesson is to treat agent memory like code, with reasons, tests, and review."
+pubDate: 2026-08-12
+tags: ["agentic-coding", "prompt-engineering", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-12-claude-md-bloat-is-a-memory-problem-not-a-prompt-problem/hero.png
+  alt: "CLAUDE.md bloat is a memory problem, not a prompt problem"
+sources:
+  - title: "Why Does CLAUDE.md Keep Growing? Catastrophic Remembering in Agentic Coding"
+    url: "http://arxiv.org/abs/2608.11095v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Agent instruction files keep growing because teams preserve rules after they forget why the rules exist, so the practical fix is to comment prompts like code before they become untouchable.
+
+## Why does CLAUDE.md keep growing?
+
+My primary source is the arXiv cs.AI and cs.LG paper, “Why Does CLAUDE.md Keep Growing? Catastrophic Remembering in Agentic Coding.” It gives a name to something many agent builders already feel in their repos: the instruction file becomes a junk drawer.
+
+Not because teams are sloppy. Because appending is cheap and deleting is scary.
+
+The paper calls this “catastrophic remembering,” a useful inversion of catastrophic forgetting. In model training, the fear is losing old knowledge. In agentic coding, the failure mode is keeping too much old knowledge because nobody remembers which instruction still matters.
+
+The reported dataset is large enough to take seriously: 247,694 instruction lifetimes across 1,867 repositories. The headline numbers are ugly. Agentic prompts more than tripled over their lifetime, up 226%. They gained 4.9 net instructions per commit. Older instructions became less likely to be deleted, with a reported log-hazard of -0.032 per commit.
+
+That last bit is the operator pain. The older a rule is, the more sacred it becomes. Not because it is proven useful, but because its reason has decayed. “Do not touch this” is not a policy. It is archaeology.
+
+![a cluttered instruction scroll splitting into two paths, one path accumulating tangled sticky notes and the other path s](../../assets/blog/2026-08-12-claude-md-bloat-is-a-memory-problem-not-a-prompt-problem/inline-1.png)
+
+## Are prompt comments actually the fix?
+
+The paper’s best contribution is not the name. It is the proposed fix: comments that store the latent reasoning behind prompt instructions.
+
+That sounds almost too boring. Good. Boring fixes are usually the ones teams can ship.
+
+The paper tests this by “inverting IFEval,” creating verifiable worlds where optimal prompts are known. In that setup, comments encoding the reason behind an instruction removed 99.3% of excess instructions, cutting growth from +211.3% to +1.4%. On WildIFEval, the paper reports real-world agentic instruction-following gains of up to 23.1%.
+
+I would not treat that as “comments solve agent memory.” The setup matters. Benchmarks are not your production repo, and prompt files interact with tools, tests, humans, deadlines, flaky dependencies, and whatever weird convention your team adopted in March.
+
+But I do buy the mechanism.
+
+A bare instruction like “always use pnpm” can survive forever because deleting it might break something. A commented instruction like “Use pnpm because the lockfile and CI cache assume it, remove after migration to npm is complete” has an exit ramp. The comment makes the rule auditable.
+
+That is the real shift. Prompts should not just tell the agent what to do. They should tell future humans why the agent is being told that.
+
+## What should teams change in agent instruction files?
+
+Treat CLAUDE.md, AGENTS.md, and similar files less like magical incantations and more like production configuration.
+
+Every durable instruction should carry a reason. Not a novel. One sentence is often enough. Add the condition that made the rule necessary, the expected failure if it is removed, and the test or signal that would prove it is no longer needed.
+
+The catch is that comments can become bloat too. If teams write vague comments like “important for quality,” they have only added more fog. The useful comment is falsifiable. “Prevents generated migrations from bypassing our schema linter” is a real reason. “Keeps code consistent” is mush.
+
+I would also separate permanent project facts from temporary scars. “This repo uses FastAPI” belongs in project context. “Do not edit the billing adapter until invoice replay is fixed” needs an owner, date, and removal condition. Otherwise today’s incident becomes tomorrow’s superstition.
+
+The paper is right to ask why English-as-code does not have comments yet. I’d go one step further: English-as-code needs code review. If an agent instruction affects behavior, it deserves the same scrutiny as a config change. Who added it? What broke? How do we know it still applies?
+
+For a builder, the move is simple. Pick one active agent instruction file this week. For every rule older than a month, add a short comment explaining why it exists or mark it for deletion. Then run your normal evals, tests, or a few representative agent tasks before and after. The catch most readers miss: the goal is not a prettier prompt. The goal is making future deletion safe.
