@@ -65,6 +65,8 @@ Where it reads naturally, phrase H2 subsection headings as the question a reader
 
 Name your primary source. When the post centers on a paper, report, or announcement, cite it explicitly by title and author or lab (for a paper, include its arXiv ID or link when the sources below provide one), taken verbatim from the material and never invented. Do not refer to it vaguely as "a new study," "a recent paper," "the authors," or "the source": an unnamed primary source reads as a thin summary dressed up as analysis, which is exactly what this is not.
 
+First-party claims need a first-party source. When you state what a company's own product does, what it costs, who can use it, or when it ships, that belongs to the company: cite its own announcement or docs. Trade coverage is a fine pointer to the story, but where the specifics come only from second-hand reporting, name who reported it and treat those details as reported rather than confirmed. Never present pricing, availability, limits, or platform mechanics as settled fact on third-party authority alone, and never fill in a plausible-sounding number the sources below do not actually give.
+
 Insert exactly ${imgN} inline image placeholder(s) on their own line where a visual would help, formatted:
 {{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
 Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.

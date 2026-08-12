@@ -77,6 +77,12 @@ the material provides one, copied verbatim and never invented. Vague references 
 study", "the authors", "the video") are a critical fail. Where sources disagree or a claim
 is thin, say so. See [DECISIONS.md](DECISIONS.md#d10).
 
+**First-party claims.** What a product does, costs, who can use it and when it ships belongs
+to the company that makes it — cite its own announcement. Where the specifics come only from
+trade coverage, name who reported it and treat them as reported, not confirmed. Never state
+pricing, availability, limits or platform mechanics as settled fact on third-party authority
+alone. See [DECISIONS.md](DECISIONS.md#d14).
+
 **Financial / crypto.** For any post touching crypto, tokens, domains or tradable assets:
 no price predictions, no financial or investment advice, no buy/sell calls, no shilling or
 token promotion. Stay clear-eyed on risk, hype and scams; cover the AI mechanics and what an

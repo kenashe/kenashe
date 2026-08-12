@@ -180,6 +180,28 @@ silent, plausible-looking behaviour hid two structural bugs for weeks.
 
 **Rule.** When a code path silently chooses or skips, log the inputs to that choice.
 
+## <a id="d14"></a>D14 — First-party claims need a first-party source
+
+**Incident.** The first pillar the fixed rotation produced (marketing-ops, 2026-08-11) scored
+23/40 and queued. It described ChatGPT Ads — `ads.openai.com`, a $25/day floor, CPC ranges,
+targeting rules — as confirmed fact, sourced mainly to a Martech guide.
+
+**Why this is different from [D7](DECISIONS.md#d7).** D7 was commentary and rumour, fixed by
+requiring a primary anchor. Here the anchor was legitimate original trade reporting; the
+problem was a *claim class*. A vendor's own pricing, availability and platform mechanics
+belong to the vendor — asserting them on third-party authority is unsafe even when the
+third party is a real newsroom.
+
+**Fix.** A rule in the shared synthesis prompt (all tiers, not just pillars — notes cover
+product launches constantly): cite the company's own announcement for first-party claims;
+where specifics are only second-hand, name who reported it and mark them reported rather
+than confirmed; never invent a plausible number.
+
+**Why the shared prompt and not the gate.** The gate already treats this as a critical fail —
+it is what caught the pillar. The writer simply was not told the standard it would be judged
+against. Same shape as [D10](DECISIONS.md#d10), where aligning the prompt with the gate took
+the daily pass rate from 4–5/10 to 7–8/10.
+
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
 Considered for LLM answer-extraction, rejected. Google restricted FAQ rich results to
