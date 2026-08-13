@@ -1,0 +1,50 @@
+---
+title: "RCI turns stop signals into safer offline RL training data"
+description: "Redistribution-based Cost Inference attacks a practical safety problem in offline reinforcement learning: supervisors often know when a trajectory went unsafe, but not which earlier steps caused it."
+pubDate: 2026-08-13
+tags: ["reinforcement-learning", "ai-safety", "offline-rl"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-13-rci-turns-stop-signals-into-safer-offline-rl-training-data/hero.png
+  alt: "RCI turns stop signals into safer offline RL training data"
+sources:
+  - title: "Redistribution-based Cost Inference Improves Sparse Safe Offline RL"
+    url: "http://arxiv.org/abs/2608.12306v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Redistribution-based Cost Inference is useful because it turns cheap trajectory-level safety feedback into per-step training costs without changing the constrained RL problem it is trying to solve.
+
+## What problem is RCI trying to fix?
+
+My primary source here is **"Redistribution-based Cost Inference Improves Sparse Safe Offline RL"**, an arXiv paper listed under cs.AI and cs.LG. No author names or arXiv ID were included in the provided material, so I am not going to invent them.
+
+The setup is familiar if you have ever tried to make a learned policy behave safely from logs. Safe offline RL often assumes dense cost labels. Every transition gets a cost. This action was fine. This action was risky. This state crossed a line. Nice if you can get it.
+
+Real supervision is usually messier. A human or rule system may only provide stop-feedback: the first moment a trajectory becomes unsafe. Binary, sparse, and late. You know the car got into a bad state. You may not know whether the badness came from the lane change, the speed choice three steps earlier, or a sequence that looked harmless in isolation.
+
+That makes safety a temporal credit assignment problem. RCI, short for Redistribution-based Cost Inference, reframes the sparse stop signal as something that can be redistributed backward across the trajectory. The goal is not just to slap labels on prior steps. It is to create dense per-step costs that preserve the underlying constrained Markov decision process while making the learning signal easier for a cost critic to fit.
+
+![a sparse warning signal at the end of a path spreading backward into many small safety signals before feeding into a cau](../../assets/blog/2026-08-13-rci-turns-stop-signals-into-safer-offline-rl-training-data/inline-1.png)
+
+## Why is redistribution better than just training a classifier?
+
+The tempting baseline is to train a classifier that predicts unsafe transitions. That can work when the unsafe moment is visually or structurally obvious. But it also bakes in a narrow view of causality: the transition where the stop happened gets treated as the important one.
+
+RCI is more interesting because it uses return decomposition. The paper reports that return-equivalent redistribution preserves the feasible policy set and the optimal Lagrangian in a constrained MDP. In plain terms, the transformed costs should not change which policies are allowed under the safety constraint or which solution the Lagrangian objective is aiming for.
+
+That theoretical claim matters because many safety hacks improve training while quietly changing the task. If you reshape reward or cost too aggressively, you may get nicer curves and a different problem. RCI’s claim is narrower and stronger: redistribute the sparse cost signal in a way that is lossless in theory, then use the denser signal to train better in practice.
+
+The reported experiments are also the right kind of boring. Highway driving and robotic manipulation. Lower violation rates than sparse and classifier-based baselines. Robustness to heterogeneous dataset composition and label noise. No giant benchmark leaderboard claim. No promise that this solves safe autonomy. Just a specific fix for a specific supervision bottleneck.
+
+## Where does this fit for real systems?
+
+I read this less as “RL is back” and more as “safety labels are expensive, so better label geometry matters.” Most applied teams will not have perfectly annotated per-step costs. They will have logs, interventions, termination flags, failed episodes, operator overrides, blocked actions, and post-hoc incident notes.
+
+RCI points at a useful pattern: do not throw sparse safety feedback directly into training and hope the model infers the causal structure. Convert the feedback into a denser learning target, but do it with constraints that preserve the decision problem.
+
+That is relevant beyond highway driving and robot arms. Any offline policy trained from historical traces has this issue: support agents escalating cases, warehouse robots stopping near humans, browser agents getting blocked by policy checks, coding agents triggering test failures after a long chain of edits. The failure appears at the end. The cause may be distributed.
+
+For a builder, I would try this first on logs where “unsafe” is already captured as a stop, reject, rollback, override, or human intervention event. Compare three versions: raw sparse feedback, a simple classifier baseline, and redistributed per-step costs. The catch most readers miss is that redistribution is not magic attribution. If your stop signal is noisy, delayed, or policy-dependent in weird ways, you still need careful dataset audits. RCI gives you a better training signal, not a free safety certificate.
