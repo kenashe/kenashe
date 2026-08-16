@@ -1,0 +1,61 @@
+---
+title: "The Working Memory Gap Runs Both Ways"
+description: "A Hacker News claim that AI holds vastly more in working memory than humans is half right. The context window is real, but treating it like human working memory misreads what both systems actually do well."
+pubDate: 2026-08-16
+tags: ["context-windows", "llm-limits", "cognition"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-16-the-working-memory-gap-runs-both-ways/hero.png
+  alt: "The Working Memory Gap Runs Both Ways"
+sources:
+  - title: "AI has access to a vastly larger working memory than the human brain"
+    url: "https://davidepiffer.com/p/ai-isnt-outthinking-mathematicians"
+---
+
+TL;DR: Large models do hold far more raw text "in mind" at once than you can, but that capacity behaves less like human working memory and more like a searchable scratchpad that degrades in predictable ways, so the comparison flatters both sides for the wrong reasons.
+
+A Hacker News thread titled "AI has access to a vastly larger working memory than the human brain" has been making the rounds, and the headline is the kind of thing that sounds obviously true until you poke it. Yes, a model can attend to hundreds of thousands of tokens in a single pass. No, that is not the same faculty psychologists mean when they say working memory. The framing matters because a lot of people are building workflows on the assumption that a big context window is a big brain. It is not. It is a big desk.
+
+Let me name the source plainly: this is a community discussion on Hacker News, not a paper. There is no lab, no dataset, no author to cite here, and I am not going to dress a forum headline up as a finding. What is worth doing is taking the claim seriously and pulling apart where it holds and where it quietly falls over.
+
+## What does "working memory" actually mean here?
+
+Human working memory is famously tiny. The classic estimate is around four to seven items you can actively juggle, and more recent work has pushed the practical number even lower, closer to three or four chunks. That is the constraint every student and every chess player feels. It is not storage. It is the amount of live, manipulable state you can hold and transform in the moment.
+
+A language model's context window is a different animal. When a model runs with a 200,000-token window, all of that text is available to the attention mechanism on every forward pass. In that narrow sense, the Hacker News claim is correct and the gap is not close. You cannot hold a novel in your head. A model can have the whole thing "on the desk" at once.
+
+But availability is not manipulation. Human working memory is defined by what you can operate on, reorder, and recombine without external help. A model's context is closer to a document it can look things up in very fast. Those are not the same capability, and calling both "working memory" hides the difference that matters for anyone actually building with this.
+
+![a small cluster of items held in cupped hands beside a very large flat surface covered in loose papers](../../assets/blog/2026-08-16-the-working-memory-gap-runs-both-ways/inline-1.png)
+
+## Is more context the same as more thinking?
+
+This is where the desk metaphor earns its keep. A bigger desk lets you spread out more paper. It does not make you a better thinker about any single sheet.
+
+The evidence people keep rediscovering is the "lost in the middle" behavior: information placed in the center of a long context is recalled and used less reliably than material at the very start or the very end. Feed a model a huge document and bury the key fact at 60 percent depth, and retrieval quality often sags. This is a well-documented pattern across long-context models, and it is exactly what you would not expect if the context window were true working memory. Your working memory does not preferentially forget the middle of a short list because the list got longer.
+
+So the capacity is real but uneven. The model has access to everything and effective use of some of it, weighted toward the edges and toward whatever the attention pattern happens to favor. An operator who assumes flat, uniform recall across a full window is going to get burned on the exact cases that matter, the ones where the answer sits in the unglamorous middle.
+
+There is a second wrinkle. Holding more in context is not free. Longer inputs cost more, run slower, and can dilute the signal by surrounding the relevant part with noise. Stuffing the whole knowledge base into the prompt often performs worse than retrieving the three passages that actually matter. More desk, more clutter.
+
+## Where does the human still win?
+
+The honest answer is: at the thing working memory was named for. Humans are slow and small on capacity but extraordinary at compression. You do not remember a chess position square by square; you remember a handful of meaningful patterns and reconstruct the rest. Experts beat novices at recall of real positions and lose that edge on random ones, which tells you the memory is doing structure, not storage.
+
+Models do something adjacent through their weights, which encode a staggering amount of compressed pattern from training. But in the live context, they lack the human trick of aggressively pruning to the few things that matter and updating a running mental model as they go. That is why chaining many steps of reasoning over a long context still trips them up in ways that look nothing like a capacity problem and everything like a manipulation problem.
+
+![a dense tangle of lines on one side resolving into a few clean shapes on the other](../../assets/blog/2026-08-16-the-working-memory-gap-runs-both-ways/inline-2.png)
+
+So the comparison the headline invites is a category error in both directions. The model wins the raw-capacity contest by a mile and it was never really a contest. The human wins the operate-on-it contest, which is what the phrase was coined to describe. Declaring a winner requires agreeing on which game you are playing, and the two systems are not playing the same one.
+
+## What should a builder do with this?
+
+Stop treating the context window as memory and start treating it as a working surface with known dead zones. That shifts your design in specific ways.
+
+![a funnel narrowing many documents down to a few before they enter a bright focused zone](../../assets/blog/2026-08-16-the-working-memory-gap-runs-both-ways/inline-3.png)
+
+Put the material you most need the model to use at the beginning or the end of the prompt, not the middle. Retrieve and rank before you stuff: three well-chosen passages usually beat thirty mediocre ones, and they cost less. When a task needs multi-step reasoning over a lot of source material, break it into stages that each carry a small, curated state forward rather than asking the model to keep everything live at once. That is you supplying the compression the model does not do on its own.
+
+Test recall at depth, not just at the edges. If your evaluation only checks facts that live near the top of the prompt, you are measuring the model at its best and shipping it at its worst. Drop a known fact at the middle of a long context and confirm the model can still find it under realistic conditions.
+
+The catch most people miss is that the big-window pitch is sold as a reason to stop doing retrieval and curation, when it is actually a reason to keep doing both. A large context is a bigger surface to be sloppy on. The teams getting real leverage are not the ones dumping everything into the prompt because they can. They are the ones deciding what deserves to be there, then placing it where the model will actually use it. Capacity was never the bottleneck. Attention was.
