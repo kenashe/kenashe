@@ -91,6 +91,7 @@ pipeline/
   config/deepdive.json   weekly pillar schedule/tuning
   db/schema.sql          Postgres + pgvector schema
   test/                  unit tests
+measurement/             monthly answer-engine visibility check (frozen queries + results)
 .github/workflows/       the daily job
 ```
 

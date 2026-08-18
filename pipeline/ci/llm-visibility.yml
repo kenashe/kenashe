@@ -1,0 +1,48 @@
+name: LLM visibility check
+
+# Monthly answer-engine visibility measurement -> measurement/results/<month>.json
+# + a row in measurement/history.md. See measurement/README.md.
+#
+# NOTE: mirrored at .github/workflows/llm-visibility.yml. A fine-grained PAT without
+# `workflows` scope cannot push to .github/workflows, so agents edit this copy and a human
+# copies it across. If the two differ, .github/workflows is the one that runs.
+#
+# Requires repo secret EXA_API_KEY (free tier is enough: 12 queries a month).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC on the 1st of each month
+
+permissions:
+  contents: write # commits the results file + history row
+
+concurrency:
+  group: llm-visibility
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        working-directory: pipeline
+        run: npm install --no-audit --no-fund
+      - name: Measure
+        working-directory: pipeline
+        env:
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+        run: npm run visibility
+      - name: Commit results
+        run: |
+          if [ -n "$(git status --porcelain measurement)" ]; then
+            git -c user.name="Ken Ashe" -c user.email="kenashe@gmail.com" \
+                commit -m "measurement: LLM visibility for $(date -u +%Y-%m)" -- measurement
+            git push
+          else
+            echo "no change"
+          fi
