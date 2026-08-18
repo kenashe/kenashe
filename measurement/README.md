@@ -14,9 +14,13 @@ practitioner or an answer engine would actually run?* Ranking for "Ken Ashe" pro
 
 ```sh
 cd pipeline
-EXA_API_KEY=... npm run visibility          # writes results + history row
-EXA_API_KEY=... npm run visibility -- --dry # prints only, writes nothing
+EXA_API_KEY=... npm run visibility             # writes results + history row
+EXA_API_KEY=... npm run visibility -- --dry    # calls the API, prints, writes nothing
+EXA_API_KEY=... npm run visibility -- --force  # re-run a month already on record
 ```
+
+A month that already has a report is **not** overwritten without `--force`, so a stray run
+can't erase the annotated baseline.
 
 - **`queries.json`** — 12 frozen unbranded queries, 3 per beachhead. Runs against Exa
   (a retrieval engine over a web index) asking for the top 25 results, and records the rank
