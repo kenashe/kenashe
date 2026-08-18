@@ -80,11 +80,19 @@ export function historyRow(r: MonthReport): string {
 }
 
 // --- Exa search (plain fetch; no SDK so this stays dependency-free) ---
-export async function exaSearch(query: string, numResults: number, apiKey: string): Promise<string[]> {
+// Always bounded: an un-timed-out fetch can hang a CI job until the job timeout kills it,
+// which is how a 12-query measurement turns into a wasted runner hour.
+export async function exaSearch(
+  query: string,
+  numResults: number,
+  apiKey: string,
+  timeoutMs = 30_000,
+): Promise<string[]> {
   const r = await fetch('https://api.exa.ai/search', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
     body: JSON.stringify({ query, numResults, type: 'auto' }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!r.ok) throw new Error(`exa ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = (await r.json()) as { results?: { url?: string }[] };

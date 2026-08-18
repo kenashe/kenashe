@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   host, rankOf, scoreQuery, summarize, recurringDomains, historyRow, appendHistory, loadQueries,
-  type QueryResult, type MonthReport,
+  exaSearch, type QueryResult, type MonthReport,
 } from '../src/visibility.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../');
@@ -97,6 +97,26 @@ test('the frozen query set is intact: 12 unbranded queries across four beachhead
   for (const x of q.queries) {
     assert.ok(!/ken\s*ashe|kenashe/i.test(x.query), `query ${x.id} must stay unbranded: ${x.query}`);
   }
+});
+
+test('exaSearch sends an abort signal so a hung request cannot stall CI', async () => {
+  const realFetch = globalThis.fetch;
+  let init: RequestInit | undefined;
+  globalThis.fetch = (async (_u: string, i: RequestInit) => {
+    init = i;
+    return { ok: true, json: async () => ({ results: [{ url: 'https://kenashe.ai/x/' }, {}] }) } as unknown as Response;
+  }) as unknown as typeof fetch;
+  const urls = await exaSearch('q', 25, 'key');
+  globalThis.fetch = realFetch;
+  assert.ok(init?.signal, 'must pass an AbortSignal');
+  assert.deepEqual(urls, ['https://kenashe.ai/x/'], 'results without a url are dropped');
+});
+
+test('exaSearch surfaces a non-200 with its status', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => ({ ok: false, status: 401, text: async () => 'bad key' }) as unknown as Response) as typeof fetch;
+  await assert.rejects(() => exaSearch('q', 25, 'nope'), /exa 401/);
+  globalThis.fetch = realFetch;
 });
 
 test('the baseline report parses and matches its own summary', () => {
