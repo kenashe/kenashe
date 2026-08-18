@@ -1,0 +1,66 @@
+---
+title: "Can Generated Text Prove Which Internal Path a Model Took?"
+description: "A new arXiv paper shows model output can be made to carry detectable evidence of a verified internal computation, even when the final answer stays the same. A controlled proof of concept with real limits, and what it means for anyone building provenance into AI systems."
+pubDate: 2026-08-18
+tags: ["provenance", "interpretability", "ai-safety"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-18-can-generated-text-prove-which-internal-path-a-model-took/hero.png
+  alt: "Can Generated Text Prove Which Internal Path a Model Took?"
+sources:
+  - title: "Towards Computational Provenance: Carrying Causal-State Evidence in Generated Text"
+    url: "http://arxiv.org/abs/2608.16868v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Researchers built two toy models that can stamp their generated text with a detectable, verifiable signal of which internal computation path they actually used, even when the answer is identical either way, and it works in a controlled setting but does not yet touch real production language models.
+
+The paper is "Towards Computational Provenance: Carrying Causal-State Evidence in Generated Text," posted to arXiv under both cs.AI and cs.CL. It asks a question that sounds almost philosophical until you try to answer it with experiments: can the text a model produces carry proof of *how* it was computed, not just *what* it said?
+
+## What problem is this actually solving?
+
+Right now, a model's output tells you nothing verifiable about the computation behind it. You get an answer. You do not get evidence about which internal state produced that answer. Two different reasoning paths can land on the same result, and from the outside you cannot tell them apart.
+
+That gap matters more than it sounds. A lot of AI governance and safety work assumes you can eventually inspect or attest to what a model did internally. Watermarking today marks *that* text was machine-generated. It does not mark *which internal path* generated it. The authors call the thing they are after computational provenance: text that carries detectable evidence of which causally relevant internal state occurred during generation.
+
+![two distinct winding paths through a machine converging on one identical shape at the exit](../../assets/blog/2026-08-18-can-generated-text-prove-which-internal-path-a-model-took/inline-1.png)
+
+The distinction they draw is between the answer and the route. If two routes give the same answer, normally the route is invisible. This paper asks whether you can make the route leave a fingerprint in the output without changing the answer at all.
+
+## How did they test it?
+
+They built a deliberately constrained setup, and the constraints are the whole point. Two architectures: a modular feed-forward network and a transformer. Both trained on the same arithmetic task. The task has a mandatory pathway through two discrete intermediate states, so the model has to pass through one of two known internal states to get the result.
+
+Then they do three things in sequence. They deliberately switch between the two paths. They authenticate which state was actually used. And they let that verified state determine a subtle statistical pattern in the generated text, a pattern a separate detector can recover later.
+
+So the flow is: force a known internal state, confirm it happened, bind it to a signal in the output, and then check downstream whether the signal reveals the state. The answer stays the same across both paths. Only the fingerprint changes.
+
+Results: both the feed-forward and transformer systems passed all 128 matched pairs, in both a public evaluation and a separately sealed protected end-to-end evaluation. The detector recovered the signal tied to the authenticated internal state every time. The required causal computation reproduced across five independently trained feed-forward models and three independently trained transformers, which matters because it suggests they are not looking at a fluke of one lucky training run.
+
+![a hidden mark being read out of a flowing ribbon of abstract output by a small lens](../../assets/blog/2026-08-18-can-generated-text-prove-which-internal-path-a-model-took/inline-2.png)
+
+That sealed protected evaluation detail is worth flagging. A "public" pass is easy to fool yourself with. A separately sealed protocol is the authors trying not to fool themselves. It is the kind of methodological care that makes a proof of concept more than a demo.
+
+## What did not work, and why that matters more?
+
+Here is the part most write-ups will skip, and it is the honest core of the paper. In a separate answer-only transformer experiment, their linear probes did *not* recover a naturally learned intermediate state.
+
+Read that carefully. When the model was allowed to learn the task on its own, without the mandatory two-state pathway engineered in, the intermediate state was not linearly recoverable from the output. The provenance signal worked because they *built* the state into the architecture and then bound a detector to it. It did not spontaneously appear in a model that solved the task its own way.
+
+That is the difference between "we can construct a system that carries verified provenance" and "we can extract provenance from an arbitrary trained model." The paper clearly does the first. It explicitly does not claim the second. The abstract calls this a "controlled proof of concept," and the answer-only negative result is why that framing is accurate rather than modest.
+
+So the practical reading is narrow on purpose. This is evidence that provenance-carrying text is *possible to design in*, in bounded architectures on a toy task. It is not evidence that today's frontier models leak recoverable internal-state fingerprints, and it is not a method you can point at GPT-scale systems tomorrow.
+
+## Where could this go if it holds up?
+
+Assume the idea scales, which is a real if. The interesting version of this is not watermarking as we know it. It is attestation. Imagine a model that, by design, binds a verified internal decision to its output in a way an auditor can later check. A regulated deployment could then answer questions like: was this generation produced by the approved reasoning path, or a fallback one? Did the safety-relevant intermediate state actually fire?
+
+![a certified seal being pressed onto a stream of text as it leaves an enclosed system](../../assets/blog/2026-08-18-can-generated-text-prove-which-internal-path-a-model-took/inline-3.png)
+
+That is a different security model than post-hoc interpretability. Interpretability tries to read a model you were handed. This tries to make the model emit evidence about itself, at generation time, with a verification step baked in. If it generalizes, it becomes infrastructure for trustworthy pipelines rather than a research curiosity.
+
+The catch is everything the paper openly does not do. Two discrete states on an arithmetic task is a long way from the sprawling, entangled internal states of a production LLM. The signal was engineered, not discovered. And the negative probe result is a warning that natural models may not organize their computation into the clean, recoverable states this approach depends on. Provenance you have to build into the architecture is provenance you can also choose not to build in, which is a governance question, not a technical one.
+
+If you are building AI systems where "which path did the model take" is a real question, and it increasingly is for anyone with a safety or compliance surface, this paper is worth reading in full rather than in summary. Not because it hands you a tool. It does not. Because it defines a target precisely enough to argue about: text that carries verifiable evidence of a causal internal state, with a working existence proof in constrained models and an honest negative result in unconstrained ones. The move for an operator is to treat provenance as a design-time property you might specify into a system, the same way you specify logging or audit trails, rather than something you hope to reverse-engineer later. The thing most readers will miss is that the failed answer-only experiment is the most important result in the paper, because it tells you exactly where the easy version of this idea breaks.
