@@ -13,6 +13,7 @@ import { gate } from './gate.ts';
 import { addImages } from './images.ts';
 import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
 import { writeRelated, cosine } from './related.ts';
+import { announce } from './indexnow.ts';
 import {
   BEACHHEADS, DA_DOMAINS, DA_CRYPTO, MK_SOURCES, inSources, hasPrimary, withCanonicalTags,
   storyBeachhead, groupByBeachhead, lastPillarByBeachhead, chooseBeachhead, isoWeek,
@@ -188,6 +189,11 @@ async function main(): Promise<void> {
   }
   await store.recordRun(report);
   await notify(`*The Lab daily${shadow ? ' (shadow)' : ''}*\nIngested ${report.ingested}, stories ${report.stories}, deduped ${report.deduped}.\nGate passed ${gatePass}/${report.selected}. Published ${report.published.length} (${flagships.length} flagship${ddStory ? `, deep-dive: ${ddBeachhead}` : ''}), drafted ${report.drafted.length}, skipped ${report.skipped.length} dupes.${report.errors.length ? `\n⚠️ errors: ${report.errors.length}` : ''}`);
+  // Ping IndexNow last: it waits for the Vercel deploy (up to ~12 min) before telling
+  // crawlers to fetch, so it must not delay the digest above or block recording the run.
+  if (!shadow && env.indexNow) {
+    await announce(env.siteUrl, report.published.map((p) => p.slug));
+  }
   console.log(JSON.stringify(report, null, 2));
 }
 

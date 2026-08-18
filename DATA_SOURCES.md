@@ -81,6 +81,7 @@ Sam Witteveen, bycloud.
 | **GitHub Contents API** | commits | `GITHUB_TOKEN` | push retries with rebase up to 5× |
 | **Vercel** | hosting + builds | `VERCEL_DEPLOY_HOOK` | git integration also triggers builds |
 | **Telegram** | daily digest + error pings | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | digest logs to stdout instead |
+| **IndexNow** (`api.indexnow.org`) | push new post URLs to Bing/Yandex/Naver/Seznam after a live run | public key in `pipeline/src/indexnow.ts` + `public/<key>.txt` — no secret | logged and swallowed; never fails a run. Disable with `INDEXNOW_ENABLED=0`. See ARCHITECTURE § IndexNow |
 
 **Rate limits worth knowing:** arXiv asks for ≤1 request per 3 s (we make 3 total);
 GitHub API is 60/h unauthenticated vs 5000/h with a token; Reddit and YouTube are the

@@ -16,6 +16,8 @@ export const env = {
   relatedMinSim: Number(process.env.RELATED_MIN_SIM ?? 0.4),
   githubRepo: process.env.GITHUB_REPO ?? 'kenashe/kenashe',
   gitBranch: process.env.GIT_BRANCH ?? 'master',
+  siteUrl: process.env.SITE_URL ?? 'https://kenashe.ai',
+  indexNow: process.env.INDEXNOW_ENABLED !== '0', // set to "0" to stop pinging IndexNow
   vercelHook: process.env.VERCEL_DEPLOY_HOOK ?? '',
   telegram: { token: process.env.TELEGRAM_BOT_TOKEN ?? '', chat: process.env.TELEGRAM_CHAT_ID ?? '' },
 };
