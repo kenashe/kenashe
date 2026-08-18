@@ -13,6 +13,7 @@ const autonomousBlog: Project = {
 
 // The curated builds surfaced as cards (matches the prior Projects card set).
 const CURATED = [
+  'AI Werewolf / Social Deduction Lab',
   'Geo-targeted affiliate site',
   'kenashe.ai',
   'Daily email to myself',
