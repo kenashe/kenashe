@@ -1,77 +1,227 @@
 ---
+// Site-wide footer. Grouped rather than one flat link row, so it doubles as a secondary
+// navigation surface (and as internal linking for crawlers) instead of a dead end.
+// Link data comes from consts.ts wherever it already exists, so the footer can't drift from
+// the header or the schema: change the email or a profile URL once and this follows.
 import { AUTHOR, SOCIAL } from '../consts';
+
 const year = new Date().getFullYear();
+
+// Email gets its own treatment in the brand column, so it is pulled out of the social row.
+const emailHref = SOCIAL.find((s) => s.label === 'Email')?.href ?? 'mailto:hello@kenashe.ai';
+const emailAddress = emailHref.replace(/^mailto:/, '');
+const profiles = SOCIAL.filter((s) => s.label !== 'Email');
+
+// `external` typed as optional on every member so destructuring it stays valid.
+const siteLinks: { label: string; href: string; external?: boolean }[] = [
+  { label: 'Building', href: '/building/' },
+  { label: 'Blog', href: '/blog/' },
+  { label: 'Newsroom', href: '/newsroom/' },
+  { label: 'Media Kit', href: '/newsroom/#media-kit' },
+  { label: 'Lucky Domains', href: 'https://luckydomains.io', external: true },
+];
+const legalLinks = [
+  { label: 'Privacy', href: '/privacy/' },
+  { label: 'Terms', href: '/terms/' },
+  { label: 'Disclosure', href: '/disclosure/' },
+];
 ---
 
 <footer class="site-footer">
   <div class="inner">
-    <ul class="footer-social" aria-label="Footer links">
-      <li><a href="/rss.xml">RSS</a></li>
-      {
-        SOCIAL.map(({ label, href }) => (
-          <li>
-            <a href={href} rel={href.startsWith('http') ? 'me noopener' : undefined}>
-              {label}
-            </a>
-          </li>
-        ))
-      }
-      <li><a href="/newsroom/">Newsroom</a></li>
-      <li><a href="/newsroom/#media-kit">Media Kit</a></li>
-      <li><a href="/privacy/">Privacy</a></li>
-      <li><a href="/terms/">Terms</a></li>
-      <li><a href="/disclosure/">Disclosure</a></li>
-    </ul>
-    <p class="footer-copy"><span aria-hidden="true">©</span> {year}&nbsp;{AUTHOR}</p>
+    <div class="cols">
+      <div class="brand">
+        <p class="identity">
+          <span class="name">{AUTHOR}</span>
+          <span class="sep" aria-hidden="true">·</span>AI application builder
+          <span class="sep" aria-hidden="true">·</span>CPA
+          <span class="sep" aria-hidden="true">·</span>PMP
+        </p>
+        <p class="tagline">Building with AI in public. No hype, no doom. Receipts only.</p>
+        <a class="email" href={emailHref}>{emailAddress}</a>
+      </div>
+
+      <nav class="group" aria-labelledby="ft-social">
+        <p class="group-title" id="ft-social">Social</p>
+        <ul>
+          {
+            profiles.map(({ label, href }) => (
+              <li>
+                <a href={href} target="_blank" rel="me noopener">
+                  {label}
+                </a>
+              </li>
+            ))
+          }
+          <li><a href="/rss.xml">RSS</a></li>
+        </ul>
+      </nav>
+
+      <nav class="group" aria-labelledby="ft-site">
+        <p class="group-title" id="ft-site">Site</p>
+        <ul>
+          {
+            siteLinks.map(({ label, href, external }) => (
+              <li>
+                <a
+                  href={href}
+                  target={external ? '_blank' : undefined}
+                  rel={external ? 'noopener' : undefined}
+                >
+                  {label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      <nav class="group" aria-labelledby="ft-legal">
+        <p class="group-title" id="ft-legal">Legal</p>
+        <ul>
+          {
+            legalLinks.map(({ label, href }) => (
+              <li>
+                <a href={href}>{label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+
+    <div class="bottom">
+      <p class="copy">
+        <span aria-hidden="true">©</span>&nbsp;{year}&nbsp;{AUTHOR}
+        <span class="sep" aria-hidden="true">·</span>Built with AI in public
+      </p>
+    </div>
   </div>
 </footer>
 
 <style>
   .site-footer {
-    border-top: 1px solid var(--border);
     margin-top: 6rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
   }
   .inner {
-    max-width: 64rem;
+    max-width: var(--content-width);
     margin: 0 auto;
-    padding: 2.5rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-    font-family: var(--font-mono);
+    padding: 3rem 1.5rem 1.75rem;
   }
-  .footer-social {
+
+  /* Brand column is wider than the three link groups. */
+  .cols {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+    gap: 2.5rem 2rem;
+    align-items: start;
+  }
+
+  /* --- brand --- */
+  .identity {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .identity .name {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .sep {
+    padding: 0 0.4rem;
+    color: var(--accent);
+  }
+  .tagline {
+    margin: 0 0 0.9rem;
+    max-width: 26rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .email {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+    padding-bottom: 1px;
+    transition: border-color 150ms ease;
+  }
+  .email:hover {
+    border-bottom-color: var(--accent);
+  }
+
+  /* --- link groups --- */
+  .group-title {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg);
+  }
+  .group ul {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
+    display: grid;
+    gap: 0.55rem;
   }
-  .footer-social a {
+  .group a {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
     color: var(--muted);
     text-decoration: none;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
     transition: color 150ms ease;
   }
-  .footer-social a:hover {
+  .group a:hover {
     color: var(--accent);
   }
-  .footer-copy {
-    margin: 0;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
+
+  /* --- bottom bar --- */
+  .bottom {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
   }
-  @media (max-width: 520px) {
+  .copy {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* Tablet: brand takes its own row, the three groups share the row below. */
+  @media (max-width: 900px) {
+    .cols {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* Mobile: stack everything. */
+  @media (max-width: 560px) {
     .inner {
-      padding: 2rem 1.25rem;
-      gap: 1rem;
+      padding: 2.25rem 1.25rem 1.5rem;
+    }
+    .cols {
+      grid-template-columns: 1fr;
+      gap: 1.75rem;
+    }
+    .group ul {
+      gap: 0.7rem; /* a bit more room for touch targets */
+    }
+    .bottom {
+      margin-top: 1.75rem;
     }
   }
 </style>
