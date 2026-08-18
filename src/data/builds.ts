@@ -21,7 +21,7 @@ export const projects: Project[] = [
     status: 'SHIPPED',
     dek: 'Built a cast of persistent AI characters with distinct personalities, relationships, and hidden roles, then let them play a Traitors-style social deduction game autonomously. Agents debate, form alliances, deceive, vote, investigate, and eliminate each other while an AI game master preserves hidden state.',
     stack: ['HyperAgent', 'Claude Fable 5', 'Multi-Agent', 'Social Simulation'],
-    footer: ['Aug 2026'],
+    shippedAt: 'Aug 2026',
   },
   {
     title: 'AI blog automation v2',
