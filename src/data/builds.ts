@@ -17,9 +17,9 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
-    title: 'AI Werewolf / Social Deduction Lab',
+    title: 'AI werewolf / social deduction lab',
     status: 'SHIPPED',
-    dek: 'Built a cast of persistent AI characters with distinct personalities, relationships, and hidden roles, then let them play a Traitors-style social deduction game autonomously. Agents debate, form alliances, deceive, vote, investigate, and eliminate each other while an AI game master preserves hidden state.',
+    dek: 'Built a cast of AI characters with distinct personalities, relationships, and hidden roles, then let them play a Traitors-style social deduction game where they form alliances, deceive, and vote each other out.',
     stack: ['HyperAgent', 'Claude Fable 5', 'Multi-Agent', 'Social Simulation'],
     shippedAt: 'Aug 2026',
   },
