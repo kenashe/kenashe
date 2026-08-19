@@ -33,9 +33,4 @@ const blog = defineCollection({
     }),
 });
 
-// NOTE: build detail pages (/building/<slug>/) are deliberately NOT a content collection.
-// Adding a collection here changes this config file, which busts Astro's content-layer
-// cache and forces a full rebuild — at 570+ posts with image optimization that exceeded
-// Vercel Hobby's 45-minute build timeout (2026-08-19). The pages are static routes under
-// src/pages/building/ instead, with their canonical copy in docs/builds/*.md.
 export const collections = { blog };

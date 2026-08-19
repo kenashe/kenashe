@@ -202,6 +202,28 @@ it is what caught the pillar. The writer simply was not told the standard it wou
 against. Same shape as [D10](DECISIONS.md#d10), where aligning the prompt with the gate took
 the daily pass rate from 4–5/10 to 7–8/10.
 
+## <a id="d15"></a>D15 — Never touch `content.config.ts` (the 45-minute build trap)
+
+**Incident.** Adding a `builds` content collection for three small detail pages made the
+Vercel build run to exactly 45 minutes — Hobby's hard build timeout — and fail. Twice: the
+second attempt removed the collection but left an explanatory *comment* in
+`src/content.config.ts`, and still timed out.
+
+**Cause.** Astro keys its content-layer cache on that config file. Any byte change — even a
+comment — invalidates it, forcing a full re-render including re-optimization of every image
+(~1,500 at 570+ posts), which no longer fits inside the 45-minute Hobby timeout. Normal daily
+builds only pass because they run on a warm cache.
+
+**Rules.**
+- Treat `src/content.config.ts` as frozen. Do not add collections, comments, or formatting
+  changes to it without accepting a cold build that currently CANNOT complete on Hobby.
+- New page types go in as static routes under `src/pages/` (see `src/pages/building/*.astro`,
+  whose canonical copy lives in `docs/builds/*.md`).
+- A failed build does not save cache, so retrying a cold build just times out again;
+  recovery is making the config byte-identical to the last successful build.
+- The durable fix is cutting image work out of the build (the 3.3 GB repo problem) or a
+  paid Vercel plan; until then this constraint is structural.
+
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
 Considered for LLM answer-extraction, rejected. Google restricted FAQ rich results to
