@@ -1,21 +1,12 @@
----
-title: "Autonomous AI Blog"
-status: "LIVE"
-date: "June 2026"
-stack:
-  - "GitHub Actions"
-  - "TypeScript"
-  - "Claude Opus 4.8"
-  - "GPT-5.5"
-  - "gpt-image-1"
-  - "Postgres"
-  - "pgvector"
-  - "Vercel"
-  - "Telegram"
-summary: "A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass."
----
+# Autonomous AI Blog
 
-## The Goal
+**Status**: LIVE / SHIPPED  
+**Date**: June 2026  
+**Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, gpt-image-1, Postgres, pgvector, Vercel, Telegram
+
+A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
+
+### The Goal
 
 I wanted a blog that could publish daily analysis of AI news under my real name, without me writing every post and without the output reading like AI slop.
 
@@ -23,7 +14,7 @@ The hard part was never generating text. The hard part was everything around the
 
 The test I set was simple: could the site run for months, with no human approval loop, and still remain something I would put my name on?
 
-## What I Built
+### What I Built
 
 Version 1 was an n8n workflow: one curated YouTube transcript in, one blog post out. Gemini and GPT-5.5 handled the writing, and a 40-point QA rubric checked the finished draft.
 
@@ -39,7 +30,7 @@ The strongest stories become long-form pieces written by Claude Opus 4.8. The re
 
 Each published post also receives generated artwork in one of five rotating art directions, structured data for search engines and AI assistants, and semantically related-post links computed from the same embeddings. A Telegram digest tells me what happened each day. Most days, that digest is the only part I read.
 
-## How It Works
+### How It Works
 
 The daily loop is:
 
@@ -55,7 +46,7 @@ Once a week, the pipeline attempts a deep dive: a 2,000-plus-word pillar piece t
 
 The entire system is controlled by one repo variable, so I can pause publishing with a settings change instead of a code revert.
 
-## What Broke & What I Learned
+### What Broke & What I Learned
 
 Plenty broke. The recurring theme was that the model was almost never the problem. The plumbing was.
 
@@ -69,7 +60,7 @@ Plenty broke. The recurring theme was that the model was almost never the proble
 
 **The gate has to be independent.** The reviewer is a different model than the writer, and it reads only the draft. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.
 
-## Outcome
+### Outcome
 
 The Autonomous AI Blog has been live since June 2026.
 

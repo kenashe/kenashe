@@ -33,17 +33,9 @@ const blog = defineCollection({
     }),
 });
 
-// Build detail pages (/building/<slug>/). The markdown files are the canonical copy for
-// each project write-up; frontmatter carries the card-style metadata.
-const builds = defineCollection({
-  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/builds' }),
-  schema: z.object({
-    title: z.string(),
-    status: z.enum(['LIVE', 'SHIPPED']),
-    date: z.string(),
-    stack: z.array(z.string()).min(1),
-    summary: z.string(),
-  }),
-});
-
-export const collections = { blog, builds };
+// NOTE: build detail pages (/building/<slug>/) are deliberately NOT a content collection.
+// Adding a collection here changes this config file, which busts Astro's content-layer
+// cache and forces a full rebuild — at 570+ posts with image optimization that exceeded
+// Vercel Hobby's 45-minute build timeout (2026-08-19). The pages are static routes under
+// src/pages/building/ instead, with their canonical copy in docs/builds/*.md.
+export const collections = { blog };

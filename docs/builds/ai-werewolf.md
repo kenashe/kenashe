@@ -1,19 +1,12 @@
----
-title: "AI Werewolf"
-status: "SHIPPED"
-date: "August 2026"
-stack:
-  - "HyperAgent"
-  - "Fable 5"
-  - "Multi-Agent AI"
-  - "Python"
-  - "Social Simulation"
-  - "Hidden-Role Games"
-  - "AI Video"
-summary: "A multi-agent social deduction simulation that tested whether AI agents could create believable deception, trust, persuasion, and emergent drama inside a hidden-role game."
----
+# AI Werewolf
 
-## The Goal
+**Status**: SHIPPED  
+**Date**: August 2026  
+**Stack**: HyperAgent, Fable 5, Multi-Agent AI, Python, Social Simulation, Hidden-Role Games, AI Video
+
+A multi-agent social deduction simulation that tested whether AI agents could create believable deception, trust, persuasion, and emergent drama inside a hidden-role game.
+
+### The Goal
 
 I wanted to explore whether autonomous AI agents could create genuinely interesting social dynamics when placed inside a hidden-role game involving deception, persuasion, trust, and group decision-making.
 
@@ -21,7 +14,7 @@ The deeper question was: can AI agents create drama without a human writer decid
 
 I also wanted to test whether the simulation could become entertaining content rather than simply another multi-agent technical demo. A good AI Werewolf game would not just show agents taking turns. It would show them forming relationships, hiding information, making accusations, defending themselves, and changing strategy as the game state evolved.
 
-## What I Built
+### What I Built
 
 I iterated through three increasingly sophisticated versions of an autonomous, Traitors-style social deduction game.
 
@@ -33,7 +26,7 @@ I iterated through three increasingly sophisticated versions of an autonomous, T
 
 The final shipped artifact was a reusable HyperAgent and Fable simulation framework plus multiple completed game transcripts that could be edited into future scripts or AI-generated video.
 
-## How It Works
+### How It Works
 
 The game loop is:
 
@@ -49,7 +42,7 @@ After setup, the agents control their own speech, accusations, alliances, votes,
 
 Later versions also established relationships and shared experiences before roles were assigned. That created a behavioral baseline. Once the game started, sudden changes in tone, loyalty, or suspicion became more meaningful because the agents had something to deviate from.
 
-## What Broke & What I Learned
+### What Broke & What I Learned
 
 The first version was too artificial.
 
@@ -67,7 +60,7 @@ With almost no real information or consequences, agents began accusing players w
 
 The biggest lesson was that the agents became interesting only when the game became real to them. Private information, consequences, memory, and changing incentives mattered more than personality prompts.
 
-## Outcome
+### Outcome
 
 The experiment successfully demonstrated that AI agents can create surprisingly rich social-deduction dynamics when given real incentives, private information, history, and consequences.
 

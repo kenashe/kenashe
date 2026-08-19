@@ -1,19 +1,12 @@
----
-title: "Sir Pitches-a-Lot"
-status: "SHIPPED"
-date: "August 2026"
-stack:
-  - "HyperAgent"
-  - "Airtable"
-  - "Lucky Domains"
-  - "Prompt Engineering"
-  - "Founder-Led Sales"
-  - "Landing Pages"
-  - "Outbound Automation"
-summary: "A HyperAgent competition agent that researched an anonymized founder target, pitched Lucky Domains, and generated a personalized landing page campaign designed around one question: would they reply?"
----
+# Sir Pitches-a-Lot
 
-## The Goal
+**Status**: SHIPPED  
+**Date**: August 2026  
+**Stack**: HyperAgent, Airtable, Lucky Domains, Prompt Engineering, Founder-Led Sales, Landing Pages, Outbound Automation
+
+A HyperAgent competition agent that researched an anonymized founder target, pitched Lucky Domains, and generated a personalized landing page campaign designed around one question: would they reply?
+
+### The Goal
 
 The challenge was to build an agent that could create a mini outreach campaign for a matched target, not just write a single cold email.
 
@@ -25,7 +18,7 @@ That changed the project. The real challenge was not writing one good pitch. It 
 
 The campaign needed to feel specific, useful, credible, and founder-to-founder. It also needed to support more than email. Pages, videos, social media concepts, mini decks, visuals, teardowns, and useful artifacts were all valid ways to pitch the target.
 
-## What I Built
+### What I Built
 
 I built **Sir Pitches-a-Lot**, a reusable HyperAgent system prompt designed for an Airtable outreach competition.
 
@@ -45,7 +38,7 @@ Sir Pitches-a-Lot was designed to create a complete campaign package, including:
 
 The agent was built using the same structured prompt framework I have been using across agent experiments: identity, context, instructions, criteria, and examples.
 
-## How It Works
+### How It Works
 
 The agent workflow is:
 
@@ -61,7 +54,7 @@ Once it has a credible hook, the agent builds a narrow fit thesis around why Luc
 
 The creative asset is chosen based on what would most increase reply probability. The default preference is a teardown, audit, opportunity map, workflow map, or landing page rather than a generic product deck. In this run, the strongest format was a personalized landing page.
 
-## What Broke & What I Learned
+### What Broke & What I Learned
 
 The first version of the prompt over-produced.
 
@@ -77,7 +70,7 @@ It created a complete campaign report, but the win condition was not “who can 
 
 **The best CTA is low-friction.** A meeting request is expensive. A one-word reply to receive a teardown, mockup, map, or short walkthrough is much easier to answer.
 
-## Outcome
+### Outcome
 
 Sir Pitches-a-Lot shipped as a working HyperAgent competition agent.
 
