@@ -1,0 +1,56 @@
+---
+title: "LLM reward shaping without changing the goal"
+description: "A paper on hybrid RL agents argues that LLM feedback is safer when treated as bounded potential-based shaping, not as the reward itself, because the optimal policy can stay unchanged even when progress scores are wrong, with caveats for real systems."
+pubDate: 2026-08-19
+tags: ["reinforcement-learning", "llm-agents", "reward-shaping"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-19-llm-reward-shaping-without-changing-the-goal/hero.png
+  alt: "LLM reward shaping without changing the goal"
+sources:
+  - title: "Policy-Invariant Reward Shaping from LLM Feedback: A Framework for Hybrid RL Agents"
+    url: "http://arxiv.org/abs/2608.18008v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you want an LLM to help an RL agent, use it to shape progress signals around a fixed objective, not to become the objective.
+
+## What problem is this paper actually solving?
+
+The primary source here is the arXiv paper titled “Policy-Invariant Reward Shaping from LLM Feedback: A Framework for Hybrid RL Agents,” listed under cs.AI and cs.LG in the supplied material. No arXiv ID or author list was provided, so I will stick to the title.
+
+The paper targets a real tension in agent design: LLMs are good at giving semantic guidance, but reinforcement learning needs rewards that do not quietly rewrite the task. If an LLM says a state “looks closer” to the goal, that may be useful. It may also be wrong, vague, biased toward superficial progress, or inconsistent across prompts.
+
+The paper’s move is to separate planning guidance from the actual reward. It formalizes a hybrid setup where the LLM acts more like a planner or progress estimator, while the RL controller still optimizes inside a Markov decision process. More specifically, the paper frames this as a Goal-Augmented Markov Decision Process.
+
+The key claim: when the LLM’s per-state progress score is used as a bounded potential function, the shaping term preserves the optimal policy set. In plain English, the LLM can change the training landscape without changing which behavior is ultimately optimal.
+
+That is a big difference from “LLM as reward model,” where the model’s judgment becomes part of what the agent is optimizing. Once you do that, every error in the LLM can become an incentive.
+
+## Why does potential-based shaping matter?
+
+Reward shaping is an old trick. Sparse rewards make agents slow to learn, so we add intermediate signals. The trap is that badly shaped rewards create shortcuts. The agent learns the added signal instead of the task.
+
+Potential-based reward shaping tries to avoid that. Instead of handing out arbitrary bonuses, it gives rewards based on the change in a potential function between states. If the math is set up correctly, the agent may learn faster, but the optimal policy remains the same.
+
+That is the useful part of “Policy-Invariant Reward Shaping from LLM Feedback.” The paper is not saying LLM scores are magically accurate. It is saying that, under the bounded potential-function setup, even inaccurate LLM scores do not change the optimal policy set.
+
+That is the right kind of claim. Narrow. Formal. Testable.
+
+The numerical verification is also appropriately small. The paper reports experiments on a small MDP across four potential configurations, including an adversarial configuration scaled to twenty times the base reward magnitude. That is not proof this will work in messy robotics, web agents, or enterprise workflows. It is evidence that the theorem behaves as expected in a toy setting, even under a hostile potential signal.
+
+![an LLM-shaped progress signal flowing around, not replacing, a fixed reinforcement learning objective](../../assets/blog/2026-08-19-llm-reward-shaping-without-changing-the-goal/inline-1.png)
+
+## What should builders take from this?
+
+The practical lesson is architectural. Do not ask the LLM to be the judge, jury, and reward function unless you are comfortable optimizing for its mistakes.
+
+A better pattern is: define the real reward separately, then use the LLM to provide bounded shaping around that reward. The LLM can translate a goal into intermediate notions of progress. It can score whether a state appears closer to completion. It can help with curriculum, decomposition, or exploration. But the base objective stays anchored outside the model.
+
+This matters for agent products. A coding agent might get real reward from passing tests, while an LLM provides shaping on whether the current patch appears to address the failure. A browser agent might get real reward from task completion, while an LLM estimates whether the current page state is getting closer. A warehouse robot might use human-authored task success as the base reward, while a vision-language model gives progress hints.
+
+The catch is that the guarantee depends on the setup. The LLM score has to be used as a bounded potential function. The environment abstraction has to fit the assumptions. The paper verifies the idea numerically on a small MDP, not on a large production agent. If your “potential” is actually a hidden reward model with open-ended bonuses, you are back in reward hacking territory.
+
+For a builder, I would try this as a wrapper around an existing RL or agent loop: keep the success metric fixed, add an LLM progress score only as bounded shaping, then run ablations with the shaping removed, randomized, and adversarially perturbed. The thing most teams miss is not whether the LLM gives smart feedback. It is whether the system can stay correct when that feedback is dumb.
