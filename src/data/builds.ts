@@ -8,6 +8,9 @@ export type Project = {
   // Custom footer parts, rendered as `·`-separated meta with no "Shipped" key.
   // Used when a build's receipt isn't a ship date (e.g. an event line).
   footer?: string[];
+  // Detail write-up route (e.g. '/building/ai-werewolf/'). Cards with a link get a
+  // "Read the build" CTA; content lives in src/content/builds/.
+  link?: string;
 };
 
 // Days elapsed since an ISO date. Computed at build time - Vercel redeploys
@@ -22,6 +25,7 @@ export const projects: Project[] = [
     dek: 'Built a cast of 11 AI characters with distinct personalities, relationships, and hidden roles, then had them play a Traitors-style social deduction game where they form alliances, deceive, and vote each other out.',
     stack: ['HyperAgent', 'Claude Fable 5', 'Multi-Agent', 'Social Simulation'],
     shippedAt: 'Aug 2026',
+    link: '/building/ai-werewolf/',
   },
   {
     title: 'AI blog automation v2',
@@ -67,6 +71,7 @@ export const projects: Project[] = [
     dek: 'An agent with one job: pitch Lucky Domains to prospective clients. Built in an afternoon, pitched a real target live.',
     stack: ['HyperAgent', 'Airtable', 'Claude Opus 4.8'],
     footer: ['June 2026', 'Agent Battle Night', 'NY Tech Week'],
+    link: '/building/sir-pitches-a-lot/',
   },
   {
     title: 'AI blog automation v1',

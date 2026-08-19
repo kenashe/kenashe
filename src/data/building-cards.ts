@@ -9,6 +9,7 @@ const autonomousBlog: Project = {
   stack: ['GitHub Actions', 'n8n', 'Claude Opus 4.8', 'GPT-5.5', 'Gemini 3.1 Pro', 'pgvector'],
   shippedAt: 'Jun 2026',
   metric: 'runs daily',
+  link: '/building/autonomous-ai-blog/',
 };
 
 // The curated builds surfaced as cards (matches the prior Projects card set).

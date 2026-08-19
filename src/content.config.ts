@@ -33,4 +33,17 @@ const blog = defineCollection({
     }),
 });
 
-export const collections = { blog };
+// Build detail pages (/building/<slug>/). The markdown files are the canonical copy for
+// each project write-up; frontmatter carries the card-style metadata.
+const builds = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/builds' }),
+  schema: z.object({
+    title: z.string(),
+    status: z.enum(['LIVE', 'SHIPPED']),
+    date: z.string(),
+    stack: z.array(z.string()).min(1),
+    summary: z.string(),
+  }),
+});
+
+export const collections = { blog, builds };
