@@ -22,7 +22,7 @@ export const projects: Project[] = [
   {
     title: 'AI werewolf / social deduction lab',
     status: 'SHIPPED',
-    dek: 'Built a cast of 11 AI characters with distinct personalities, relationships, and hidden roles, then had them play a Traitors-style social deduction game where they form alliances, deceive, and vote each other out.',
+    dek: 'Built a cast of 9 AI characters with distinct personalities, relationships, and hidden roles, then had them play a Traitors-style social deduction game where they form alliances, deceive, and vote each other out.',
     stack: ['HyperAgent', 'Claude Fable 5', 'Multi-Agent', 'Social Simulation'],
     shippedAt: 'Aug 2026',
     link: '/building/ai-werewolf/',
