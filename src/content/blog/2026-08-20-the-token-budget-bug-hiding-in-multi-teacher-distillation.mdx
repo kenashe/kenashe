@@ -1,0 +1,72 @@
+---
+title: "The token-budget bug hiding in multi-teacher distillation"
+description: "Open-MOPD shows why merging several specialist RL models into one generalist student quietly starves short tasks like instruction following, and how rebalancing the token budget more than doubles the capability you actually recover."
+pubDate: 2026-08-20
+tags: ["distillation", "post-training", "open-source"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-20-the-token-budget-bug-hiding-in-multi-teacher-distillation/hero.png
+  alt: "The token-budget bug hiding in multi-teacher distillation"
+sources:
+  - title: "Open-MOPD: Diagnosing and Fixing Capability Imbalance in Multi-Teacher On-Policy Distillation"
+    url: "http://arxiv.org/abs/2608.19098v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: When you distill several domain-expert RL models into one student, the student learns mostly from whichever domain writes the longest answers, and fixing that token imbalance lifts recovered capability from 35.6% to 83.4% without changing your data or teachers.
+
+The primary source here is "Open-MOPD: Diagnosing and Fixing Capability Imbalance in Multi-Teacher On-Policy Distillation," posted to arXiv (cs.AI, cs.CL, cs.LG). It takes a technique that has been quietly working in industry labs, multi-teacher on-policy distillation, and does the unglamorous thing: builds a controlled benchmark, finds out where it breaks, and names the cause.
+
+That matters because M-OPD is one of the more practical ideas in post-training right now. You train separate RL experts, one for math, one for code, one for instruction following, and so on. Then you distill all of them into a single generalist student with dense, token-level reward supervision. One model to serve, many specialties inside it. Great in theory. The paper's finding is that the default version leaves most of the value on the floor.
+
+## Why does merging specialists lose so much capability?
+
+The headline number is stark. On a controlled setup using SmolLM3-3B-Base with oracle routing (meaning the routing problem is removed, so any gap is pure integration failure), standard M-OPD captures only 35.6% of the available headroom compared to a domain-routed oracle ensemble.
+
+Read that again. If your ceiling is what you'd get by perfectly routing each query to its dedicated expert, the naive merged student recovers about a third of the distance from base model to that ceiling. Two-thirds of the point of the exercise, gone.
+
+And it's not evenly distributed. The paper reports that concise tasks like instruction following suffer severe degradation and premature stagnation. The short-answer skills are the ones that collapse. That's the tell.
+
+![several full vessels of different sizes pouring into one shared container, with the smallest vessels barely contributing](../../assets/blog/2026-08-20-the-token-budget-bug-hiding-in-multi-teacher-distillation/inline-1.png)
+
+## Is the problem gradient conflict? No.
+
+Here's the part I find most useful, because it kills the intuitive explanation.
+
+The obvious guess is gradient conflict: math updates pull the weights one way, code another, instruction following a third, and they fight each other. That's the standard story for multi-task interference, and it would push you toward heavy machinery like gradient surgery or per-task adapters.
+
+The paper says that's not it. The failure "stems not from gradient conflict, but from a severe misallocation of the token-level optimization budget." The teachers aren't at war. The student is simply spending almost all of its learning on whoever generates the most tokens.
+
+Think about it mechanically. Token-level reward supervision means every token in an answer is a training signal. A math or code domain produces long chained answers, hundreds of tokens each. Instruction following often produces a short, correct response. If you pool them, the long-answer domains dominate the token count, so they dominate the gradient. The concise domain gets a rounding error's worth of the budget and stagnates. It's not conflict, it's a headcount problem where tokens are the votes.
+
+That reframing changes the fix entirely. You don't need to referee competing gradients. You need to rebalance who gets to speak.
+
+## What actually causes the imbalance?
+
+The paper decomposes it into three factors it calls orthogonal, meaning they stack rather than overlap:
+
+Structural sequence-length disparities across domains. The static version of the problem above: some domains just write longer.
+
+Dynamic convergence drift due to non-uniform learning rates. Domains don't learn at the same speed, so even a balanced starting allocation drifts out of balance as training proceeds. A domain that converges fast keeps consuming budget it no longer needs.
+
+Multi-step reward staleness from asynchronous policy updates. In on-policy distillation the student is a moving target. When policy updates are asynchronous, the reward signal a token was scored against can be several steps out of date, so you're partly optimizing against a stale picture of the student.
+
+I like that this is three distinct clocks, not one knob. Length is a property of the data. Convergence drift is a property of training dynamics over time. Staleness is a property of your update pipeline. You can fix each without touching the others, which is why the ablation story is credible rather than one lucky hyperparameter.
+
+![three separate dials feeding into a single balance beam, each dial a different mechanism nudging the beam toward level](../../assets/blog/2026-08-20-the-token-budget-bug-hiding-in-multi-teacher-distillation/inline-2.png)
+
+## How much does the fix recover, and at what cost?
+
+Open-MOPD introduces three mechanisms that map cleanly onto the three causes. Token-share balancing addresses the length disparity, making sure each domain gets a fair slice of the optimization budget rather than a slice proportional to how verbose it is. Gap-aware dynamic budget allocation addresses convergence drift, shifting budget toward domains still far from their ceiling instead of ones that already converged. Student reward refresh addresses staleness, keeping the reward signal current against the moving student.
+
+Together they lift headroom recovery from 35.6% to 83.4% in a single deployable student. Same teachers, same data, same base model. The gain comes from where the learning budget goes, not from more of anything.
+
+Two things keep me honest about this. First, the whole benchmark uses oracle routing on purpose, to isolate integration from routing ambiguity. That's good science, but it also means real deployments with imperfect routing will see a lower ceiling than the oracle ensemble. The 83.4% is recovery against a clean target, not a promise for a messy production stack. Second, this is a single base model, SmolLM3-3B-Base, at one scale. The mechanisms are general in principle, but the paper doesn't claim they hold at 70B or across radically different teacher mixes. Treat the specific numbers as evidence for the diagnosis, not a spec sheet.
+
+To their credit, the authors open-source the full end-to-end post-training recipe, training trajectories, and evaluation suites, and they emphasize an academically accessible hardware budget. That's the part that turns a nice result into something you can actually check.
+
+![a single small model containing several balanced compartments of equal size, contrasted against one lopsided compartment](../../assets/blog/2026-08-20-the-token-budget-bug-hiding-in-multi-teacher-distillation/inline-3.png)
+
+If you're doing any multi-teacher distillation, the immediate move is to instrument your token budget per domain before you touch anything else. Log how many training tokens each domain actually contributes and how that ratio drifts across the run. If your short-answer skills are the ones regressing, you almost certainly have the length-dominance problem this paper names, and the cheapest first fix is token-share balancing: give each domain a fair slice rather than a verbosity-weighted one. The catch most readers will miss is that these three causes stack, so balancing tokens alone gets you part of the way, then convergence drift and reward staleness eat the rest back over a long run. Fix one, re-measure, then decide if the other two are worth the plumbing. And remember the oracle-routing caveat: this tells you how good your integration can be, not how good your router is. Those are separate battles.

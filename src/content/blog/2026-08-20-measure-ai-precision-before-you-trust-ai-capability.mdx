@@ -1,0 +1,54 @@
+---
+title: "Measure AI precision before you trust AI capability"
+description: "The arXiv paper Grouping the Stochastic Machine argues that frontier model evaluation should measure output spread, not just average score. That framing is useful for builders deciding whether a failure needs a prompt rule, a workflow change, or a different model."
+pubDate: 2026-08-20
+tags: ["evals", "ai-reliability", "llmops"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-20-measure-ai-precision-before-you-trust-ai-capability/hero.png
+  alt: "Measure AI precision before you trust AI capability"
+sources:
+  - title: "Grouping the Stochastic Machine: Precision, Not Capability, as the Frontier Metric for AI Systems"
+    url: "http://arxiv.org/abs/2608.19140v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For real AI systems, the question is no longer just “can it do the task,” it is “does it do the task the same way every time I ask?”
+
+## What does “precision” mean for an AI model?
+
+The primary source here is the arXiv paper **“Grouping the Stochastic Machine: Precision, Not Capability, as the Frontier Metric for AI Systems,”** cross-listed in cs.AI and cs.LG. Its core argument is simple and useful: most AI evaluation still measures capability, while operators increasingly need to measure precision.
+
+The paper borrows from marksmanship. Capability is where the average shot lands. Precision is how tight the group is.
+
+That maps cleanly to language models. If you send the same request 20 times at the same settings, do you get 20 acceptable answers clustered around the target, or do you get a few great answers, a bunch of okay ones, and one weird miss that breaks production?
+
+Benchmarks tend to report central tendency. Mean score. Pass rate. Best-of performance. That was useful when models were obviously weak. But when top models can often land near the target, the average can hide the operational problem. Two systems can have similar headline accuracy and very different day-to-day behavior.
+
+For a builder, this is not academic. A flaky answer is not the same problem as a consistently wrong answer. If a model always misses the same way, you can often fix the workflow. Add a rule. Change the prompt. Add a checklist. Add retrieval. If it sprays outputs everywhere, you may be fighting the model or sampling setup itself.
+
+![a cluster of marks tightly grouped away from a center point beside a wider scattered cluster around another center point](../../assets/blog/2026-08-20-measure-ai-precision-before-you-trust-ai-capability/inline-1.png)
+
+## How would you measure this without making evals messy?
+
+The paper’s proposed method is refreshingly plain: run a fixed suite of deterministically scored tasks many times at fixed temperature, then compute consistency per task. No model-as-judge required.
+
+That matters. A lot of AI evals collapse under their own judgment layer. If the grader is another model, you now have two stochastic systems and one more place to argue about taste. Deterministic scoring is narrower, but cleaner. Did the answer include the required field? Did the code pass the test? Did the extraction match the known value? Did the agent complete the step?
+
+This will not cover every meaningful task. Many high-value AI jobs are fuzzy: drafting strategy, reviewing legal language, coaching a sales rep, finding an angle in research. But the paper’s point still holds. Start where scoring is clean, repeat runs, measure spread. Then use that as an operating signal.
+
+The strongest part of the frame is the diagnosis it enables. The paper separates failures into two buckets: “tight group off-centre” and “wide group.” A tight wrong group suggests a sight adjustment. The system has a stable behavior, just pointed at the wrong target. A wide group suggests a rifle problem. The system is inconsistent enough that small prompt rules may not save it.
+
+## What should builders take from the 0/5 to 5/5 result?
+
+The paper reports a first real run, later replicated, where one measured gap went from 0/5 to 5/5 after adding a single rule. That is the kind of result operators should care about. Not because 5 trials prove a universal law. They do not. But because it shows the right loop: find variance or a stable miss, apply one change, rerun the same test, check whether the grouping improved.
+
+The paper also reports a useful failure. A task suite authored from the rules themselves found no value, because a frontier model already reflected explicit good practice. That is an important anti-hype point. If you test models on rules they already know, you are not measuring your operating discipline. You are grading the model on the manual.
+
+Real evals need real work. Your support tickets. Your messy CRM notes. Your migration scripts. Your internal policy edge cases. Your actual failure logs.
+
+The catch is that precision can look boring. It will not produce the same marketing punch as “model beats benchmark X.” But it is closer to what decides whether an AI workflow survives contact with customers, coworkers, and cron jobs.
+
+Practitioner’s take: pick one workflow where AI already “usually” works, then build a small grouping harness around it. Freeze the prompt, model, temperature, and inputs. Run each case 10 or 20 times if cost allows. Score with tests or exact checks where possible. Separate stable misses from scattered misses. Fix stable misses with process rules. Treat scattered misses as a model, sampling, or architecture problem. The part most teams miss: do not build the eval from your own prompt rules. Build it from the work that actually bites you.

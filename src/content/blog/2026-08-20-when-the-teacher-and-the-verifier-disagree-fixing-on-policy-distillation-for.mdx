@@ -1,0 +1,62 @@
+---
+title: "When the Teacher and the Verifier Disagree: Fixing On-Policy Distillation for Long Context"
+description: "A new distillation method called GC-OPD blends token-level teacher guidance with response-level verifier rewards, lifting Qwen3-4B and Qwen3-8B on long-context reasoning benchmarks past what vanilla on-policy distillation delivers."
+pubDate: 2026-08-20
+tags: ["distillation", "long-context", "post-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-20-when-the-teacher-and-the-verifier-disagree-fixing-on-policy-distillation-for/hero.png
+  alt: "When the Teacher and the Verifier Disagree: Fixing On-Policy Distillation for Long Context"
+sources:
+  - title: "Beyond Teacher Likelihood: Group-Calibrated On-Policy Distillation for Long-Context Reasoning"
+    url: "http://arxiv.org/abs/2608.19181v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: On-policy distillation trusts a teacher model token by token, but on long-context tasks that teacher rewards locally plausible answers that miss evidence buried across the input, and a method called GC-OPD fixes it by folding in a task verifier's response-level score without throwing away the teacher's dense guidance.
+
+The paper is "Beyond Teacher Likelihood: Group-Calibrated On-Policy Distillation for Long-Context Reasoning," posted to arXiv across cs.AI, cs.CL, and cs.LG. Code is at github.com/SolereZhang/GC-OPD. It targets a specific failure mode most people training small models on long inputs have felt but not named.
+
+## What breaks in on-policy distillation over long context?
+
+Start with what on-policy distillation actually does. The student model generates its own responses, then a stronger teacher scores those responses token by token. Dense guidance, on the student's own distribution. It works well and it is a big reason small open models have gotten so much better at reasoning.
+
+The problem the authors diagnose is a mismatch. A teacher scoring token by token can love a response that reads well locally but skips evidence scattered across a long input, or quietly breaks a global constraint the task actually cares about. The teacher is grading fluency and local plausibility. It is not checking whether you aggregated the right facts from page 1 and page 40.
+
+A task verifier does the opposite. It looks at the whole response and asks: did this complete the task? It can hand back a graded reward that reflects partial success. The authors measured how these two signals line up on fixed responses from two long-context evidence-aggregation tasks. As input length grows, trajectory-level teacher scores drift further from verifier rewards. Teacher and verifier increasingly disagree the longer the context gets.
+
+![two evaluators looking at the same long document, one reading a single page closely while the other steps back to view a](../../assets/blog/2026-08-20-when-the-teacher-and-the-verifier-disagree-fixing-on-policy-distillation-for/inline-1.png)
+
+That is the crux. The signal you trust most in distillation gets least reliable exactly where long-context reasoning gets hard.
+
+## How does GC-OPD reconcile the two signals?
+
+The obvious moves are the ones the authors tested and beat. You could just add the verifier reward on top. You could add another term derived from the teacher. GC-OPD does something more careful.
+
+Group-Calibrated On-Policy Distillation normalizes two things separately within each rollout group: the verifier rewards and the trajectory-level teacher scores. Then it takes the difference between them. That difference is a signed residual, a measure of where the teacher and verifier disagree, and in which direction. Not "the verifier says this is good" but "the verifier thinks this is better than the teacher does, or worse."
+
+Then comes credit assignment, which is the part that matters for a token-level trainer. The residual lives at the trajectory level, one number for the whole response. You need to spread it across tokens. Their method, relative-advantage-based credit assignment (RACA), distributes the residual according to each token's relative OPD advantage, while keeping the original teacher signal intact. So the tokens the teacher already thought mattered most carry more of the correction.
+
+The design goal is worth stating plainly: incorporate the verifier's outcome-level judgment without discarding the teacher's dense per-token guidance. Most attempts to add outcome rewards to distillation trade one for the other. This keeps both.
+
+## Do the numbers hold up?
+
+Here is what they report across five long-context benchmarks. For Qwen3-4B, the official checkpoint's five-benchmark average goes from 29.08 to 40.47. For Qwen3-8B, from 35.12 to 44.65. Vanilla on-policy distillation, run under the same setup, reaches 39.31 and 43.56.
+
+So the honest read: vanilla OPD already does most of the work. It takes the 4B model from 29.08 to 39.31. GC-OPD adds another 1.16 points on top, to 40.47. On the 8B model, vanilla OPD gets to 43.56 and GC-OPD to 44.65, roughly a point better.
+
+![a baseline bar rising steeply to a taller bar, then a small additional segment stacked on top representing the increment](../../assets/blog/2026-08-20-when-the-teacher-and-the-verifier-disagree-fixing-on-policy-distillation-for/inline-2.png)
+
+That is not a headline-grabbing delta, and I want to be clear about it rather than dress it up. The story is not "GC-OPD doubles performance." The story is "vanilla OPD is strong, and this is a clean, principled increment on top of it that consistently helps rather than hurts." In post-training, methods that add a point without breaking anything and generalize across model sizes are genuinely useful. Most ideas do not clear that bar.
+
+The ablations are where the argument gets its weight. The signed residual beat both alternatives: adding an extra teacher-derived term, and adding the group-normalized verifier reward directly. And RACA beat spreading the residual uniformly across tokens. Those two comparisons are what separate a real mechanism from a lucky hyperparameter. The claim that the residual formulation specifically is doing the work, not just "we added a verifier," is the part I find convincing.
+
+## What should a practitioner take from this?
+
+One caveat before the takeaway: everything here rests on having a task verifier that returns graded rewards. Evidence-aggregation tasks over long documents are a good fit because you can check whether the right facts got pulled. If your task has no cheap, reliable verifier, the whole premise collapses and you are back to trusting the teacher. This is a method for domains where you can score outcomes programmatically, not a universal upgrade.
+
+Also worth noting: the gains are reported on Qwen3-4B and Qwen3-8B against a single teacher setup. I would want to see it hold on a different model family and a stronger teacher before calling it a law rather than a result. The mechanism is sound; the breadth is not yet proven.
+
+If you are distilling a small model for long-context work, the practical move is to first run vanilla on-policy distillation and get your verifier plumbing right, because that is where most of the lift lives and GC-OPD needs the verifier anyway. Then layer in the group-calibrated residual and check the ablation for yourself: does the signed residual beat just adding the verifier reward on your data? The code is public, so this is a comparison you can actually run, not just cite. The catch most readers will miss is that the residual, not the verifier, is the idea. Bolting a reward onto distillation is old news. Measuring where teacher and verifier disagree, and correcting only that gap while leaving the teacher's confident tokens alone, is the part worth stealing.

@@ -1,0 +1,56 @@
+---
+title: "Exact recourse for boosted trees starts at the leaves"
+description: "A paper on gradient-boosted ensembles reframes leaf values as coordinates, making contrastive explanations exact enough for audit math and more honest about which recourse steps a person can actually take in credit-style decisions."
+pubDate: 2026-08-20
+tags: ["explainability", "tabular-ai", "recourse"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-20-exact-recourse-for-boosted-trees-starts-at-the-leaves/hero.png
+  alt: "Exact recourse for boosted trees starts at the leaves"
+sources:
+  - title: "Leaf Values as Coordinates: Exact Contrastive Explanation for Gradient-Boosted Ensembles"
+    url: "http://arxiv.org/abs/2608.19127v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For gradient-boosted ensembles, the cleanest explanation may not be another explainer at all, but the model’s own leaf values treated as coordinates.
+
+## What changes when leaf values become coordinates?
+
+The primary source here is the arXiv cs.AI/cs.LG paper “Leaf Values as Coordinates: Exact Contrastive Explanation for Gradient-Boosted Ensembles.” Its core move is simple and useful: a gradient-boosted ensemble predicts by summing one leaf value from each tree, so treat those leaf values as coordinates.
+
+That turns each instance into a point in an M-dimensional space, where M is the number of trees. The model score is just the sum of those coordinates.
+
+This matters because contrastive explanation usually gets messy. You want to know why one applicant was rejected while another was accepted. Feature explanations often approximate. They fit a local surrogate, sample around a point, or assume additive behavior in the original feature space. Sometimes that is good enough. Sometimes it is theater with decimals.
+
+This paper says the additivity is already exact, just not in the feature space people usually inspect. If two applicants land in the same leaf for a given tree, that coordinate contributes nothing to the difference between them. If they land in different leaves, that coordinate carries part of the score gap. Each contributing coordinate can be traced back to a real split in a real tree.
+
+That is a better audit primitive than “feature X mattered 0.18.” It gives you arithmetic you can re-check.
+
+![two similar applicant silhouettes branching through a small forest of decision trees, with only a few leaf paths glowing](../../assets/blog/2026-08-20-exact-recourse-for-boosted-trees-starts-at-the-leaves/inline-1.png)
+
+## Why does exactness matter for recourse?
+
+The paper reports that its recourse recommendation reconstructs the model’s own decision to 6.2 x 10^-15 across five tabular datasets under repeated cross-validation. That is basically numerical roundoff territory.
+
+The important part is not that the number is tiny. The important part is what it enables. An auditor can verify the explanation without rerunning the full model. The explanation is not “trust this explainer.” It is “sum these leaf-value differences.”
+
+That fits the real problem with recourse. A rejected person does not need a philosophical essay about model behavior. They need to know what would have changed the decision, and whether that recommendation is possible.
+
+The paper makes a sharp point here. Standard evaluations can reward recommendations that are not actionable. Change your age. Undo a settled delinquency. Edit something that is historical, fixed, or outside your control. That kind of recourse may look valid in a benchmark but fail in life.
+
+When the paper restricts recommendations to changes the subject could actually make, its method retains 58% validity, while the strongest baseline retains 41%. That gap is more interesting than a generic accuracy win because it tests the part of recourse that usually gets hand-waved: can the person do the thing?
+
+On the credit datasets, the method is reported as Pareto-non-dominated on effort against realism. I read that as a practical signal, not a victory lap. It suggests the method is competitive without hiding effort behind unrealistic edits.
+
+## Where is the catch?
+
+The catch is that this is exact for the model, not necessarily exact for the world.
+
+If the boosted ensemble learned a bad policy, this representation will explain the bad policy faithfully. If the training data encodes unfair patterns, the leaf-coordinate view will not clean that up. If the actionability constraints are incomplete, the recourse can still recommend steps that look possible in a dataset but are hard in practice.
+
+Still, this is a useful direction because it reduces one layer of ambiguity. For boosted ensembles, we do not need to pretend every explanation has to be a second model wrapped around the first. Sometimes the model already contains the explanation, if you choose the right space to read it in.
+
+I would try this first in any high-stakes tabular workflow already using gradient-boosted ensembles: credit, eligibility, churn intervention, fraud review, underwriting triage. Export the leaf indices and leaf values, compute contrastive gaps between declined and accepted cases, then layer on a strict actionability schema before showing recommendations to anyone. The catch most teams miss is that “valid counterfactual” and “usable recourse” are different products. This paper gives you better math for the first one, but you still have to build the second one honestly.
