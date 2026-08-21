@@ -1,0 +1,70 @@
+---
+title: "When a Zero-Shot LLM Ties a Random Forest on Travel Behavior"
+description: "A three-agent workflow for travel behavior research shows local LLMs matching a tuned random forest on weather-sensitive mode choice, with prompt framing and vision context nudging accuracy past 71%. What that parity actually means for builders."
+pubDate: 2026-08-21
+tags: ["agents", "llm-evaluation", "applied-ai", "ai-agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-21-when-a-zero-shot-llm-ties-a-random-forest-on-travel-behavior/hero.png
+  alt: "When a Zero-Shot LLM Ties a Random Forest on Travel Behavior"
+sources:
+  - title: "An Agentic Approach for Active Data Collection, Travel Behavior Modeling, and Weather-Sensitive Demand Prediction"
+    url: "http://arxiv.org/abs/2608.20320v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A locally-run LLM matched a trained random forest on predicting how commuters choose to travel in different weather, without any task-specific fitting, which is a real result and also a smaller one than "LLMs beat ML" makes it sound.
+
+The paper is "An Agentic Approach for Active Data Collection, Travel Behavior Modeling, and Weather-Sensitive Demand Prediction," posted to arXiv under both cs.AI and cs.CL. It does something more interesting than the usual "we plugged GPT into a pipeline" writeup. It builds a three-agent workflow that runs the whole loop: collect the data, structure it, then predict behavior. And it benchmarks nine local models against classic methods on the same task. The headline numbers are close enough that they force a real question about when you reach for a language model versus a boring, reliable classifier.
+
+## What did the workflow actually do?
+
+Three agents, each with a job. One agent ran a chatbot-administered survey, image-augmented, asking student commuters how they would travel across five predefined weather scenarios. That produced 454 respondent-scenario observations. A second agent handled structured data processing. A third did behavioral prediction.
+
+The prediction task was five-class mode choice. Not "will it rain," but which travel mode a commuter picks given the weather they were shown.
+
+On the modeling side the authors ran a multinomial logit model for the weather associations, the standard tool in travel behavior research, plus logistic regression and random forest as machine-learning benchmarks. Then they threw nine locally deployed LLMs at the same task, ranging from 2 to 35 billion parameters, across four zero-shot prompt-and-context conditions, and extended those with persona, few-shot, and vision configurations.
+
+The word doing a lot of work here is "auditable." Each stage is separable and inspectable. That matters more than the accuracy numbers, and I'll come back to it.
+
+![three linked agents forming a loop, one gathering, one sorting, one forecasting, feeding back into a single flow](../../assets/blog/2026-08-21-when-a-zero-shot-llm-ties-a-random-forest-on-travel-behavior/inline-1.png)
+
+## Did the LLM really beat the random forest?
+
+Not really. It tied it, which is the honest framing.
+
+Random forest hit 69.6% five-class accuracy. The best text-only zero-shot LLM reached 69.9%, with no task-specific fitting. That 0.3 point gap is noise on 454 observations. Anyone selling this as "LLMs surpass traditional ML" is rounding up hard.
+
+But tie is the interesting word. The random forest was trained on the data. The LLM was not. It read a prompt and predicted. Getting to parity with a trained classifier from a cold start, on a structured tabular-ish task that classical ML usually owns, is the actual finding. It tells you the model already carries useful priors about how people behave in bad weather, and you can extract them without a training run.
+
+The vision configuration pushed it further. Feeding the same weather images shown to respondents, the best vision-based setup reached 71.5%. So multimodal context added roughly two points over the text-only ceiling, at least for selected models. The authors are careful with that hedge, and so should you be. It worked for some models, not all.
+
+The prompt-engineering results are the part I'd actually save. Habitual travel information produced the most consistent gains. Expert framing generally beat Role-Play. Persona information was most useful specifically when habitual travel data was missing. Few-shot helped several models, with gains flattening after a small number of examples.
+
+Read those together and you get a usable rule: give the model the most predictive real feature you have (here, what the person normally does), and only reach for persona or role tricks to patch the gaps. The clever prompting is a substitute for missing data, not an upgrade over having the data.
+
+## So when should a builder pick the LLM?
+
+Here's where the tie stops being a curiosity and starts being a decision.
+
+If accuracy is a wash, everything else breaks the tie. And on everything else the random forest usually wins for a task like this. It's cheaper to run, deterministic, trivial to retrain, and it comes with feature importances you can defend to a stakeholder. A 35-billion-parameter model matching it is not a reason to swap in the 35B model. It's a reason to keep the random forest and note that the LLM is a viable fallback when you don't have training data yet.
+
+That last clause is the real use case. The LLM's edge is the cold start. New city, new survey, no labeled history: the zero-shot model gives you a working baseline on day one while you collect the data that will eventually train something cheaper and sharper. The persona-when-habitual-is-missing finding fits the same shape. Language models are strongest exactly where you're data-poor.
+
+![a scale balancing a small compact gear against a large glowing sphere, roughly level](../../assets/blog/2026-08-21-when-a-zero-shot-llm-ties-a-random-forest-on-travel-behavior/inline-2.png)
+
+The other honest limit: 454 observations, student commuters, five weather scenarios. This is a well-run study, not a deployment. Do not generalize "LLM matches RF" from a student mobility survey to your fraud model or your churn predictor. The finding is about a narrow, human-behavior-flavored task where the model's priors about people happen to be relevant. On tasks where the signal is in your proprietary data and nowhere in pretraining, the trained classifier will pull ahead and stay there.
+
+## Why the agent framing matters more than the accuracy
+
+Strip out the benchmark and what's left is the workflow, and I think that's the durable contribution.
+
+Most applied AI pipelines fuse data collection and modeling into one opaque blob. This one separates them into agents you can audit stage by stage: here's what the survey agent captured, here's how the processing agent structured it, here's what the prediction agent did with it. When a number looks wrong, you can find where it broke.
+
+![a pipeline drawn as three transparent glass boxes in a row, each one openable and inspectable](../../assets/blog/2026-08-21-when-a-zero-shot-llm-ties-a-random-forest-on-travel-behavior/inline-3.png)
+
+That's the pattern worth copying regardless of whether you use an LLM at the prediction step at all. Conversational, image-augmented data collection is genuinely easier to stand up than a traditional survey instrument, and it feeds a structured pipeline cleanly. The prediction model at the end is swappable. Logit today, random forest tomorrow, LLM when you're cold-starting. The architecture doesn't care.
+
+A builder should read this as a template with three plug-in points, not a claim that LLMs won at prediction. Steal the auditable three-stage structure. Use a chatbot to lower the cost of collecting stated-preference or intent data, especially with images in the loop. Then benchmark honestly at the prediction step: run your cheap classical model and the zero-shot LLM side by side on the same held-out set, and let the numbers, plus cost and interpretability, decide. The catch most people miss is direction of causation on the prompting tricks. Expert framing and personas looked like magic because they were filling holes in the input. Fix the input first, and half the prompt engineering quietly stops mattering.

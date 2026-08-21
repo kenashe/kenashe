@@ -1,0 +1,54 @@
+---
+title: "Self-improvement audits need a measured null"
+description: "The arXiv paper Phantom Gains shows how per-problem self-improvement claims can appear from noisy evaluation mechanics, not model learning, and why builders should compare against frozen controls before trusting acquisition, sharpening, or regression stories."
+pubDate: 2026-08-21
+tags: ["evals", "self-training", "model-auditing"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-21-self-improvement-audits-need-a-measured-null/hero.png
+  alt: "Self-improvement audits need a measured null"
+sources:
+  - title: "Phantom Gains: Auditing Self-Improvement Against a Measured Null"
+    url: "http://arxiv.org/abs/2608.20290v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you claim a model improved itself by gaining specific problems, you need to measure how many “gains” a frozen model appears to make under the same pipeline.
+
+## What goes wrong when you score problem-by-problem gains?
+
+Mean accuracy is blunt. Problem-level transition tracking feels sharper. Did the model solve a task it used to miss? Did it lose a task it used to solve? Did self-training create new capability, or just make existing skill more reliable?
+
+That sounds useful. It is also a trap.
+
+The arXiv paper “Phantom Gains: Auditing Self-Improvement Against a Measured Null” audits three rounds of rank-32 LoRA self-training on Qwen3-8B, then compares that to a frozen control passed through the identical pipeline. The key move is simple: ask what “improvement” looks like when no training happened.
+
+The answer is uncomfortable. The paper reports seven measurement failures, each capable of flipping a finding when the frozen control is absent. One of the most practical examples is a ledger built from a single greedy decode. That setup manufactured capability changes on an untrained model, largely due to inference batching. In other words, the evaluation surface moved even though the model did not.
+
+That matters because lots of AI eval work now lives at the transition level. Not just “score went up 2 points,” but “the model acquired X and lost Y.” The finer the claim, the more exposed it is to noise, batching artifacts, threshold effects, and multiple comparisons.
+
+![two identical frozen model paths entering separate evaluation machines, both producing scattered apparent gains and loss](../../assets/blog/2026-08-21-self-improvement-audits-need-a-measured-null/inline-1.png)
+
+## What did the measured null change?
+
+“Phantom Gains” looks at a statistic meant to separate acquisition from sharpening. The frozen control, which should not have acquired anything, still gets an expansion rate of 0.280. That is the whole problem in one number. A metric can sound semantically rich while assigning real-looking progress to a model that was not trained.
+
+The paper also tests the obvious patch: thresholding. Just demand a bigger change before counting a transition. But when that threshold is estimated across frozen comparisons already present in the design, the null remains non-zero. The artifact shrinks or shifts. It does not disappear.
+
+The replacement proposed in “Phantom Gains” is stricter: a per-problem exact test against a pooled baseline, with false-discovery-rate control. Under that audit, the paper reports no detections on any held-out replicate. The result does not change under different multiple-testing rules, error rates, or pool sizes.
+
+I do not read this as “all self-training is useless.” That would be too broad. The paper’s own matched ladder of arms gives a more specific result. External distillation improved problems the base model rarely reaches. Three forms of self-training did not. A regression rejects the idea that this asymmetry is just a side effect of distillation having a larger overall gain, with p < 10^-8.
+
+There is still a gray zone. On the smaller set of problems the base model never reaches, the paper says the evidence is inconclusive. That is a healthy sentence. It leaves room for future work without pretending a noisy ledger has settled the question.
+
+## What should builders do before claiming self-improvement?
+
+The operator lesson is not exotic. Run frozen controls through the same machinery. Same prompts. Same decoding setup. Same batching path. Same evaluation code. Same number of passes if you can afford it.
+
+Then score your favorite transition metric on the frozen model before you score it on the trained one. If your control “acquires” skills, your trained model has to clear that floor. If your control loses solved tasks, your regression story needs that floor too. “Phantom Gains” is blunt here: transition-level auditing needs a separately measured null for every statistic it reports.
+
+The catch is sample size. The paper says these nulls can come from baseline replicates a multi-arm study already owns, so they do not necessarily require new experiments. But it also says not from as few as most possess. That is the budget problem hiding under the methodological one.
+
+For builders, I would turn this into a release checklist. If you are testing self-training, synthetic data loops, reflection, agentic repair, or any workflow that claims the model teaches itself, do not ship the story on a single before/after decode. Add frozen replicas. Pool the baseline. Use per-item tests when the claim is per-item. Track corruption of already-solved tasks, not just wins on weak areas. The practical prize is not a prettier paper. It is knowing whether your loop created capability, moved noise around, or quietly broke what already worked.

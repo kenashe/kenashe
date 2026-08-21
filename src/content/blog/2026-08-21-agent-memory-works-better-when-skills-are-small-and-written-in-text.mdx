@@ -1,0 +1,52 @@
+---
+title: "Agent memory works better when skills are small and written in text"
+description: "The arXiv paper “Break It Down, Pass It On” gives agent builders a useful warning: saved skills are not automatically helpful, and the shape of the memory matters as much as retrieval."
+pubDate: 2026-08-21
+tags: ["agents", "llm-memory", "ai-research", "ai-agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-21-agent-memory-works-better-when-skills-are-small-and-written-in-text/hero.png
+  alt: "Agent memory works better when skills are small and written in text"
+sources:
+  - title: "Break It Down, Pass It On: Cross-Task Skill Transfer in LLM Agents"
+    url: "http://arxiv.org/abs/2608.20274v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you are building agent memory, store smaller text-based subtask skills and test their utility before letting retrieval steer real work.
+
+## What actually transfers between agent tasks?
+
+The primary source here is the arXiv cs.AI/cs.CL paper “Break It Down, Pass It On: Cross-Task Skill Transfer in LLM Agents.” Its core finding is simple and useful: agents do not get better just because they remember what they did before.
+
+That matters because a lot of agent product design assumes memory is mostly additive. Run a task, extract a lesson, save it, retrieve it next time. Sounds right. Often is not.
+
+The paper reports that task-level skills mostly reduce performance below a no-memory baseline. In plain English, saving a whole-task “lesson” can make the agent worse than if it remembered nothing. The memory becomes a confident wrong hint. It pulls the model toward a prior situation that looks relevant but does not fit the current task.
+
+Subtask-level skills did better on average. That tracks with how people reuse experience too. “When filling out a web form, check required fields before submitting” travels better than “book a flight from Boston to Austin on this specific site.” The first is portable. The second is a replay of yesterday’s context.
+
+The paper also finds text skills transfer better than code skills. That is interesting because builders often want memories to become executable artifacts. Code feels precise. But precision can make a remembered skill brittle. Text can carry intent, constraints, and adaptation space. For an LLM agent, that may be the better handoff format.
+
+![small reusable puzzle pieces flowing into different task-shaped containers while one large rigid block fails to fit](../../assets/blog/2026-08-21-agent-memory-works-better-when-skills-are-small-and-written-in-text/inline-1.png)
+
+## Why can memory make an agent worse?
+
+Bad memory is not neutral. It competes with the task prompt, the tool state, and the model’s own reasoning. Once retrieved, it becomes context the agent has to interpret. If it is too specific, it anchors the agent to the wrong environment. If it is too abstract, it becomes motivational wallpaper.
+
+“Break It Down, Pass It On” frames this through two properties: specificity and abstractness. Specificity measures how closely a skill matches real tasks. Abstractness measures how evenly its relevance spreads across tasks. Neither one alone predicts success. The combined effect does, and the paper proposes a “skill utility score” based on that combination.
+
+That is the part I would underline for operators. The useful claim is not just “subtasks good, task memories bad.” It is that skill memories can be inspected before execution. The paper says the score only needs the skills and task descriptions, not a live task run. That makes it a preflight check for an agent’s memory bank.
+
+This is also a good antidote to magical thinking around long-term agent memory. More stored experience can mean more surface area for contamination. Retrieval is not recall in the human sense. It is context injection. If the injected context is poorly shaped, the model pays for it.
+
+## How should builders change their agent memory design?
+
+I would treat agent memory less like a diary and more like a library of reusable operating moves.
+
+Do not save “completed task summaries” as the default memory object. Decompose the run into smaller moves: validation checks, search patterns, tool-use routines, recovery steps, formatting conventions, and decision rules. Then store them in natural language unless there is a strong reason to store executable code.
+
+Also, separate memory creation from memory admission. An agent can propose a skill after a task, but that does not mean the skill should enter the shared memory pool. Score it, compare it against expected task families, and reject memories that are either too narrow or too vague. This is boring infrastructure. It is also where agent quality will be won.
+
+The catch most readers miss: retrieval quality is downstream of memory shape. Better vector search will not save a memory bank full of oversized, overfit lessons. For builders, the next practical step is to audit 50 saved agent memories, split the big ones into subtask skills, rewrite code-like memories as text instructions, and add a utility check before those memories can affect production runs.

@@ -1,0 +1,52 @@
+---
+title: "IAR makes retrieval-free document QA less brittle"
+description: "The IAR post-training paper separates document injection, QA alignment, and general-skill recovery, showing a practical path for bounded corpora when RAG is too heavy, but it also clarifies why model memory is still a bad fit for fresh or disputed knowledge."
+pubDate: 2026-08-21
+tags: ["post-training", "rag", "model-memory"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-21-iar-makes-retrieval-free-document-qa-less-brittle/hero.png
+  alt: "IAR makes retrieval-free document QA less brittle"
+sources:
+  - title: "Inject, Align, Recover: Staged Post-Training for Retrieval-Free Document Knowledge Internalization"
+    url: "http://arxiv.org/abs/2608.20281v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: IAR is a useful pattern for baking stable document knowledge into a model, but it looks like a complement to RAG for bounded corpora, not a general replacement for retrieval.
+
+## When would you skip retrieval?
+
+Most production document QA systems use retrieval for a reason. Documents change. Citations matter. Users ask about edge cases. Retrieval gives the model a working memory at inference time, and it gives the operator something to inspect when answers go sideways.
+
+But retrieval is not free. It adds indexing, chunking, ranking, latency, permissions logic, context window pressure, and a whole second failure surface. If the corpus is fixed, bounded, and queried often, there is a real question here: should the model just learn it?
+
+The arXiv cs.AI/cs.CL paper “Inject, Align, Recover: Staged Post-Training for Retrieval-Free Document Knowledge Internalization” takes that question seriously. It studies document knowledge internalization, which means turning a fixed corpus into usable parametric knowledge for retrieval-free QA. In plain English: can the model answer about a known document set without being handed the documents at question time?
+
+That is not the same thing as asking a frontier model to memorize the internet. This is narrower and more operational. Think product manuals, policy binders, internal training docs, stable legal references, or a course pack. The upside is simpler inference. The risk is that memory gets stale, fuzzy, or mixed into the model’s general behavior.
+
+## What does IAR change about fine-tuning?
+
+The useful part of IAR is not “fine-tune harder.” It is the separation of jobs.
+
+Inject turns source documents into several learning objectives: continuation, rewrite, and instruction-conditioned reconstruction. That is document ingestion, but structured. Align then trains the injected model with answer-only QA supervision, so the model learns the behavior the user actually wants. Recover merges the domain-adapted model with the base instruction model to regain general ability that may have been damaged during domain adaptation.
+
+![three distinct document streams entering one model, then merging with a separate base model into a single balanced model](../../assets/blog/2026-08-21-iar-makes-retrieval-free-document-qa-less-brittle/inline-1.png)
+
+That Recover step is the important operator insight. Fine-tuning often works until it quietly makes the model worse at everything else. The IAR paper reports that across Common Corpus and CCI, and across Llama, Phi, Qwen, and SmolLM model families, IAR improved the domain-primary and domain-general frontier for retrieval-free document internalization.
+
+The headline numbers are modest in one place and large in another, which feels believable. In the main comparison, IAR improved over Vanilla SFT on all four reported metrics in 7 of 8 dataset-model settings. It reports average gains of 3.6 percentage points in domain QA accuracy and 12.1 percentage points in mean general performance across IFEval, MMLU, and MSBench.
+
+That tells me the main win may be less about cramming more facts into the model and more about avoiding the usual fine-tuning tax. A model that answers your manual questions but forgets how to follow instructions is not a product improvement.
+
+## What should builders not overread?
+
+I would not read this as “RAG is dead.” The paper is about fixed corpora and retrieval-free QA. It does not make freshness, citation, authorization, or auditability disappear. If the answer needs to point to a paragraph, retrieval still has a strong case. If the corpus changes daily, internalization becomes an operations problem. If different users can see different documents, parametric memory can become a permissions headache.
+
+There is also a measurement gap that matters in real deployments. Domain QA accuracy is useful, but production systems fail in uglier ways: confident answers to unanswerable questions, stale policy recall, cross-document confusion, and inability to show provenance. The paper’s reported results make IAR worth testing, not blindly adopting.
+
+The comparison to LoRA and FAPM is also nuanced. “Inject, Align, Recover” reports that extended Common Corpus baselines show LoRA and FAPM can win individual general metrics. Among methods that also reach leading or near-leading domain internalization, IAR keeps one of the stronger general profiles. That is exactly the tradeoff practitioners face. You are rarely optimizing one score. You are trying not to break the rest of the assistant while making it useful on one corpus.
+
+For a builder, I’d test IAR-style staging on a small, stable, high-traffic corpus where retrieval feels heavier than the job demands. Start with an eval set that includes answerable questions, unanswerable questions, and general instruction-following checks before and after training. Compare against your current RAG path on latency, cost, refusal quality, and maintenance, not just accuracy. The catch most readers miss: baked-in knowledge is easiest to demo and hardest to govern, so use it where the corpus is stable and the failure mode is acceptable.
