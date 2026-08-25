@@ -1,0 +1,58 @@
+---
+title: "BPCO Brings the Critic Back to RL Fine-Tuning"
+description: "A new arXiv recipe called Best-Practice Critic Optimization argues a carefully trained critic can match GRPO on math reasoning while sampling one response per prompt, and it can peek at answers the policy never sees."
+pubDate: 2026-08-25
+tags: ["reinforcement-learning", "llm-training", "rlhf"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-25-bpco-brings-the-critic-back-to-rl-fine-tuning/hero.png
+  alt: "BPCO Brings the Critic Back to RL Fine-Tuning"
+sources:
+  - title: "How to Train a Critic Stably and Efficiently"
+    url: "http://arxiv.org/abs/2608.23566v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The paper "How to Train a Critic Stably and Efficiently" shows that a well-designed critic (their recipe, BPCO) can match or beat GRPO on math reasoning while sampling just one response per prompt, which cuts the rollout cost that makes group methods expensive.
+
+For the last two years the fashionable answer to "how do we do RL on language models cheaply" has been: skip the critic. GRPO and its cousins sample several responses per prompt, rank them against each other, and use that relative signal as the advantage. No value network to train, no extra instability to babysit. That simplicity is a big reason GRPO spread so fast through the reasoning-model world.
+
+The trade is that you pay in rollouts. If you need eight samples per prompt to get a usable group signal, you generate eight times the tokens. On long chain-of-thought problems, where each sample can run thousands of tokens, that gets expensive fast. So the interesting question is whether the critic everyone abandoned was actually bad, or just badly trained.
+
+## What is BPCO actually claiming?
+
+The primary source here is the arXiv paper "How to Train a Critic Stably and Efficiently," which cross-lists across cs.AI, cs.CL, and cs.LG, with code at github.com/QPHutu/golden_critic. Its core claim is narrow and testable: standard critic-based recipes for LLM RL are unstable, and that instability is a training-recipe problem, not a fundamental limitation of critics.
+
+Their fix is a bundle they call Best-Practice Critic Optimization, or BPCO. It combines five specific choices: DPPO, value predictions bounded to the reward range, Monte Carlo value targets, unnormalized policy advantages, and length-adaptive generalized advantage estimation. None of those on its own is a headline. The argument is that the combination is what makes the critic stable enough to trust.
+
+And here is the payoff they report: across math reasoning tasks, with models from 1.5B parameters up to a 30B-A3B mixture-of-experts, BPCO consistently improves a strong critic-based baseline, and matches or exceeds a group-based baseline while sampling one response per prompt. One response, not eight. If that holds up, it's a real efficiency story, not a marginal one.
+
+![one branch splitting into many parallel paths versus a single branch guided by an internal compass, side by side as a co](../../assets/blog/2026-08-25-bpco-brings-the-critic-back-to-rl-fine-tuning/inline-1.png)
+
+## Why did people give up on critics in the first place?
+
+Worth being clear about the history so the claim lands in context. A critic is a value network that estimates how good a partial response is, token by token. In principle that's a richer signal than a group ranking: instead of "this whole answer scored better than that whole answer," you get "the advantage started going wrong around here." That token-level credit assignment is the classic reason to want a critic.
+
+The problem was practically everyone who tried it on large models hit instability. Value estimates drift, blow up, or collapse, and the policy chases a moving and unreliable target. GRPO sidestepped the whole mess by never training a value function at all. So the field's revealed preference was "critics are more trouble than they're worth."
+
+BPCO's response is essentially: you were doing it wrong, and here is a controlled study to prove which parts matter. The paper says it runs ablations that isolate the effect of each design choice. That matters more than the top-line number. A recipe that only works as an all-or-nothing bundle is hard to trust and hard to adapt. Ablations that show which pieces carry the weight are what let other teams reproduce it and drop the parts that don't fit their setup. I'd read the ablations before the benchmark table.
+
+## What does conditioning the critic on hidden info buy you?
+
+This is the part I find genuinely clever, and it's easy to miss. Because the critic is only used during training and thrown away at inference, you can feed it information the policy never sees. The paper conditions the critic on reward-defining information like a reference answer or a grading rubric.
+
+Think about what that does. The critic's job is to predict value. If it secretly knows the correct answer or the rubric while scoring a rollout, its value estimates get sharper without leaking anything into the deployed model. The policy still has to solve the problem blind. You've essentially given the coach the answer key while keeping the student honest.
+
+![a coach holding a hidden reference sheet while a student works a problem without seeing it](../../assets/blog/2026-08-25-bpco-brings-the-critic-back-to-rl-fine-tuning/inline-2.png)
+
+The paper reports this same recipe also improves learning with rubric-based rewards, which is where a lot of real applied RL is heading. Math has clean, checkable answers. Most tasks worth fine-tuning for (writing quality, code review, agent behavior) don't. They get graded against rubrics. A critic that can be conditioned on the rubric during training, without that rubric ever reaching the policy, is a natural fit for that world. That's the direction I'd watch, more than the math benchmarks.
+
+## How much should an operator trust this yet?
+
+Be honest about the limits. Everything above comes from one paper's own reporting. The three sources here are the same paper cross-listed across arXiv categories, so this is one result, not three independent confirmations. The evaluation is math reasoning. "Matches or exceeds a group-based baseline" depends entirely on how strong that GRPO baseline was tuned, and the paper is the one grading its own comparison. None of that is disqualifying. It just means this is a promising recipe, not a settled verdict.
+
+The efficiency claim is the thing to verify first. Sampling one response instead of many is a large compute saving on paper, but training a critic has its own cost: an extra network, extra memory, extra tuning. The real question is total cost to a target quality, and whether the critic's overhead eats the rollout savings. The paper's framing suggests it doesn't, but that's exactly the number an outside team should measure independently.
+
+Practitioner's take: if you're running GRPO-style fine-tuning and your rollout budget is the bottleneck, this is worth a controlled bake-off. Clone golden_critic, reproduce one of their math results to confirm the recipe is stable in your stack, then run your own head-to-head: BPCO at one sample per prompt versus your current GRPO at whatever group size you use, measured on wall-clock cost to reach the same eval score. The catch most people will miss is that the interesting win probably isn't math. It's rubric-conditioned rewards, where you can hand the critic the grading criteria during training and keep the deployed policy honest. That's the setup for tasks without clean answer keys, which is most of the ones you actually care about. Test the critic-with-hidden-rubric path on a real task of yours before you decide whether critics are back for good.

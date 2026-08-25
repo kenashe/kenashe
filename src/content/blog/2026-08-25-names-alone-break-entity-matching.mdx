@@ -1,0 +1,50 @@
+---
+title: "Names Alone Break Entity Matching"
+description: "MHER shows why historical entity reconciliation fails when models rely on names and transliteration, and why source-grounded evidence is the real unit of identity for builders working with messy archives, records, and knowledge graphs."
+pubDate: 2026-08-25
+tags: ["historical-nlp", "benchmarks", "entity-resolution"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-25-names-alone-break-entity-matching/hero.png
+  alt: "Names Alone Break Entity Matching"
+sources:
+  - title: "When Names Cross Scripts: A Source-Grounded Benchmark for Historical Entity Reconciliation in the Mongol World"
+    url: "http://arxiv.org/abs/2608.23507v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If your entity matching system treats names as the main evidence, it will confidently merge people who should stay separate, especially across scripts, languages, and historical sources.
+
+## What does MHER actually test?
+
+The primary source here is the arXiv cs.AI/cs.CL paper, “When Names Cross Scripts: A Source-Grounded Benchmark for Historical Entity Reconciliation in the Mongol World.”
+
+The problem is simple to state and hard to solve: historical people show up under different names, scripts, transliterations, and documentary traditions. Sometimes one person has many surface forms. Sometimes two different people have the same or nearly the same name. A string matcher sees similarity. A historian asks, “similar according to which source, in which context, tied to which event?”
+
+MHER, the benchmark introduced in the paper, tries to force that second question. It contains a balanced 396-pair Name-only core covering 84 primary historical persons, plus a stricter 160-pair Source-grounded subset built from mention-by-source evidence. The splits are entity-disjoint, which matters. If the same person leaks across train and test, the benchmark becomes memory, not reconciliation.
+
+The useful move is the contrast between Name-only input and Source-grounded input. Across five generative systems, correctly source-grounded evidence improved paired test accuracy by 12.96 to 94.44 percentage points over names alone. That is not a rounding error. That is the task changing from “guess from a label” to “reason from provenance.”
+
+![two nearly identical name cards splitting apart when connected to separate stacks of historical documents](../../assets/blog/2026-08-25-names-alone-break-entity-matching/inline-1.png)
+
+## Why are names sometimes harmful?
+
+The paper’s sharpest result is not just that context helps. It is that names can actively hurt.
+
+On five identical-surface, different-person cases, all models failed with names alone: 0 correct out of 25 model-item decisions. With source-grounded evidence, the systems got 24 out of 25 correct, with the remaining output an abstention. That is exactly the behavior you want in high-ambiguity identity work. Not heroic certainty. Evidence-sensitive resolution, with room to say “I do not know.”
+
+The Qwen3-8B result is the warning label. The MHER researchers report that restoring surface names converted ten otherwise correct Context-only distinctions into false identity merges. In plain English: the model had enough contextual signal to keep two people apart, then the name pulled it into the wrong answer.
+
+That should feel familiar to anyone who has built record linkage for customers, patients, vendors, citations, court records, or CRM contacts. Names are powerful anchors. They are also magnets for lazy merges. Add cross-script variation and historical transliteration, and the obvious match is often the trap.
+
+## What should builders take from historical NLP?
+
+MHER is framed around the Mongol world, but the lesson travels. Entity reconciliation is not a string problem with a little context attached. It is an evidence problem where strings are one feature, and sometimes a misleading one.
+
+The benchmark also gives a better pattern for evaluating LLM-based entity systems. Do not only ask whether the model can say “same person” or “different person.” Ask what happens when names match but sources conflict. Ask what happens when names differ but context aligns. Ask whether the system abstains when the evidence is thin. Ask whether adding a name makes the model worse.
+
+That last test is underrated. Most product teams assume extra fields help. MHER shows that extra fields can create false confidence when the model overweights a familiar surface form. A better reconciliation pipeline would separate candidate generation from evidence judgment. Use names to propose candidates, then require provenance, source descriptions, dates, locations, relationships, and event context before merging. Keep the original attestations visible. Do not collapse them too early into a single canonical entity.
+
+Practitioner’s take: if you are building entity resolution with LLMs, create an evaluation slice where names are identical but people differ, and another where names differ but the person is the same. Run the model with names, without names, and with grounded source evidence. The catch most teams miss is that a higher-context prompt is not enough if the system architecture still treats the name as the identity.
