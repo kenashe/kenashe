@@ -1,0 +1,58 @@
+---
+title: "Prefix Sliding bets most reasoning tokens are dead weight"
+description: "A new arXiv paper argues language models can throw away most of their intermediate reasoning tokens mid-thought, keeping only the prefix and a recent window, and still match performance while running 3x faster on long tasks."
+pubDate: 2026-08-27
+tags: ["test-time-scaling", "inference-efficiency", "reasoning-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/hero.png
+  alt: "Prefix Sliding bets most reasoning tokens are dead weight"
+sources:
+  - title: "Prefix Sliding for efficient test-time scaling"
+    url: "http://arxiv.org/abs/2608.26070v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A method called Prefix Sliding keeps only the instruction prefix and the last few thousand reasoning tokens, discards everything in between, and reports 3x faster inference at the same quality, which reframes long chain-of-thought as something you can run at bounded memory instead of ever-growing cost.
+
+The paper is "Prefix Sliding for efficient test-time scaling," posted to arXiv across cs.AI, cs.CL, and cs.LG, with code at github.com/Muennighoff/prefix-sliding. The core claim is blunt: most of the intermediate tokens a reasoning model generates stop mattering as it keeps reasoning, so retaining all of them in full attention is paying for memory you don't use.
+
+That is a bigger deal than it sounds. Test-time scaling, the idea that you get better answers by letting a model think longer, has a nasty cost curve. Attention over the full reasoning trace grows with length, so the hard problems that most need long thinking are exactly the ones that get prohibitively expensive to run. Prefix Sliding attacks that curve directly.
+
+## What is Prefix Sliding actually doing?
+
+The mechanism is simple enough to describe in a sentence. During generation, the model keeps two things in its context: the prefix (the original instructions and the tools it has available) and a sliding window of the last few thousand tokens (the reasoning it is currently working on). Everything in the middle gets dropped from memory.
+
+![a long ribbon where both ends stay solid and bright while the vast middle section fades out and dissolves](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-1.png)
+
+Compare that to the two obvious alternatives. Vanilla sliding window keeps only recent tokens and lets the original instructions fall out of view, which means the model can forget what it was asked to do. Summarizing intermediate tokens tries to compress the middle into a shorter form, which costs compute and can lose detail. The paper's ablations report that Prefix Sliding beats both. Keeping the prefix pinned is the load-bearing choice: the instructions and tool definitions are what the model needs to stay on task, and those live at the front, not in the middle of a rambling proof.
+
+The payoff is a memory cap. Because you never hold more than prefix plus window, total memory stays flat no matter how long the model reasons. That is the difference between a cost that blows up on hard problems and one that stays predictable.
+
+## Does throwing away tokens hurt accuracy?
+
+This is the claim to sit with, because it is counterintuitive. The paper's finding is that most intermediate reasoning tokens "lose importance as the model continues reasoning." If that is true broadly, retaining them was waste. If it is only true on the benchmarks tested, the method could quietly fail on tasks where the model genuinely needs to reference something it wrote 20,000 tokens ago.
+
+The authors report two regimes. Without any training, Prefix Sliding makes existing models roughly 3x faster while maintaining performance. That is the drop-in result, and it is the one most people will care about first. Then there is the training regime: applying Prefix Sliding during reinforcement learning lets the model scale to reasoning traces beyond a hundred thousand tokens and, they say, achieve better performance than not using it.
+
+I read that second result as the more interesting one and also the one to be more careful about. When you train with the constraint, the model learns to work within it: to front-load anything it needs to remember and to not depend on the discarded middle. That is a genuinely different thing from bolting the trick onto a model that was trained expecting full attention. The training version isn't just an efficiency hack, it's a different reasoning shape.
+
+![two paths climbing a slope, one dragging a growing heavy tail behind it, the other moving light and fast with a fixed sm](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-2.png)
+
+What the abstract does not give us, and what I'd want before trusting this on my own workloads, is the specific benchmark numbers, the model sizes, and how "maintaining performance" was measured. "Maintaining performance" is a phrase that hides a lot. Does it hold on multi-step tool use where the model has to recall a value from earlier? On tasks where the reasoning genuinely branches and needs to backtrack? The abstract asserts the wins; the paper body and the released code are where you'd confirm the edges. Treat the 3x-with-no-loss framing as the authors' reported result, not a settled fact, until someone reproduces it outside their setup.
+
+## Why does this matter for anyone running agents?
+
+Long-horizon agents are where this bites hardest. An agent that reasons, calls a tool, reads the result, reasons more, calls another tool, and repeats for hundreds of steps generates enormous traces. Under full attention every one of those steps stays in memory and keeps getting attended to, which is why long agent runs get slow and expensive in a hurry.
+
+Prefix Sliding maps cleanly onto that shape. The prefix holds your system prompt and tool definitions, which is exactly what an agent needs pinned. The recent window holds whatever it is doing right now. The stale middle, the tool call from 80 steps ago that already resolved, is the part you were probably paying to keep around for no reason.
+
+![a chain of small connected task blocks where only the first block and the last handful stay in focus while the long cent](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-3.png)
+
+The catch, and it is the same catch as above, is state. Some agent tasks really do need to reference a fact from far back: a value computed early, a constraint set at the start of a plan, a partial result. If that fact lives in the discarded middle rather than the prefix, sliding it out is a correctness bug, not an efficiency win. The honest version of this method for agents probably means being deliberate about what goes in the prefix, or writing durable state to external memory the model can re-read rather than trusting it to stay in the window.
+
+## Practitioner's take
+
+If you run reasoning-heavy or long-agent workloads, the no-training path is worth a direct test this week: pull the code from github.com/Muennighoff/prefix-sliding, run your actual hardest prompts through it, and measure both latency and answer quality against your normal full-attention baseline. The 3x speedup only matters if it holds on your tasks, and the only way to know is to run the ones where the model has to remember something inconvenient. The trap most people will fall into is trusting "maintains performance" as a global claim and shipping it, then getting silently worse answers on the exact hard, long-context cases the method was sold to help. So design your eval around recall: include prompts where the correct answer depends on a value stated early and referenced late. If Prefix Sliding holds there, you've found real free speed. If it breaks there, you've learned the shape of what to pin in the prefix, which is useful either way.

@@ -1,0 +1,60 @@
+---
+title: "Correct SQL answers can still hide broken agent work"
+description: "A correct answer is not enough for data agents; the useful reliability signal is whether the agent can replay and audit the computation that produced it, especially when structured systems need executable traces rather than fluent rationales that sound plausible but cannot be checked."
+pubDate: 2026-08-27
+tags: ["ai-agents", "evals", "data-systems"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-27-correct-sql-answers-can-still-hide-broken-agent-work/hero.png
+  alt: "Correct SQL answers can still hide broken agent work"
+sources:
+  - title: "Trace Integrity for LLM Data Agents: A Vision for Auditable Structured Reasoning in Real-World Systems"
+    url: "http://arxiv.org/abs/2608.26036v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Data agents should be judged less like chatbots and more like database operators, where the trace behind the answer has to be executable, replayable, and auditable.
+
+## What does a correct answer fail to prove?
+
+The arXiv cs.AI and cs.CL paper, “Trace Integrity for LLM Data Agents: A Vision for Auditable Structured Reasoning in Real-World Systems,” makes a simple but important argument: answer accuracy is not enough for structured-data agents.
+
+That sounds obvious until you look at how most agent evals still work. Ask a model a question over a database. Compare the final answer to a reference answer. Mark it right or wrong.
+
+Fine for a benchmark leaderboard. Dangerous for a production workflow.
+
+The paper’s key point is that a data agent can land on the right answer with the wrong computation behind it. Maybe it used the wrong column and got lucky. Maybe the SQL is invalid but the natural-language explanation sounds coherent. Maybe the final number matches because two mistakes canceled out. In a real reporting system, that is not success. That is a silent failure with a nice user interface.
+
+The paper calls this the Structure Gap: free-form reasoning does not reliably specify the operator-level program needed by real systems. I like that framing because it puts the problem in the right place. The issue is not that models cannot “reason.” The issue is that a sentence about reasoning is not the same thing as a valid query plan.
+
+![an answer bubble connected to a hidden tangle of broken database pipes, contrasted with an answer bubble connected to a ](../../assets/blog/2026-08-27-correct-sql-answers-can-still-hide-broken-agent-work/inline-1.png)
+
+## What is Trace Integrity?
+
+“Trace Integrity for LLM Data Agents” defines Trace Integrity as a reliability criterion for the computation behind an answer. The trace should be explicit, executable, schema-valid, operator-faithful, replayable, answer-consistent, and auditable.
+
+That is a mouthful, but the operating idea is clean: can another system, or a human reviewer, inspect the path from user intent to final answer and verify that it actually does what it claims?
+
+The paper proposes execution contracts as the artifact for this. These contracts bind the user’s intent to schema elements, operator plans, assumptions, executable queries, verification status, and the final answer. In other words, the agent does not just say, “I checked revenue by region.” It has to pin that claim to concrete tables, columns, operations, assumptions, and query outputs.
+
+This is where I think data agents need to move. Not more verbose chain-of-thought. Not prettier rationales. Contracts.
+
+A rationale is for persuasion. A contract is for inspection.
+
+The empirical demo on BIRD Mini-Dev is small but useful. Direct SQL, Operation Summary plus SQL, and Contract-First SQL reached answer accuracies of 20%, 22%, and 24%. Their Trace Integrity Pass Rates were 39%, 43%, and 40%. The paper also reports high CAIT Rates, Correct Answer / Invalid Trace, of 55%, 59.1%, and 45.8%.
+
+Those numbers should make builders uncomfortable. The headline is not that one prompting style wins. It does not, at least not cleanly from these figures. The headline is that answer accuracy, trace validity, and silent-failure risk are measuring different things.
+
+## Why does this matter for real data agents?
+
+Most business users do not ask data agents toy questions. They ask things like, “Which accounts are most at risk this quarter?” or “Why did margin drop in the Northeast?” Those answers drive forecasts, staffing, pricing, and customer calls.
+
+If the agent gives a plausible answer with a rotten trace, the user may never know. Worse, the agent might pass your answer-only test suite.
+
+That is the trap this paper usefully names. Benchmarks reward final outputs. Operators need reproducible work.
+
+For builders, the move is practical: add trace checks before you add more agent autonomy. Require generated SQL or tool calls to be executable. Validate schema references. Store assumptions. Link every final claim to a query result. Track a CAIT-like metric in your own evals: cases where the final answer looks right but the computation should have failed review.
+
+The catch most readers miss is that trace integrity may reduce the apparent magic of the product. Good. A data agent that sometimes says, “I cannot support that answer from this trace,” is less dazzling than one that always replies. It is also much closer to something you can put near finance, analytics, ops, or customer data without pretending vibes are verification.
