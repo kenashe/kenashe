@@ -59,8 +59,17 @@ const q = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 // MDX parses `{ }` as JS expressions and `<Word` as JSX, so machine-generated prose that
 // carries LaTeX (e.g. $x_{\min}$) or "a<b" can break the build. Escape those to literals
 // OUTSIDE fenced/inline code (where braces are legitimate and must be preserved).
+//
+// Braces are NORMALIZED, not just escaped: models sometimes emit LaTeX-style `\{` already,
+// and blindly prefixing another backslash turns it into `\\{` — an escaped backslash
+// followed by a RAW brace, which MDX parses as an expression again (took down the
+// 2026-08-27 deploy). Stripping every backslash run before a brace and re-escaping once
+// makes the transform idempotent: exactly one backslash before every brace, always.
 function escapeMdx(seg: string): string {
-  return seg.replace(/[{}]/g, (c) => `\\${c}`).replace(/<(?=[A-Za-z])/g, '&lt;');
+  return seg
+    .replace(/\\+([{}])/g, '$1')
+    .replace(/[{}]/g, (c) => `\\${c}`)
+    .replace(/<(?=[A-Za-z])/g, '&lt;');
 }
 export function sanitizeMdxBody(body: string): string {
   const parts = body.split(/(```[\s\S]*?```|`[^`]*`)/g);

@@ -66,6 +66,34 @@ test('sanitizeMdxBody escapes <Word but leaves comparisons alone', () => {
   assert.equal(sanitizeMdxBody('for n < 4 and 3<5'), 'for n < 4 and 3<5');
 });
 
+// --- 2026-08-27 deploy outage: model emitted LaTeX-escaped braces, sanitizer doubled them ---
+test('sanitizeMdxBody does not double-escape braces the model already escaped', () => {
+  assert.equal(sanitizeMdxBody(String.raw`$\min\{t^2, t\}$`), String.raw`$\min\{t^2, t\}$`);
+});
+
+test('sanitizeMdxBody collapses multi-backslash brace runs to a single escape', () => {
+  assert.equal(sanitizeMdxBody('a \\\\{b\\\\} c'), String.raw`a \{b\} c`);
+});
+
+test('sanitizeMdxBody is idempotent', () => {
+  const inputs = [
+    String.raw`constants $r_{\min}=10^{-6}$`,
+    String.raw`$\psi(\sqrt{T_r})$ and $\min\{T_r/4, \sqrt{2 T_r}\}$, where $\psi(t) = \min\{t^2, t\}$.`,
+    'plain prose with `{code}` spans',
+  ];
+  for (const s of inputs) {
+    const once = sanitizeMdxBody(s);
+    assert.equal(sanitizeMdxBody(once), once, `not idempotent for: ${s}`);
+  }
+});
+
+test('sanitizeMdxBody output never leaves a brace reachable by MDX', () => {
+  // an even number of backslashes before { means MDX sees a raw brace — that is the bug class
+  const nasty = String.raw`$\min\{a\}$ and \\{b\\} and {c} and \{d\}`;
+  const out = sanitizeMdxBody(nasty);
+  assert.ok(!/(?:^|[^\\])(?:\\\\)*[{}]/m.test(out), `raw brace reachable in: ${out}`);
+});
+
 test('sanitizeMdxBody preserves braces inside code', () => {
   assert.equal(sanitizeMdxBody('use `{a: 1}`'), 'use `{a: 1}`');
   assert.equal(sanitizeMdxBody('```\nx = {b: 2}\n```'), '```\nx = {b: 2}\n```');
