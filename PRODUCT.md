@@ -7,16 +7,26 @@ pipeline writes. Change code freely; change the things on this page deliberately
 
 ## Goal
 
-**The Lab** is Ken Ashe's public AI build log: daily notes and periodic deep-dives on AI,
-written from an operator's point of view. Ken is a digital marketer, CPA and PMP who ships
-agents, automations and AI-assisted web systems, and documents the receipts.
+kenashe.ai is Ken Ashe's site. Ken is an **AI application builder** (CPA, PMP) who ships
+agents, automations and AI-assisted web systems, and documents the receipts. Preferred title
+everywhere: *AI application builder*. Trust line:
+`AI application builder · CPA · PMP · Building with AI in public`.
 
-Two jobs the site does:
+**Job 1 of the site is credibility via shipped work, not daily discoverability via volume**
+(repositioned 2026-08). The surfaces, in order of importance:
 
-1. **Credibility artifact.** Demonstrate, in public and under a real name, that he ships and
-   understands this material.
-2. **Discoverability.** Be the source an LLM or search engine reaches for on the topics he
-   owns — not just for his name.
+1. **Building** — the canonical body of work: dated project write-ups with stacks and honest
+   failure notes. This is the funnel: the right visitor emails `hello@kenashe.ai` or looks at
+   Lucky Domains.
+2. **Writing** — rare, human-written essays. Everything there is by Ken's hand.
+3. **The Digest** (`/blog/`) — the autonomous publisher's archive. It is a *labeled subsystem*
+   and an exhibit of a system Ken shipped, not his editorial voice and not the public face of
+   the site. Every digest page carries a visible "automated" label and byline.
+
+Discoverability (LLMs/search reaching for the topics, not just the name) remains a goal, but
+it is served by the hubs, entity graph and measurement loop — not by presenting volume as a
+personal brand. **Nav and bylines must keep the human/machine split obvious**; do not rename
+the Digest back to "Blog" or restore it as the primary nav item.
 
 The second goal drives an unusual amount of the architecture: topic hubs, related-post
 linking, entity/provenance schema, `llms.txt`, and an AI-crawler-friendly `robots.txt`.

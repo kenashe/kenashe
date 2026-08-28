@@ -17,11 +17,13 @@ Two things in one repo:
 
 | | |
 |---|---|
-| **The site** (`src/`) | Astro 6 + Tailwind 4 + MDX, statically built, deployed on Vercel. ~544 posts. |
+| **The site** (`src/`) | Astro 6 + Tailwind 4 + MDX, statically built, deployed on Vercel. Ken's brand surfaces (home, Building, Writing, hubs) plus the Digest archive (600+ machine-published posts). |
 | **The pipeline** (`pipeline/`) | A TypeScript job that runs daily on GitHub Actions: reads ~36 AI feeds, clusters them into stories, de-duplicates against everything already published, writes and self-reviews posts with LLMs, generates images, commits the MDX, and triggers a deploy. |
 
-Nothing is hand-written day to day. The pipeline publishes autonomously; a human spot-checks
-via a Telegram digest.
+Since the 2026-08 repositioning, the machine-published feed is presented as the **Digest**
+(`/blog/`), labeled automated on every page; Ken's own surfaces (Building, Writing) lead.
+Do not "fix" the Digest back into a personal "Blog" — the split is deliberate (PRODUCT.md).
+The pipeline publishes autonomously; a human spot-checks via a Telegram digest.
 
 ## Prerequisites
 

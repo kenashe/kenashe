@@ -6,6 +6,8 @@
 
 A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
 
+**Update, August 2026:** the public feed this system publishes is now labeled as the machine-published Digest (/blog/) and is no longer the front door of the site. The system itself remains the exhibit. Publishing can be paused at any time with the `PIPELINE_ENABLED` repository variable.
+
 ### The Goal
 
 I wanted a blog that could publish daily analysis of AI news under my real name, without me writing every post and without the output reading like AI slop.

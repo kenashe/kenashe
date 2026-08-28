@@ -66,6 +66,18 @@ plainly, and treat the next deploy as the real verification.
 - **Keep these docs current.** They are the durable memory. If you change behaviour, update
   the relevant file in the same commit — a future agent will have this repo and nothing else.
 
+## The human/machine content split (2026-08 repositioning)
+
+- `/blog/` is the **Digest**: everything in the `blog` content collection is machine-published.
+  The nav label is "Digest", the index and every post carry an "automated" banner and the
+  byline `KenAshe Digest (automated)`. Do not rename it back to "Blog" or soften the labels.
+- Human-written pages live at `/writing/` as **static pages**, deliberately outside the
+  content collection. There is NO `origin` frontmatter field, on purpose: adding one would
+  change `src/content.config.ts`, which is frozen ([D15](DECISIONS.md#d15)). Collection
+  membership IS the origin signal.
+- Post JSON-LD: `author` is the Organization "KenAshe Digest (automated)"; `publisher` stays
+  the canonical Person. Keep it that way.
+
 ## Things that look like bugs but aren't
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls
