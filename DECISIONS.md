@@ -73,6 +73,12 @@ Two separate bugs, both triggered by that one title:
 **Fixes (both in `publish.ts`, both permanent).**
 - `q()` escapes backslashes *first*, then quotes.
 - `sanitizeMdxBody()` escapes `{`, `}` and `<Word` **outside** fenced/inline code.
+- **(added 2026-08-28)** `sanitizeMdxBody()` *normalizes* braces rather than blindly
+  prefixing: models sometimes emit LaTeX-escaped `\{` already, and adding another
+  backslash produced `\\{` — an escaped backslash plus a RAW brace, which MDX parses as
+  an expression. That broke the 2026-08-27 deploy (acorn: "Expecting Unicode escape
+  sequence"). Every backslash run before a brace is now collapsed and re-escaped once,
+  making the transform idempotent; regression tests pin it.
 
 **Rule.** Ingested titles and model output are untrusted input for YAML and MDX. Never
 interpolate them raw. The sandbox cannot run `astro build` (npm is firewalled), so this
