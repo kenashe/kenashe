@@ -1,0 +1,58 @@
+---
+title: "CorporateBench and the Gap Between Demo Scale and Company Scale"
+description: "A new benchmark builds four fake companies with over 230,000 documents to test whether LLMs can actually reason across enterprise-scale communications, and the results get worse the more realistic the input gets."
+pubDate: 2026-08-28
+tags: ["benchmarks", "enterprise-ai", "long-context"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-28-corporatebench-and-the-gap-between-demo-scale-and-company-scale/hero.png
+  alt: "CorporateBench and the Gap Between Demo Scale and Company Scale"
+sources:
+  - title: "CorporateBench: Large-Scale Q&A Benchmarking with Temporal Knowledge Bases"
+    url: "http://arxiv.org/abs/2608.27391v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: CorporateBench builds four synthetic companies with more than 230,000 documents to test enterprise Q&A, and LLM accuracy drops as the input approaches the size a real company would actually throw at it.
+
+Most enterprise AI demos work because they cheat. You get a clean folder of a few dozen PDFs, a well-scoped question, and a model that looks like a genius. Then you point the same setup at a real company's shared drive, five years of Slack, and a wiki nobody has cleaned since 2021, and the magic thins out fast. The gap between demo scale and company scale is where a lot of pilots go to die.
+
+That gap is exactly what CorporateBench: Large-Scale Q&A Benchmarking with Temporal Knowledge Bases (arXiv, cross-listed under cs.AI, cs.CL, and cs.LG) is built to measure. Instead of another tidy synthetic dataset, the authors construct four fake firms, ranging from 12 to 10,000 employees, and generate corpora that top 230,000 documents. The headline finding is blunt: performance gets worse as input size approaches realistic scales.
+
+## Why is enterprise Q&A so hard to benchmark honestly?
+
+The core problem is access. Companies will not hand over internal communications for a public benchmark, for obvious legal and competitive reasons. So researchers have leaned on synthetic data, and the CorporateBench authors argue those datasets have been overly simple. A handful of documents, questions with one obvious answer, no real conflict between sources. Models ace those tests and everyone learns nothing about deployment.
+
+The clever move here is the temporally evolving knowledge base. Rather than writing documents one at a time and hoping they line up, the authors describe a consistent world that changes over time, then sample documents from it. That gives them cross-document logical consistency even across hundreds of thousands of documents. In plain terms: if a person got promoted in Q2, the org chart, the email signatures, and the meeting notes all agree on it, before and after. The world has a ground truth, so the benchmark can actually check whether the model reasoned correctly instead of just matching keywords.
+
+![a single coherent world at the center with many documents radiating outward, all consistent with each other](../../assets/blog/2026-08-28-corporatebench-and-the-gap-between-demo-scale-and-company-scale/inline-1.png)
+
+That consistency is the part that makes the benchmark trustworthy. A lot of "enterprise" evals fall apart because the synthetic documents quietly contradict each other, so a model that gets the "wrong" answer might actually be right about a broken dataset. Sampling from one internally consistent world sidesteps that.
+
+## What does CorporateBench actually test?
+
+Two dimensions, per the paper. Information extraction, which is pulling specific facts out of the pile. And knowledge base querying, which is closer to answering questions that require assembling facts across documents. Four firms of increasing size give you a difficulty gradient built from headcount rather than from artificially harder questions. A 12-person company generates a small, tractable corpus. A 10,000-person company generates the kind of sprawl where retrieval and reasoning both start to strain.
+
+This framing matters because it separates two failure modes that get blurred together in vendor pitches. A model can be great at extraction (find the number in this contract) and still fail at querying (which of our contracts renew before the reorg takes effect). Enterprise buyers usually want the second thing and get sold on the first.
+
+The benchmark is human-validated, which is worth flagging. Synthetic data plus automated scoring can produce a benchmark that measures its own generation quirks. Human validation is the check against that. The sources here are the abstract only, so I can't tell you the size or method of that validation, and I'd want the full paper before treating the validation as airtight.
+
+## What did the models actually score?
+
+Here is where I have to be careful, because the abstract gives the shape of the result without the numbers. The authors evaluated five LLMs and report increasingly poor performance as input size approaches realistic scales. That is the finding. Which five models, what the accuracy curves look like, where the cliff is: none of that is in the material I have. The three arXiv listings (cs.AI, cs.CL, cs.LG) are the same paper cross-posted, not three independent results, so there is no second data point to triangulate against.
+
+So treat "models degrade at scale" as the claim and wait on the specifics from the full paper.
+
+![a performance line sloping downward as a stack of documents grows taller beneath it](../../assets/blog/2026-08-28-corporatebench-and-the-gap-between-demo-scale-and-company-scale/inline-2.png)
+
+Even without the exact numbers, the direction is the useful part, and it lines up with what anyone running long-context retrieval already sees. Big context windows on the spec sheet do not translate to reliable reasoning across a real document mountain. The model that handles 30 documents cleanly starts dropping facts, confusing entities, or hedging when you feed it thousands. The "needle in a haystack" tests that vendors love tend to use one needle and a bland haystack. CorporateBench is closer to a haystack made of needles, where many documents are relevant and the answer depends on reconciling them over time.
+
+## What should a builder do with this?
+
+The practical read is a reason to be more skeptical of long-context marketing and more disciplined about your own evals. If you are shipping enterprise Q&A, the takeaway is not "models can't do this." It's that the test you run at pilot scale is lying to you about production scale, and you need to know where your own cliff is before a customer finds it for you.
+
+Concretely: build a scaled eval set that mirrors your real corpus size, not a demo slice. Include questions that require reconciling facts across time, because that temporal-consistency dimension is exactly where the paper suggests models struggle and it's exactly what "when did this change and what depended on it" business questions demand. Separate extraction accuracy from cross-document reasoning accuracy in your scoring, so you know which half is failing. And lean on retrieval architecture, chunking, and grounding rather than assuming a bigger context window solves it, because the paper's whole point is that dumping more in does not help.
+
+The catch most readers will miss: CorporateBench is synthetic on purpose, which is its strength (a checkable ground-truth world) and its limit at the same time. Real corporate data is messier, dirtier, and more contradictory than any consistent generated world, because real companies contradict themselves constantly. A model that stumbles on clean synthetic sprawl will not magically do better on your actual mess. If anything, the benchmark is the optimistic case. Plan for worse.
