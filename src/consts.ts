@@ -1,16 +1,21 @@
 export const SITE_URL = 'https://kenashe.ai';
-export const SITE_TITLE = 'Ken Ashe | AI Optimist';
-export const SITE_DESCRIPTION = 'Digital marketer. Building with AI.';
+export const SITE_TITLE = 'Ken Ashe | AI Application Builder';
+export const SITE_DESCRIPTION = 'AI application builder shipping agents, automations, and AI-assisted websites in public.';
 export const AUTHOR = 'Ken Ashe';
 
 // 1200x630 social card. JPEG/PNG render across all OG + Twitter consumers;
 // SVG does not (notably Facebook/LinkedIn), so the card ships as a raster.
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
+// Order is deliberate: the personal body of work leads; the autonomous digest is
+// labeled as such and never sits first. "About" points at the disclosure page, the
+// closest thing to an about page until a dedicated one exists.
 export const NAV: { label: string; href: string }[] = [
   { label: 'Building', href: '/building/' },
   { label: 'Topics', href: '/topics/' },
-  { label: 'Blog', href: '/blog/' },
+  { label: 'Writing', href: '/writing/' },
+  { label: 'Digest', href: '/blog/' },
+  { label: 'About', href: '/disclosure/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [

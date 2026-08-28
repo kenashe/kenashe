@@ -3,100 +3,85 @@ import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
+import { topics } from '../../data/topics';
 
+// Everything in the blog collection is the autonomous digest (see AGENTS.md: the
+// human lane lives at /writing/ as static pages, deliberately outside this collection).
 const all = await getCollection('blog', ({ data }) =>
   import.meta.env.PROD ? !data.draft : true,
 );
 const posts = all.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-// Tag counts, descending by count, then alpha.
-const tagCounts = new Map<string, number>();
-for (const p of posts) {
-  for (const t of p.data.tags ?? []) {
-    tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-  }
+// Full cards for the latest posts; the long tail collapses into a compact,
+// month-grouped archive so the index stops being one gigantic page of image cards.
+const RECENT = 30;
+const recent = posts.slice(0, RECENT);
+const archive = posts.slice(RECENT);
+const byMonth = new Map<string, typeof archive>();
+for (const p of archive) {
+  const key = p.data.pubDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const g = byMonth.get(key) ?? [];
+  g.push(p);
+  byMonth.set(key, g);
 }
-const tags = [...tagCounts.entries()].sort(
-  (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-);
-
-// Show the most-used tags inline; the long tail collapses behind a toggle and
-// lives on dedicated, crawlable pages at /blog/tags/<tag>/.
-const TOP_TAGS = 10;
-const primaryTags = tags.slice(0, TOP_TAGS);
-const extraTags = tags.slice(TOP_TAGS);
 ---
 
 <BaseLayout
-  title="Blog"
-  description="Practical guides, product tests, and ideas to help builders turn AI into real outcomes."
+  title="Digest"
+  description="Machine-published daily brief on AI systems, papers, and operator news. Built and owned by Ken Ashe. Not personally edited before publish."
   breadcrumbs={[
     { name: 'Home', path: '/' },
-    { name: 'Blog', path: '/blog/' },
+    { name: 'Digest', path: '/blog/' },
   ]}
 >
   <div class="page">
     <header class="page-header">
-      <p class="page-mark" aria-hidden="true">// blog</p>
-      <h1>Blog</h1>
-      <p class="tagline">Experiments, tools, and lessons from the AI frontier</p>
-      <p class="lede">Practical guides, product tests, and ideas to help builders turn AI into real outcomes.</p>
+      <p class="page-mark" aria-hidden="true">// digest</p>
+      <h1>Digest</h1>
+      <p class="lede">
+        Machine-published daily brief on AI systems, papers, and operator news. Built and owned by
+        Ken Ashe. Not personally edited before publish.
+      </p>
       <p class="rss">
         <a href="/rss.xml">RSS →</a>
       </p>
     </header>
 
+    <aside class="auto-note" aria-label="How this feed is made">
+      <p>
+        This feed is written and published by an autonomous system Ken built. He is the publisher
+        and is accountable for it. It is not a first-person build log.
+      </p>
+      <p class="auto-note-links">
+        <a href="/disclosure/">Disclosure</a>
+        <span aria-hidden="true">·</span>
+        <a href="/building/autonomous-ai-blog/">How the system works</a>
+      </p>
+    </aside>
+
+    <nav class="reading-path" aria-label="Start here">
+      <span class="reading-path-label">New here?</span>
+      <a class="reading-path-cta" href="/building/">Start with Building →</a>
+    </nav>
+
+    <nav class="filters" aria-label="Browse by topic">
+      <a class="filter" href="/blog/" aria-current="page">All <span class="count">({posts.length})</span></a>
+      {topics.map((t) => (
+        <a class="filter" href={`/topics/${t.slug}/`}>{t.title}</a>
+      ))}
+      <a class="tag-alltags" href="/blog/tags/">All tags →</a>
+    </nav>
+
     {
       posts.length === 0 ? (
-        <p class="empty">New writing coming soon.</p>
+        <p class="empty">New posts coming soon.</p>
       ) : (
         <>
-          {tags.length > 0 && (
-            <nav class="filters" aria-label="Filter posts by tag">
-              <button
-                class="filter"
-                type="button"
-                data-filter="__all__"
-                data-active
-                aria-pressed="true"
-              >
-                All <span class="count">({posts.length})</span>
-              </button>
-              {primaryTags.map(([tag, count]) => (
-                <button class="filter" type="button" data-filter={tag} aria-pressed="false">
-                  {tag} <span class="count">({count})</span>
-                </button>
-              ))}
-              {extraTags.map(([tag, count]) => (
-                <button
-                  class="filter filter-extra"
-                  type="button"
-                  data-filter={tag}
-                  aria-pressed="false"
-                  hidden
-                >
-                  {tag} <span class="count">({count})</span>
-                </button>
-              ))}
-              {extraTags.length > 0 && (
-                <button class="tag-more" type="button" id="tag-more" aria-expanded="false">
-                  +{extraTags.length} more
-                </button>
-              )}
-              <a class="tag-alltags" href="/blog/tags/">All tags →</a>
-            </nav>
-          )}
-
-          <p class="sr-only" id="filter-status" role="status" aria-live="polite">
-            Showing {posts.length} posts.
-          </p>
-
           <ul class="grid">
-            {posts.map((post) => {
+            {recent.map((post) => {
               const cls = post.data.image ? 'card has-image' : 'card no-image';
-              const tagStr = (post.data.tags ?? []).join('|||');
               return (
-                <li class="grid-cell" data-tags={tagStr}>
+                <li class="grid-cell">
                   <a href={`/blog/${post.id}/`} class={cls}>
                     <article>
                       {post.data.image ? (
@@ -137,66 +122,35 @@ const extraTags = tags.slice(TOP_TAGS);
               );
             })}
           </ul>
+
+          {archive.length > 0 && (
+            <section class="archive" aria-labelledby="archive-h">
+              <h2 id="archive-h">Archive</h2>
+              <p class="archive-sub">{archive.length} earlier posts, grouped by month.</p>
+              {[...byMonth.entries()].map(([month, group]) => (
+                <details class="archive-month">
+                  <summary>
+                    {month} <span class="count">({group.length})</span>
+                  </summary>
+                  <ul class="archive-list">
+                    {group.map((post) => (
+                      <li>
+                        <a href={`/blog/${post.id}/`}>
+                          <span class="archive-title">{post.data.title}</span>
+                          <FormattedDate date={post.data.pubDate} format="short" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </section>
+          )}
         </>
       )
     }
   </div>
 </BaseLayout>
-
-<script>
-  const ALL = '__all__';
-  const filters = document.querySelectorAll<HTMLButtonElement>('.filters .filter');
-  const cells = document.querySelectorAll<HTMLElement>('.grid > .grid-cell');
-  const status = document.getElementById('filter-status');
-
-  filters.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tag = btn.getAttribute('data-filter') ?? ALL;
-      filters.forEach((b) => {
-        b.removeAttribute('data-active');
-        b.setAttribute('aria-pressed', 'false');
-      });
-      btn.setAttribute('data-active', '');
-      btn.setAttribute('aria-pressed', 'true');
-
-      let shown = 0;
-      cells.forEach((cell) => {
-        const cellTags = (cell.getAttribute('data-tags') ?? '')
-          .split('|||')
-          .map((t) => t.trim())
-          .filter(Boolean);
-        const show = tag === ALL || cellTags.includes(tag);
-        cell.hidden = !show;
-        if (show) shown += 1;
-      });
-
-      if (status) {
-        const noun = shown === 1 ? 'post' : 'posts';
-        status.textContent =
-          tag === ALL
-            ? `Showing ${shown} ${noun}.`
-            : `Showing ${shown} ${noun} tagged ${tag}.`;
-      }
-    });
-  });
-
-  // Collapse the long tail of tag filters behind a toggle (progressive
-  // enhancement - the full set also lives at /blog/tags/).
-  const moreBtn = document.getElementById('tag-more');
-  if (moreBtn) {
-    const extras = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('.filters .filter-extra'),
-    );
-    moreBtn.addEventListener('click', () => {
-      const expanded = moreBtn.getAttribute('aria-expanded') === 'true';
-      extras.forEach((el) => {
-        el.hidden = expanded;
-      });
-      moreBtn.setAttribute('aria-expanded', String(!expanded));
-      moreBtn.textContent = expanded ? `+${extras.length} more` : 'Show fewer';
-    });
-  }
-</script>
 
 <style>
   .page {
@@ -470,4 +424,93 @@ const extraTags = tags.slice(TOP_TAGS);
     padding: 0.22rem 0.5rem;
     letter-spacing: 0.02em;
   }
+
+  /* --- digest labeling & archive (2026-08 repositioning) --- */
+  .auto-note {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.75rem;
+  }
+  .auto-note p {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: var(--fg);
+  }
+  .auto-note-links {
+    margin-top: 0.5rem !important;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+  .auto-note-links a { color: var(--accent); text-decoration: none; }
+  .auto-note-links a:hover { text-decoration: underline; }
+  .auto-note-links span { color: var(--muted); padding: 0 0.4rem; }
+  .reading-path {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  .reading-path-label { color: var(--muted); }
+  .reading-path-cta { color: var(--accent); text-decoration: none; }
+  .reading-path-cta:hover { text-decoration: underline; }
+  .filters a.filter,
+  .filters a.tag-alltags {
+    text-decoration: none;
+  }
+  .archive {
+    margin-top: 3.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 2rem;
+  }
+  .archive h2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.35rem;
+    color: var(--fg);
+  }
+  .archive-sub {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0 0 1.25rem;
+  }
+  .archive-month {
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 0;
+  }
+  .archive-month summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--fg);
+  }
+  .archive-month summary .count { color: var(--muted); }
+  .archive-list {
+    list-style: none;
+    margin: 0.75rem 0 0.4rem;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .archive-list a {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    text-decoration: none;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+  }
+  .archive-list a:hover .archive-title { color: var(--accent); }
+  .archive-title { color: var(--fg); }
 </style>
