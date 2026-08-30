@@ -1,0 +1,55 @@
+---
+title: "GLM, Qwen, and the messy reality of visual coding agents"
+description: "A LocalLLaMA test comparing Qwen 3.8 Flash Next and GLM 5.3 Flash is not a benchmark, but it highlights a useful pattern: for agentic coding, long-horizon visual fidelity can matter more than raw code cleverness, especially when models are asked to keep improving toward a human goal."
+pubDate: 2026-08-30
+tags: ["local-models", "coding-agents", "model-evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-30-glm-qwen-and-the-messy-reality-of-visual-coding-agents/hero.png
+  alt: "GLM, Qwen, and the messy reality of visual coding agents"
+sources:
+  - title: "an unscientific qwen 3.8 flash next and glm 5.3 flash comparison"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1w28alw/an_unscientific_qwen_38_flash_next_and_glm_53/"
+---
+
+TL;DR: A small LocalLLaMA comparison suggests the useful question for coding agents is not just “can it code,” but “does it keep optimizing for the thing I actually asked for?”
+
+## What did the LocalLLaMA comparison actually test?
+
+The primary source here is the r/LocalLLaMA post titled “an unscientific qwen 3.8 flash next and glm 5.3 flash comparison” by /u/nomorebuttsplz. The title gets the most important caveat right. This was not a benchmark. It was one user, one reference image, two local-ish model runs, and a coding harness.
+
+Still, it is a good operator-style test.
+
+The user took a reference image from r/stablediffusion and asked two models to reproduce it as a “video game or tech demo,” iterating for up to about 90 minutes each. The models were Qwen 3.8 Flash Next Q4_K_XL and GLM 5.3 Flash oQ4e MLX, using opencode as the harness. Qwen reportedly ran on an RTX Pro 6000 with an Unsloth GGUF quant.
+
+The interesting split was not just quality. It was strategy. According to /u/nomorebuttsplz, Qwen wrote a software renderer from scratch and produced a nicely animated pixel-art city in about 10 minutes and 80k tokens. GLM chose Canvas 2D, started with more visual detail, and after being asked to animate the result, made a playable pixel-art “walking simulator” in 238k tokens over roughly two hours.
+
+That is exactly the kind of messy comparison builders run in real life. Not clean. Not statistically meaningful. Very revealing.
+
+![one reference picture splitting into two construction paths, one becoming an intricate hand-built engine, the other beco](../../assets/blog/2026-08-30-glm-qwen-and-the-messy-reality-of-visual-coding-agents/inline-1.png)
+
+## Why does GLM look better here?
+
+The user gave GLM the slight edge for instruction following because the prompt emphasized visual similarity more than interactivity. GLM apparently stayed closer to the reference image’s scale and composition, though it still missed on the size of the humans. Qwen, by contrast, made something charming and animated, but less faithful to the target.
+
+That distinction matters.
+
+A coding model can impress you by building machinery. A useful agent has to remember what the machinery is for. If the assignment is “make something that looks like this,” then a clever renderer is only useful if it moves the output closer to “this.”
+
+This is where many agent demos get slippery. We see code generation, animation, scene construction, file edits, console fixes, and lots of activity. Activity feels like progress. But in an open-ended creative task, the real score is whether the loop keeps pressure on the stated goal.
+
+GLM’s reported behavior sounds more aligned with the user’s target. It kept adding details and improving. Qwen, in one run, stopped early despite the instruction: “If there is possible improvement along the axis defined by the goal, continue until there is none.” In another run, Qwen kept iterating for about 80 minutes, but still did not closely resemble the reference.
+
+That is not proof that GLM is “better.” It is evidence that agent evaluation needs to track goal retention, not just output fluency.
+
+## What should builders take from this?
+
+I would not rank models from this post. Different quantizations, runtimes, hardware, prompts, and decoding behavior can swamp the result. Also, one visual target is one visual target. Change the image, the libraries, or the instruction style, and the outcome may flip.
+
+But I would absolutely copy the test shape.
+
+Give models an artifact target, not a toy prompt. Let them iterate. Include a visible goal that humans can judge. Watch when they stop. Watch whether they fix errors or drift into side quests. Track tokens and wall-clock time, but do not let those numbers hide the main question: did the output get closer to what you asked for?
+
+This also argues for more practical eval harnesses around “goal-preserving iteration.” A model that can build a renderer from scratch is exciting. A model that can choose the boring tool, stay within the task, correct browser errors, and keep improving the scene may be more useful on Tuesday afternoon.
+
+My practitioner’s take: if you are picking a coding model for agent workflows, run your own ugly bake-off. Use one target artifact from your real work, give each model the same harness and budget, and judge the final artifact against the original intent. The catch most people miss is stopping behavior. The model that quits when it is merely “good enough” may cost less today, but the model that keeps improving along the right axis is often the one you can build a workflow around.
