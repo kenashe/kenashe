@@ -1,0 +1,52 @@
+---
+title: "Optimizers Are Becoming Systems Choices, Not AdamW Replacements"
+description: "The arXiv survey Blog: Survey of Optimizers argues that matrix-aware optimizers are real progress, but the practical lesson is less glamorous: optimizer choice now depends on model scale, data mix, memory, sharding, schedules, and what you are actually measuring."
+pubDate: 2026-08-31
+tags: ["optimization", "model-training", "research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-31-optimizers-are-becoming-systems-choices-not-adamw-replacements/hero.png
+  alt: "Optimizers Are Becoming Systems Choices, Not AdamW Replacements"
+sources:
+  - title: "Blog: Survey of Optimizers"
+    url: "http://arxiv.org/abs/2608.28557v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The useful takeaway from "Blog: Survey of Optimizers" is not that AdamW is dead, it is that optimizer selection has become a systems decision tied to scale, schedule, memory, and measurement.
+
+## Is AdamW actually being replaced?
+
+Not cleanly.
+
+The arXiv cs.AI/cs.LG survey titled "Blog: Survey of Optimizers" makes the point plainly: matrix-aware methods are a genuine advance, but there is no context-independent replacement for AdamW. That is the right temperature. Optimizer discourse tends to swing between “AdamW forever” and “this new method wins.” The survey cuts across that by asking what changed in the design space.
+
+A lot changed.
+
+The old frame was mostly coordinate-wise adaptation: better moments, better decay, better bias correction, another Adam variant. The newer frame includes matrix and layer-level structure, training-horizon policies, schedule-free methods, quantized optimizer state, sharding constraints, low-precision survival, and memory tradeoffs. That is not one ladder where each optimizer sits above the last. It is a design grid.
+
+This matters because training runs are not abstract math contests. The winning optimizer can change if the target is tokens, FLOPs, wall-clock time, peak memory, final loss, or downstream eval. It can also change with model size, data-to-parameter ratio, batch size, schedule, and tuning budget. If your benchmark ignores those, your claim is probably narrower than your headline.
+
+## What changed in optimizer design?
+
+The survey organizes the space around four axes: temporal estimation, update geometry, horizon management, and representation and systems. That phrasing is dry, but the underlying shift is practical.
+
+Temporal estimation is the old question of how you track gradients over time. Update geometry asks whether the optimizer treats parameters as isolated coordinates or pays attention to matrix structure. Muon’s spectral normalization sits in this world. Shampoo and SOAP bring historical matrix statistics into the update. Adaptive and hybrid matrix methods try to capture some of that structure without paying the full cost everywhere.
+
+Horizon management is about training time itself. Fixed schedules are no longer the only story. Schedule-free training and small-batch corrections treat the optimizer as a policy that must behave under imperfect training conditions, not just a formula plugged into a clean run.
+
+Representation and systems may be the least glamorous axis, and the one operators should care about most. Optimizer state has to fit. It has to shard. It has to survive lower precision. Memory-efficient optimizers and quantized optimizer states are not side quests when optimizer memory can decide whether a run fits on your hardware at all.
+
+![four distinct mechanical routes feeding into a single training loop, with one route emphasizing time, one geometry, one ](../../assets/blog/2026-08-31-optimizers-are-becoming-systems-choices-not-adamw-replacements/inline-1.png)
+
+## What should builders benchmark before switching?
+
+Do not benchmark an optimizer as if it were a model feature. Benchmark it as part of the training system.
+
+That means comparing against a tuned AdamW baseline, not a neglected one. It means reporting the schedule, batch size, precision, sharding setup, model scale, data mix, and tuning budget. It also means being honest about the target metric. A method that wins on final loss after lots of tuning may lose on wall-clock cost. A method that saves memory may require extra engineering. A method that improves small-batch behavior may be irrelevant if your run is large-batch and schedule-bound.
+
+The survey’s strongest implication is compositional: optimizer design is becoming mix-and-match. You might pair a matrix-aware update for certain layers with memory-saving state representation, a different schedule policy, and a low-precision storage choice. That sounds messy because it is. But it is also closer to how real training stacks are built.
+
+Practitioner’s Take: If I were training or fine-tuning a serious model, I would keep AdamW as the control, then test one change at a time: a matrix-aware optimizer on the layers where it plausibly helps, a memory-efficient state format if hardware is the bottleneck, or schedule-free training if schedule tuning is eating time. The catch most readers miss is that optimizer wins often disappear when the baseline is tuned and the system constraints are matched. Treat optimizer claims as recipes to reproduce, not rankings to trust.

@@ -1,0 +1,56 @@
+---
+title: "Reward choice changes how LLM forecasters are wrong"
+description: "The arXiv paper How Proper Scoring Rules Shape LLM Forecasting shows that scoring rules can produce similar top-line forecasting performance while changing calibration, probability use, and error structure. That matters if you are training or evaluating models for real decisions."
+pubDate: 2026-08-31
+tags: ["llm-forecasting", "evaluation", "model-training", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-31-reward-choice-changes-how-llm-forecasters-are-wrong/hero.png
+  alt: "Reward choice changes how LLM forecasters are wrong"
+sources:
+  - title: "How Proper Scoring Rules Shape LLM Forecasting"
+    url: "http://arxiv.org/abs/2608.28482v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you train an LLM forecaster with a different proper scoring rule, you may get similar aggregate accuracy but a meaningfully different kind of wrong.
+
+## What changed when the reward changed?
+
+The primary source here is the arXiv paper **“How Proper Scoring Rules Shape LLM Forecasting”**, listed in cs.AI and cs.LG. It looks at a narrow but important question: when LLMs make binary forecasts about resolved real-world events, does the choice of proper scoring rule actually matter?
+
+The theoretical answer is tempting: not that much. Proper scoring rules are designed to reward truthful probability reporting. If the real answer is 70%, the model should be best off saying 70%, not 55% or 95%.
+
+The empirical answer in this paper is messier, and more useful.
+
+“How Proper Scoring Rules Shape LLM Forecasting” compares five proper scoring rules as training objectives. The headline is not that one scoring rule crushes the others across the board. It is that the trained models differ in calibration, how they use probabilities, and the shape of their errors, even when aggregate accuracy and discrimination are closer together.
+
+The Brier-trained model had the lowest observed Brier score and the highest AUC-ROC. The log-trained model had the highest observed log score and the lowest calibration error. That sounds obvious at first, models do well on the thing they are trained to optimize. But the deeper point is operational: these objectives do not just move a leaderboard number. They shape behavior.
+
+Two forecasting systems can look similarly “good” at the surface and still fail differently. One may be better at ranking likely events. Another may place probabilities closer to observed frequencies. Another may carry less bias but more noise. If that model feeds a product decision, a trading desk, a policy workflow, or an internal risk review, those differences matter.
+
+![one forecasting model splitting into five reward paths that end in different probability distributions and error shapes](../../assets/blog/2026-08-31-reward-choice-changes-how-llm-forecasters-are-wrong/inline-1.png)
+
+## Which scoring rule should a builder use?
+
+There is no universal pick here. That is the point.
+
+If you need well-calibrated probabilities because humans or downstream systems will act on thresholds, log score looks interesting based on the paper’s reported lowest calibration error. If you care about squared probability error and ranking behavior, the Brier result is worth attention, since the Brier-trained model had both the lowest observed Brier score and highest AUC-ROC in this setup.
+
+But I would not read this as “use Brier” or “use log.” The paper itself flags a real limitation: each condition uses a single seed, so some differences may reflect training stochasticity. That is not a throwaway caveat. In model training, one seed can flatter a method or hide instability.
+
+The practical move is to treat scoring rule choice as a product and risk decision, not a math formality. What kind of mistake is expensive in your system? Overconfidence on rare events? Poor ranking? Bad threshold behavior? A model that says 51% too often? A model that is calibrated globally but useless in the cases your team actually cares about?
+
+That question comes before the reward function.
+
+## What should you measure besides accuracy?
+
+Accuracy is too blunt for forecasting. A binary forecast becomes true or false, but the whole value is in the probability. A 51% forecast and a 95% forecast can both be “right” after resolution. They do not mean the same thing.
+
+This paper’s useful contribution is the emphasis on error structure: calibration, probability use, bias, information, and noise. That is closer to how forecasting systems break in the real world. A model can be accurate enough in aggregate while still being badly calibrated in a region that drives decisions. Or it can discriminate well, ranking events correctly, while assigning probabilities that make humans overreact.
+
+For builders, I’d run a small evaluation matrix before touching training. Pick the business-relevant slices first: event type, time horizon, base rate, source quality, and decision threshold. Then compare scoring rules on the metrics you will actually act on, not just the one that makes the model look clean in a report. Repeat across seeds if you can afford it. If you cannot, keep the claim small.
+
+The catch most readers miss: “proper” does not mean interchangeable. If your LLM forecaster is part of an agent or workflow, the reward function is also a steering wheel. Try Brier and log side by side, inspect calibration and threshold behavior, then choose the model whose errors you can live with, not just the one with the prettiest average score.

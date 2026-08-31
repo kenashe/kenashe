@@ -1,0 +1,54 @@
+---
+title: "Certified world models still have blind topology"
+description: "A topology paper shows a clean failure mode for certified code world models: a model can pass every reachable test, stay useful in play, and still be arbitrarily wrong about unreachable structure that later becomes exploitable."
+pubDate: 2026-08-31
+tags: ["world-models", "ai-safety", "model-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-08-31-certified-world-models-still-have-blind-topology/hero.png
+  alt: "Certified world models still have blind topology"
+sources:
+  - title: "An Enclosed Mode Is a Gauge Choice: Topology Relative to Reach in Certified Code World Models"
+    url: "http://arxiv.org/abs/2608.28541v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Certification only proves a world model on what the gate can reach, so builders need tests and mitigations that match the shape of hidden errors, not just more samples.
+
+## What does certification actually certify?
+
+The primary source is the arXiv paper “An Enclosed Mode Is a Gauge Choice: Topology Relative to Reach in Certified Code World Models,” listed under cs.AI and cs.LG. The core claim is simple and uncomfortable: a code world model accepted by a sampling gate can be exactly right on every query the gate can see, and arbitrarily wrong beyond that reachable set.
+
+That is not a small eval bug. It is a boundary on what sampling can know.
+
+The paper frames this as a “gate quotient.” Acceptance with certainty pins down the model on reachable queries. Outside reach, the model has gauge freedom. In plainer terms: if your tester cannot get to a region, many incompatible worlds look identical from the outside. A model can fill in the missing area with the wrong topology and still pass.
+
+The minimal example is a ring instrument with an annular freeze mode. The model can hallucinate a filled disc artifact inside an unreachable interior. No sampling gate can falsify it, and at play time it can be bitwise harmless. That last part matters. Wrong does not always mean costly. Some errors are invisible and irrelevant until the task, planner, or access pattern changes.
+
+![an outer ring with probes touching only the outside, an unreachable inner chamber, and two possible hidden shapes occupy](../../assets/blog/2026-08-31-certified-world-models-still-have-blind-topology/inline-1.png)
+
+## When does the hidden hole become dangerous?
+
+The useful part of the paper is that it separates two things people often mash together: misidentification and danger.
+
+The same topological mistake can move through three regimes as one knob changes, a channel of width gamma. The paper reports that when the planner can use a channel, the blind model’s exploitation collapses from a play cost of 1.09 to roughly 0 around a knee at gamma about 0.1. But when the channel is hidden, even with the same first Betti number, exploitation stays strong at 1.12.
+
+That is a good operational warning. The abstract shape of the world is not enough. Reach matters. A hole, tunnel, or boundary is dangerous relative to what the agent can sense, plan through, and act on.
+
+The repair story is also sobering. The paper reports that no model family recovers the unreachable region from outside evidence. From inside evidence, models can pose the right topology, but cannot pin down its parameters. Worse, the posed topology tracks the guiding persistent-homology summary’s wrong beta_1, not the truth. Translation: if the sensor compresses the world into a misleading structural summary, the model may faithfully inherit the sensor’s mistake.
+
+That is a pattern I see in applied AI all the time. We blame the model for being weird when the upstream measurement setup made the truth unavailable. Then we ask a bigger model to “reason” its way out of missing observability. Sometimes it cannot. Not because it is dumb. Because the information is not there.
+
+## What kind of mitigation actually matches this failure?
+
+The paper’s most practical result is about matching the fix to the error’s dimension and direction.
+
+Point fences fail against a one-dimensional boundary. That should not surprise anyone who has watched agents route around brittle guardrails. If the failure is a boundary, a few point checks are theater. The paper reports that a dimension-matched persisted fence collapses exploitation from 0.999 to 0.058, with only a two-lesson transient. It also reports that a dual freedom certificate reduces an invented-mode failure from 1.769 to 0.029.
+
+I would not overgeneralize those numbers beyond this instrument. The setup is stylized. But the principle travels well: if the blind spot is structural, treat it structurally. Don’t spray random test cases at a missing boundary and call it coverage.
+
+The n-dimensional result sharpens the point. The paper says shell structures make misidentification near-certain while danger remains fully exploitable. Those axes are independent. A model can be almost guaranteed to misunderstand the hidden part, yet that misunderstanding may or may not matter depending on whether an agent can exploit it.
+
+For builders, the move is to audit reach, not just accuracy. Map what your eval gate can actually observe. Mark the unreachable zones. Then ask what decisions could route through those zones later. If a workflow depends on a learned world model, try adding tests that match the geometry of the suspected error: boundary sweeps for boundary failures, corridor tests for corridor failures, certificates for freedom the model may have invented. The catch most teams miss: better sampling inside the same reachable set does not test what is outside it. You may need new sensors, new access paths, or a narrower claim about what the model is certified to know.
