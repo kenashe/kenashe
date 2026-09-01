@@ -1,0 +1,58 @@
+---
+title: "Reasoning Without Tokens: What Soft Latent Thinking Actually Changes"
+description: "A new method called Soft Latent Thinking lets small models reason in embedding space instead of discrete tokens, cutting per-step compute and lifting pass@k. Here is what it does, where the evidence is thin, and what a builder should watch."
+pubDate: 2026-09-01
+tags: ["reasoning", "inference", "research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/hero.png
+  alt: "Reasoning Without Tokens: What Soft Latent Thinking Actually Changes"
+sources:
+  - title: "A Model with No Head and Many Thoughts"
+    url: "http://arxiv.org/abs/2608.31069v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A method called Soft Latent Thinking swaps out the vocabulary head during a model's reasoning steps and lets it "think" in continuous embedding space instead of emitting tokens, which the authors report cuts per-step compute and improves pass@k on two small models.
+
+The paper is "A Model with No Head and Many Thoughts," posted to arXiv under both cs.CL and cs.LG. The abstract is all we have to go on so far, so treat everything below as an evaluation of a claim, not a settled result. But the claim is interesting enough to walk through carefully, because it pokes at an assumption baked into almost every model you use: that reasoning has to happen in words.
+
+## Why does decoding through the vocabulary head matter?
+
+Here is the mechanic. When a language model generates text, every single step ends with the hidden state getting projected through a big matrix called the LM head, which maps that internal vector onto the full vocabulary. Tens of thousands of possible tokens. You get a probability distribution, you sample or argmax one token, and that token becomes the input to the next step.
+
+That projection is expensive. The vocabulary is large, so the head is one of the fattest matrices in the model, and you hit it on every token. It is also lossy in a specific way: it forces the model to collapse a rich continuous hidden state down into a single discrete choice before moving on. During a long chain-of-thought, you pay that toll hundreds of times, and each time you throw away everything about the hidden state except which word came out on top.
+
+![a wide continuous stream being squeezed through a narrow gate into a single dot, repeated in a chain](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-1.png)
+
+The authors' framing is that this discretization is not free and maybe not necessary. If the model is going to keep reasoning internally anyway, why round to the nearest word at every step?
+
+## What is Soft Latent Thinking doing differently?
+
+Soft Latent Thinking replaces the LM head during the reasoning phase with what the paper calls a lightweight projector. Instead of projecting to vocabulary and sampling a token, the model does an autoregressive rollout in embedding space. The reasoning steps stay continuous. No token gets committed until the model is done thinking and needs to actually produce an answer.
+
+This is not the first attempt at reasoning in latent space. There is a small but growing line of work on "soft thinking" and continuous chain-of-thought, and the paper positions itself against those, claiming the highest pass@32 among soft-thinking approaches. That comparison matters more than the raw numbers, because the honest question about latent reasoning has never been "can you do it" but "does it beat just letting the model talk to itself in tokens."
+
+The two levers here are worth separating. One is compute: skipping the full vocabulary projection on reasoning steps should be cheaper per step, and the abstract says it reduces per-step compute during chain-of-thought. The other is quality: continuous steps carry more information than discrete ones, so in principle the model preserves nuance a token would have flattened. The paper claims both improved at once, which is the part I want to see the full results on. Cheaper and better usually trade against each other.
+
+![two parallel paths from start to finish, one made of discrete blocks, one a smooth unbroken line](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-2.png)
+
+## How strong is the evidence right now?
+
+Thin, and I want to be plain about that. The tests are on DeepSeek-Qwen-1.5B and LLaMA-3.2-3B. Both small. That is a reasonable place to prototype an idea and a bad place to declare victory, because reasoning behavior changes a lot with scale, and tricks that help a 1.5B model sometimes vanish or reverse at 70B.
+
+The headline metric is pass@k, which measures whether at least one of k sampled attempts is correct. The abstract says Soft Latent Thinking improves pass@k across all k and takes the top pass@32 spot among soft-thinking methods. Pass@k rewards diversity of attempts, and continuous reasoning could plausibly generate more varied trajectories than token sampling. Fine. But pass@k at high k is a generous scoreboard. It tells you the model can reach the answer given many tries. It does not tell you it reliably reaches the answer on the first try, which is what most production use actually needs. I would want pass@1 alongside the pass@32 number before getting excited, and the abstract does not give it.
+
+There is also a readability cost that the abstract does not mention. Token chain-of-thought has a real practical virtue: you can read it. When a model reasons in words, you can inspect the trace, catch a bad step, audit it, use it for training data. Reasoning in embedding space is opaque by construction. The intermediate steps are vectors, not sentences. For safety review, debugging, and interpretability, that is a genuine loss, and any team adopting this should price it in rather than pretend it away.
+
+## What would an operator actually do with this?
+
+Nothing in production yet. This is a research signal, not a shipping feature, and the two model sizes tested are too small to tell you how it behaves in a real system.
+
+But the idea is worth tracking for a specific reason. The single fattest recurring cost in the decode loop is the vocabulary projection, and reasoning-heavy workloads run that loop a lot. If a method can skip it during the thinking phase without losing answer quality, that is a real efficiency lever for exactly the models that reason the most, which are also the ones burning the most tokens today. The direction of the bet is sound even if this particular paper's evidence is early.
+
+![a large heavy gear at the end of a loop being lifted out, leaving a lighter loop spinning faster](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-3.png)
+
+So here is how I would treat it. Watch for three things before this graduates from clever to useful: a pass@1 number, not just pass@32, so you know it helps reliability and not only lottery odds; results at 7B and up, because small-model wins are notoriously fragile; and an honest accounting of the interpretability tradeoff, because a reasoning trace you cannot read is a debugging and safety cost that shows up later, not sooner. The catch most people will miss is that "reduces per-step compute" and "improves pass@k" are two separate claims that happen to be stapled together in one abstract, and the interesting one, the free-lunch combination of cheaper and better, is precisely the one that most often falls apart when someone reproduces it at scale. If it holds up, latent reasoning becomes a serious efficiency story. If it does not, it becomes another reminder that tokens are annoying but honest.
