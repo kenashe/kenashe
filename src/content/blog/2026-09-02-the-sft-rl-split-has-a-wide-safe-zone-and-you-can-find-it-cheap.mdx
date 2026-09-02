@@ -1,0 +1,68 @@
+---
+title: "The SFT-RL Split Has a Wide Safe Zone, and You Can Find It Cheap"
+description: "A new arXiv paper argues you don't need one perfect ratio between supervised fine-tuning and reinforcement learning data. You need a near-optimal region, and small proxy models can find it before you spend on the big run."
+pubDate: 2026-09-02
+tags: ["post-training", "reinforcement-learning", "fine-tuning"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-02-the-sft-rl-split-has-a-wide-safe-zone-and-you-can-find-it-cheap/hero.png
+  alt: "The SFT-RL Split Has a Wide Safe Zone, and You Can Find It Cheap"
+sources:
+  - title: "Scaling Near-Optimal SFT-RL Annotation Budget Allocation from Small to Large LLMs"
+    url: "http://arxiv.org/abs/2609.01573v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: When you split a fixed annotation budget between supervised fine-tuning and reinforcement learning, there is a wide band of allocations that all land within a few percent of peak performance, and you can locate that band using cheap small-model experiments instead of an expensive large-scale sweep.
+
+If you have ever run post-training, you know the anxiety. You have a fixed pile of money for human annotation. Some of it buys demonstration data for supervised fine-tuning (SFT). Some of it buys preference labels or reward signal for reinforcement learning (RL). The received wisdom is thin: SFT tends to matter more when data is scarce, RL helps once the model has a foundation to build on. Beyond that, most teams guess, or they run a grid of expensive experiments on the model they actually care about.
+
+The paper "Scaling Near-Optimal SFT-RL Annotation Budget Allocation from Small to Large LLMs" (posted across arXiv cs.AI, cs.CL, and cs.LG) reframes the question in a way that is genuinely useful for anyone doing this work. Its argument is that you have been asking for the wrong thing.
+
+## Why chase a "region" instead of the optimal ratio?
+
+The usual framing is: find the best SFT-to-RL split. One number. The paper's move is to stop hunting for that single point and instead map the set of allocations that come within a chosen tolerance of the peak. Call it the near-optimal region. If peak performance is X, the near-optimal region at 5% tolerance is every budget split that gets you within 5% of X.
+
+Why does this matter? Because chasing a single optimum assumes the performance curve is sharp, that being slightly off the ideal ratio costs you dearly. The paper's central empirical claim is that it isn't. The near-optimal region is wide even at small tolerances of 2 to 10%. In plain terms: a lot of different splits are basically fine. You are not standing on a knife edge. You are standing on a plateau.
+
+![a broad flat plateau on a landscape versus a single sharp peak, two allocations landing safely on the plateau](../../assets/blog/2026-09-02-the-sft-rl-split-has-a-wide-safe-zone-and-you-can-find-it-cheap/inline-1.png)
+
+That reframing lowers the stakes of the whole decision. If the region is wide, the cost of being wrong is small, and the cost of over-optimizing is wasted compute chasing a precision that does not pay off.
+
+## Does the good ratio hold as the model gets bigger?
+
+This is the part that turns a nice observation into a workflow. The paper reports two things about scale that fit together.
+
+First, the near-optimal region widens with model scale. Bigger models are more forgiving of your split, not less. Intuition would suggest larger models are finicky and expensive to get right, but the finding runs the other way: the plateau gets broader as you scale up.
+
+Second, and this is the load-bearing claim, the near-optimal region transfers reliably from small proxy models to large target models. The band of good allocations you find on a small model still contains good allocations for the big one. That transfer is the whole point. It means the cheap experiment predicts the expensive outcome, at least well enough to skip the exhaustive search.
+
+Put those together and the strategy writes itself. Run your budget-split experiments on a small proxy model, which is cheap. Identify the near-optimal region there. Then apply an allocation from that region to your large target model, confident that the region only gets wider as you scale, so you have margin working in your favor.
+
+The paper says this holds consistently across tasks, across model families, and across both preference-based off-policy RL and reward-supervision on-policy RL. That breadth is what separates a curiosity from a method. If it only worked for one task on one model with one RL flavor, you would shrug. Holding across those axes is the claim that would make me actually try it.
+
+## What about the cost difference between SFT and RL data?
+
+Here is the wrinkle most summaries would skip, and it is the practically important one. SFT data and RL data do not cost the same to annotate. A demonstration is a different labor cost than a preference judgment or a reward signal. The paper explicitly analyzes how this asymmetry in annotation costs shifts the near-optimal region.
+
+That matters because "allocate 40% of your data to SFT" and "allocate 40% of your budget to SFT" are not the same instruction when one type of label costs three times the other. The region defined in data terms and the region defined in dollar terms diverge. If you have a wide plateau in data-fraction space but RL labels are expensive, the cost-aware optimum slides toward the cheaper data type, and you can ride the plateau to save real money.
+
+![two balanced scales, one weighing equal amounts, the other weighing unequal costs tilting the balance point](../../assets/blog/2026-09-02-the-sft-rl-split-has-a-wide-safe-zone-and-you-can-find-it-cheap/inline-2.png)
+
+This is where a builder should slow down. The transfer result tells you where good splits live. The cost-asymmetry analysis tells you which good split to actually pick given your labeling budget. You want both. The first without the second gives you a technically fine ratio that quietly wastes money.
+
+## What is the paper not claiming?
+
+Worth being honest about the edges. This is a single paper, mirrored across three arXiv categories, not an independently replicated result. The abstract gives us the shape of the findings but not the model sizes, the exact tasks, or the numbers behind "widens with scale" and "transfers reliably." Those details live in the full paper, and how well this holds for your specific setup depends on whether your task and model family resemble what they tested.
+
+The transfer claim is also a claim about the region, not about the exact optimum. The paper is careful here, and you should be too: small proxy models tell you where the safe band is, not the single best point inside it. That is fine, because the whole thesis is that the single best point does not matter much. But if you were hoping to pin down an exact ratio from a tiny model, that is not what is on offer.
+
+![a small model and a large model side by side, a shared shaded band connecting them showing overlap](../../assets/blog/2026-09-02-the-sft-rl-split-has-a-wide-safe-zone-and-you-can-find-it-cheap/inline-3.png)
+
+## The practitioner's take
+
+If you run post-training, the move is concrete. Before you commit annotation budget on your target model, build a small proxy of the same family and sweep the SFT-RL split there. Sweep in data-fraction terms first, find the region within a tolerance you can live with, say 5%. Then overlay your actual labeling costs: price out what an SFT demonstration costs you versus an RL preference or reward label, and pick the point inside that region that spends the least. Because the region only widens as you scale, you inherit margin for free when you move to the big model.
+
+The catch most readers will miss: the plateau being wide is not permission to stop measuring, it is permission to stop over-measuring. You still need one clean proxy sweep to know where the plateau is. Teams that skip that and just pick a ratio off a blog post are not saving effort, they are gambling that someone else's task looks like theirs. Run the cheap experiment. Then spend your real money knowing you are standing on flat ground.
