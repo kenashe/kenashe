@@ -1,0 +1,60 @@
+---
+title: "Influence Functions Point at the Right Data. Rewriting It Beats Reweighting It"
+description: "A new arXiv paper argues influence functions have been judged by the wrong intervention: reweighting influential training examples barely moves model behavior, but rewriting their responses produces strong, persistent, bidirectional shifts."
+pubDate: 2026-09-03
+tags: ["training-data-attribution", "influence-functions", "llm-finetuning"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-03-influence-functions-point-at-the-right-data-rewriting-it-beats-reweighting-it/hero.png
+  alt: "Influence Functions Point at the Right Data. Rewriting It Beats Reweighting It"
+sources:
+  - title: "From Reweighting to Rewriting: Unlocking the Intervention Effects of Influential Samples in Training Data Attribution"
+    url: "http://arxiv.org/abs/2609.02771v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Influence functions are good at finding the training examples that matter, but the standard way of acting on them (reweighting) wastes that signal; rewriting those same examples' responses moves model behavior far more, which changes how you should use data attribution in practice.
+
+The paper is "From Reweighting to Rewriting: Unlocking the Intervention Effects of Influential Samples in Training Data Attribution," posted to arXiv (cross-listed under cs.AI, cs.CL, and cs.LG). It takes on a quietly frustrating result that anyone who has played with influence functions knows: you compute which training examples supposedly drive a behavior, you act on them, and the effect is barely better than picking examples at random. The usual read is that influence functions are too noisy at LLM scale to be worth it. This paper argues the tool was fine. The intervention was wrong.
+
+## What are training data attribution and influence functions actually doing?
+
+Training data attribution (TDA) tries to answer a simple question with hard math: which training examples are responsible for a given model behavior? If your model confidently makes things up instead of saying "I don't know," which examples in the data taught it that?
+
+Influence functions (IF) are the most-cited approach. They estimate how the model's behavior would change if you nudged the weight of a training example up or down by an infinitesimal amount. That framing matters, because it defines both what IF measures and how people have tested it. The natural experiment is: IF says these examples are influential, so let's reweight them (upweight, downweight, or drop them) and see if behavior shifts as predicted.
+
+![a magnifying glass hovering over a scattered pile of documents, one small cluster glowing brighter than the rest](../../assets/blog/2026-09-03-influence-functions-point-at-the-right-data-rewriting-it-beats-reweighting-it/inline-1.png)
+
+Here is the catch the paper names directly. When you take IF-selected examples and reweight them the conventional way, they "often show limited advantages over random selection." That is a damning line for a method that is supposed to precisely locate the examples that matter. So either influence functions are picking the wrong examples, or reweighting is a lousy way to cash in the ones they pick. The authors frame this as an open question rather than a foregone conclusion, and that framing is the whole move.
+
+## Why does rewriting beat reweighting on the same examples?
+
+Their proposal is influence-guided response rewriting. Use IF to find the intervention targets, then instead of fiddling with each example's weight, keep the instruction fixed and replace the response with supervision that either aligns with or opposes the target behavior. Same selected examples. Different lever.
+
+The testbed is epistemic abstention, which is the behavior of a model choosing to say it doesn't know rather than confidently guessing. Good abstention is one of the more valuable and underbaked behaviors in current LLMs, so it is a smart choice: it is measurable, it matters, and it is exactly the kind of thing you'd want to tune with surgical data edits.
+
+Across four open-weight LLMs, the contrast is clean. Response rewriting produced "stronger, more persistent, and bidirectional behavioral shifts." Reweighting the same examples produced "weak and inconsistent effects." Bidirectional is the interesting word there. Rewriting could push the model toward abstaining more or toward abstaining less, depending on which direction the rewritten supervision pointed. That is what you want from a control knob: it turns both ways and it stays turned.
+
+Two more findings tighten the argument. First, IF-selected examples gave more rewriting leverage than examples chosen by alternative selectors, so the influence signal was doing real work, not just handing you any old editable example. Second, the behavioral changes stayed "concentrated on target-relevant behaviors," meaning rewriting the abstention-relevant examples mostly moved abstention and did not spray collateral damage across unrelated capabilities. And the same qualitative pattern showed up on safety refusal, not just abstention, which suggests this isn't a quirk of one behavior.
+
+![two hands adjusting the same object, one turning a small dial with little effect, the other reshaping the object itself](../../assets/blog/2026-09-03-influence-functions-point-at-the-right-data-rewriting-it-beats-reweighting-it/inline-2.png)
+
+## Why did the field measure influence functions the wrong way?
+
+This is the part worth sitting with, because it is a methodology critique dressed as a technique paper. Influence functions estimate the effect of infinitesimal reweighting. So when researchers evaluate IF by reweighting examples, they are testing the method on exactly the operation its math describes, and getting weak results. The temptation is to conclude the method is weak.
+
+The paper's argument is that reweighting captures a narrow, local effect, while the examples IF identifies carry broader intervention leverage that reweighting simply can't express. The example is influential. The weight-based lever is just a bad way to pull on it. Swap the lever for content rewriting and the same example moves the model hard.
+
+That reframes a lot of prior disappointment with TDA. If people concluded "influence functions don't work at scale" based on reweighting or data-dropping experiments, they may have been benchmarking the lever, not the locator. The authors call for "intervention-aware evaluation of TDA methods," which is the right ask: judge an attribution method by the best intervention it enables, not the one that happens to match its derivation.
+
+I want to be careful here about what the paper does and does not show. This is one abstract's worth of claims (the arXiv listing, no additional first-party breakdown in front of me), covering four open-weight models on two behaviors. It does not report the specific models, the size of the effects in numbers, or the compute cost of the rewriting pipeline, and I'm not going to invent any of those. The direction of the result is clear and plausible. The magnitude and the generality across many behaviors are exactly the things I'd want to see in the full tables before treating this as settled.
+
+![a signpost with an arrow pointing at a target, and beside it two different tools resting on the ground](../../assets/blog/2026-09-03-influence-functions-point-at-the-right-data-rewriting-it-beats-reweighting-it/inline-3.png)
+
+## Practitioner's take
+
+If you fine-tune models and you've written off influence functions as too noisy to bother with, this is a reason to give them a second look, but with a different job. Stop using IF to decide what to delete or downweight. Use it to decide what to rewrite. The workflow becomes: run attribution to surface the examples driving a behavior you want to change (weak abstention, over-refusal, a specific failure mode), then hand-edit or model-edit the responses on those examples to demonstrate the behavior you actually want, instructions held fixed.
+
+The catch most readers will miss: rewriting is a heavier and more human operation than reweighting. Reweighting is a scalar per example. Rewriting means producing corrected supervision for each targeted example, which is real annotation work and introduces its own quality risk if you automate it carelessly. The paper's own finding that changes stayed "concentrated on target-relevant behaviors" is the encouraging part, because it suggests you can make small, targeted edits rather than re-labeling half your dataset. Start with a narrow, well-defined behavior, rewrite a handful of the top IF-ranked examples in both directions to confirm the knob turns for your model, and only then scale the edits. And measure persistence, not just the immediate post-edit eval, since "persistent" was one of the specific advantages claimed and it's the property that decides whether the fix survives your next training run.

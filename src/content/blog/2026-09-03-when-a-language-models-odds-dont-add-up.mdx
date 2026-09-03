@@ -1,0 +1,66 @@
+---
+title: "When a Language Model's Odds Don't Add Up"
+description: "A new arXiv paper measures the incoherence of language model probability forecasts using Dutch books, and finds the numbers models give you can be arbitraged for guaranteed profit. Here is what that means for anyone using them to reason about risk."
+pubDate: 2026-09-03
+tags: ["language-models", "forecasting", "evaluation", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-03-when-a-language-models-odds-dont-add-up/hero.png
+  alt: "When a Language Model's Odds Don't Add Up"
+sources:
+  - title: "Dutch Books for Language Models"
+    url: "http://arxiv.org/abs/2609.02797v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A paper called "Dutch Books for Language Models" shows that the probabilities models hand you about future events often don't add up to a coherent picture, and the more you ask about related events or add irrelevant detail, the worse it gets.
+
+If you have ever asked a model "what are the odds this deal closes" or "how likely is a recession next year," you assumed there was some consistent world model underneath spitting out that number. This paper says: not so fast. The forecasts can be internally contradictory in a way you can measure precisely, and the measure is money.
+
+## What is a Dutch book and why should a builder care?
+
+A Dutch book is an old idea from probability theory. If someone quotes you a set of odds on related events, and those odds don't obey the basic rules of probability, a clever bettor can construct a package of bets that wins no matter what happens. You lose guaranteed. That guaranteed loss is proof your probabilities were incoherent.
+
+The authors of "Dutch Books for Language Models" (posted across arXiv cs.AI, cs.CL, and cs.LG) build their test on a theorem from de Finetti, the Italian probabilist who formalized exactly this connection between coherent beliefs and un-exploitable odds. The clever operational move: they elicit forecasts from language models on events derived from stock returns data, then run a linear program to compute the largest guaranteed arbitrage profit against the model's own numbers. Bigger profit means more incoherence.
+
+The part I find genuinely useful: this needs no outcome labels. You don't have to wait to see whether the recession happens or the stock goes up. Incoherence is a property of the probabilities relative to each other, not relative to reality. So you can audit a model's forecasting hygiene today, on events that haven't resolved and may never resolve cleanly.
+
+![a set of interlocking bets arranged so every outcome path leads to the same result, suggesting a trap with no escape](../../assets/blog/2026-09-03-when-a-language-models-odds-dont-add-up/inline-1.png)
+
+That distinction matters because most eval work waits for ground truth. Accuracy on resolved questions tells you if the model was right. Coherence tells you if the model was even self-consistent, which is a lower bar the model is apparently failing.
+
+## How bad is the incoherence, really?
+
+The paper reports "substantial evidence of incoherence" across the models tested. Two findings stand out and they should change how you prompt.
+
+First, incoherence grows when there are richer logical relationships between events. Ask a model one isolated probability and it can look fine. Ask it about a web of nested and overlapping events, where the answer to one constrains the answers to others, and the contradictions surface. This is the exact regime real decisions live in. "How likely is X, and given X how likely is Y, and what about X and Y together" is normal reasoning, and it's precisely where the model's numbers stop hanging together.
+
+Second, and this is the one that should worry you: irrelevant contextual details can increase incoherence by an order of magnitude. Ten times worse. Add flavor text that shouldn't change anything about the underlying probabilities, and the model's forecasts drift into contradiction. A coherent reasoner ignores irrelevant framing. These models don't.
+
+I want to be careful about what the sources actually say here. The abstract gives us "substantial," "richer logical relationships," and "order of magnitude." It does not give per-model numbers, a leaderboard, or which specific models were tested in the version I'm working from. So I'm not going to invent a ranking. The direction of the finding is clear and the mechanism is clean. The exact magnitudes per model, you'd want to read the full paper for.
+
+## Does this mean model forecasts are useless?
+
+No, and I want to push back on the doom reading before it starts.
+
+Incoherence is not the same as inaccuracy. A model can be badly incoherent across a set of related bets and still be roughly calibrated on any single well-posed question. The Dutch book test is measuring a specific failure: the internal consistency of a set of probabilities, not whether any one of them is close to the truth. Those are different axes.
+
+![two separate dials, one labeled by a bullseye target and one by a balance scale, showing they can move independently](../../assets/blog/2026-09-03-when-a-language-models-odds-dont-add-up/inline-2.png)
+
+What the finding actually kills is the implicit assumption a lot of users carry: that behind the model's confident percentage sits a coherent world model quietly doing Bayesian bookkeeping. There isn't one. The model is generating each probability somewhat locally, sensitive to phrasing, and it doesn't cross-check its answers against each other the way a person forced to bet real money would. The sensitivity to irrelevant context is the tell. A stable world model wouldn't budge.
+
+That's a specific, useful thing to know. It tells you where the model is trustworthy (single, clean, well-specified probability questions) and where it falls apart (systems of interlocking probabilities, especially wrapped in narrative).
+
+## Can this be fixed, and what should you do meanwhile?
+
+The authors close by discussing how alternative training strategies may improve probabilistic coherence. That's the honest position: this looks like a training-time property, not something you fully prompt your way out of. A model that was trained or fine-tuned with a coherence objective, or checked against a de Finetti style consistency loss, could plausibly do better. That's a research direction, not a shipped feature, and the abstract doesn't claim a fix exists yet.
+
+There's also a nice byproduct here. Because the Dutch book procedure needs no labels, it's a candidate for a continuous internal eval. You could generate families of logically related events, elicit the model's probabilities, and run the linear program to score coherence as part of a regression suite. Watch that number across model versions. It's a cheap, ground-truth-free signal that most teams aren't tracking at all.
+
+![a monitoring gauge sitting inside a development pipeline, feeding a signal back to a checkpoint](../../assets/blog/2026-09-03-when-a-language-models-odds-dont-add-up/inline-3.png)
+
+If you're using models to reason about risk today, three moves. Decompose questions into single, clean probability asks rather than one tangled multi-part query, because that's where coherence holds up best. Strip irrelevant narrative before you ask, since the paper shows flavor text can degrade coherence tenfold. And never let a model quietly manage a set of related probabilities for a real decision without you sanity-checking that they sum and nest correctly, because the model won't do that check for you.
+
+The catch most readers will miss: this is not a hallucination problem you can catch by fact-checking one answer. Each individual number can look perfectly reasonable in isolation. The failure only shows up when you line the answers up side by side and ask whether they can all be true at once. That's a habit, not a tool, and it's the habit the "Dutch Books for Language Models" work is quietly arguing you need.
