@@ -231,3 +231,5 @@ It was giving them a world capable of proving them wrong.
 ---
 
 The complete prompts, transcripts, hidden-role files, private logs, operator notes, and run metadata are available in the [public GitHub repository](https://github.com/kenashe/ai-werewolf).
+
+[See the full build log →](https://kenashe.ai/building/ai-werewolf/)

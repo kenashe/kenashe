@@ -66,7 +66,7 @@ The strongest pattern I observed was that the richer versions gave the agents mo
 
 Across these runs, the richer environments produced more grounded and strategically coherent behavior. This was an iterative build rather than a controlled benchmark because several variables changed between versions.
 
-The strongest next direction is shifting from fictional AI characters toward **model-versus-model competition**, putting models such as GPT, Claude, Gemini, Kimi, and GLM directly against one another to test which models are best at deception, persuasion, detecting lies, and surviving a social deduction game.
+The strongest next direction is shifting from fictional AI characters toward **model-versus-model competition**, putting models such as GPT, Claude, Gemini, Grok, Kimi, and GLM directly against one another to test which models are best at deception, persuasion, detecting lies, and surviving a social deduction game.
 
 The existing simulations could also serve as scripts for future AI-generated video, where the Traitors-style format may have significantly more entertainment value than raw text transcripts.
 
