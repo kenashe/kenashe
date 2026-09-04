@@ -22,7 +22,7 @@ export const personKenAshe = {
   image: 'https://kenashe.ai/images/ken-ashe.jpeg',
   jobTitle: 'AI application builder',
   description:
-    'Ken Ashe is a CPA and PMP who builds and evaluates AI agent systems in public, publishing what shipped, what broke, and what the evidence supports.',
+    'Ken Ashe is a CPA, PMP, and AI application builder who documents what he ships, what breaks, and what the evidence supports.',
   email: 'hello@kenashe.ai',
   address: {
     '@type': 'PostalAddress',
@@ -53,18 +53,6 @@ export const personKenAshe = {
       name: 'PMI Agile Certified Practitioner (PMI-ACP)',
       credentialCategory: 'certification',
       recognizedBy: { '@type': 'Organization', name: 'Project Management Institute' },
-    },
-    {
-      '@type': 'EducationalOccupationalCredential',
-      name: 'Certified Scrum Product Owner (CSPO)',
-      credentialCategory: 'certificate',
-      recognizedBy: { '@type': 'Organization', name: 'Scrum Alliance' },
-    },
-    {
-      '@type': 'EducationalOccupationalCredential',
-      name: 'SAFe POPM',
-      credentialCategory: 'certificate',
-      recognizedBy: { '@type': 'Organization', name: 'Scaled Agile' },
     },
   ],
   sameAs: [
