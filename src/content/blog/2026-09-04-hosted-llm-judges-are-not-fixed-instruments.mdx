@@ -1,0 +1,62 @@
+---
+title: "Hosted LLM judges are not fixed instruments"
+description: "A preregistered arXiv audit found that black-box LLM observers on shared endpoints failed basic repeatability checks, which should change how teams design eval gates, leaderboards, data filters, and model-as-judge workflows."
+pubDate: 2026-09-04
+tags: ["evals", "model-as-judge", "ai-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-04-hosted-llm-judges-are-not-fixed-instruments/hero.png
+  alt: "Hosted LLM judges are not fixed instruments"
+sources:
+  - title: "Clean Engineering, Unstable Measurement: A Preregistered Reliability Failure of Black-Box LLM Observers on Shared Endpoints"
+    url: "http://arxiv.org/abs/2609.04198v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If your eval depends on a hosted model-as-judge, treat the endpoint like an uncalibrated measurement instrument until you have measured its repeatability on your exact task.
+
+## What actually failed?
+
+The primary source here is the arXiv cs.AI/cs.LG paper, “Clean Engineering, Unstable Measurement: A Preregistered Reliability Failure of Black-Box LLM Observers on Shared Endpoints.”
+
+The paper is about a boring assumption with large consequences: if you send the same request to the same model name, you should get the same measurement tomorrow. Not the same prose. The same judgment, ranking, or score, close enough to use as a gate.
+
+That assumption did not hold in the audit.
+
+Across 52,988 audited request attempts, same-window repeat rankings reached Spearman 0.400 against a preregistered requirement of 0.90. Byte-identical next-day replays reached 0.78 against a required 0.99. The paper says the execution record was at ceiling, so this was not framed as sloppy logging or bad plumbing. The engineering was clean. The measuring stick moved.
+
+That distinction matters. A lot of AI eval discourse focuses on prompt wording, benchmark leakage, judge bias, and whether GPT-whatever is “smart enough” to grade. Those are real issues. This paper points at something more operational: on shared serving infrastructure, a model name is not necessarily a frozen instrument.
+
+If your leaderboard, training-data filter, regression suite, or agent quality gate depends on that model-as-judge, the endpoint itself is part of the experiment.
+
+![identical prompt cards entering a shared cloud-shaped machine and emerging as differently ordered stacks of response car](../../assets/blog/2026-09-04-hosted-llm-judges-are-not-fixed-instruments/inline-1.png)
+
+## Why didn’t repetition or provider switching solve it?
+
+The paper reports three mechanisms behind the gap.
+
+First, the mapping from labels to meanings biased the readout about as strongly as the signal. That is nasty because labels feel like harmless formatting. They are not always harmless.
+
+Second, candidate gaps were seven orders of magnitude below the instrument’s own noise floor. In plain English: the eval was trying to distinguish tiny differences with a ruler that wobbled too much.
+
+Third, byte-identical inputs returned different rankings. Exact-permutation readouts then compounded that noise, because small output variation can flip rank order.
+
+The usual fixes did not rescue the tested setup. The paper says metric substitution and sampling did not repair the issue on the tested grid. Waiting also did not help on the sampled days, with 0.805 versus 0.800, replicated over five more days. Switching providers did not clear the floor either: four providers had medians from 0.74 to 0.88, and exposed metadata fields did not predict the instability.
+
+Self-hosting helped only under a condition builders will recognize: while the server was quiet. That caveat is the whole story. A model binary is not the entire measurement system. Kernels, batching, serving load, provider changes, hidden routing, and infrastructure behavior can all matter once you demand repeatable measurement rather than good-enough generation.
+
+This is not an argument to stop using LLM judges. It is an argument to stop pretending they are lab instruments by default.
+
+## What changes for teams using LLM-as-judge?
+
+The practical lesson is not “never trust hosted models.” It is “validate the judge before you freeze the gate.”
+
+The paper says a pilot at roughly 2% of the study’s call volume would have exposed both unreachable gates in advance. That is the part I would staple to every eval plan. Before you run the expensive campaign, test whether your measurement instrument can hit the reliability threshold you plan to require. If it cannot, the main run is theater with invoices.
+
+For product teams, this changes the shape of eval design. Avoid gates that depend on hairline rank differences. Prefer tasks where expected gaps are large relative to measured judge noise. Re-run byte-identical probes across time windows. Include repeatability reports with model name, provider, endpoint conditions where observable, prompt template, decoding settings, label scheme, and replay behavior. If the judge is grading close calls, route those to human review or use them as weak signals, not hard release blockers.
+
+For research teams, the leaderboard implication is sharper. A public score based on black-box model judging should report instrument reliability, not just task score. Otherwise the table can look precise while the measurement underneath is drifting.
+
+The catch most readers miss: variance is not only a model-quality issue. It is a systems issue. I would start by adding a small “judge calibration” job to any model-as-judge workflow: send repeated identical items, replay them the next day, estimate rank or label stability, then decide whether the judge is allowed to make binary decisions. If it fails, widen the margin, simplify the rubric, self-host under controlled conditions, or downgrade the judge to advisory status.

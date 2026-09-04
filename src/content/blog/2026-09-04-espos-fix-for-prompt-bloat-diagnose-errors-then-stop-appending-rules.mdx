@@ -1,0 +1,64 @@
+---
+title: "ESPO's fix for prompt bloat: diagnose errors, then stop appending rules"
+description: "A new prompt optimizer called ESPO beats GEPA by 3.76 points on seven benchmarks while writing prompts 47% shorter, by clustering errors first and selecting candidates with bootstrap stability instead of endlessly appending caveats."
+pubDate: 2026-09-04
+tags: ["prompt-optimization", "llm-evaluation", "agents", "ai-agents"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-04-espos-fix-for-prompt-bloat-diagnose-errors-then-stop-appending-rules/hero.png
+  alt: "ESPO's fix for prompt bloat: diagnose errors, then stop appending rules"
+sources:
+  - title: "ESPO: Error-Structured Prompt Optimization via Diagnose, Diversify, and Stabilize"
+    url: "http://arxiv.org/abs/2609.04197v1"
+entities:
+  - name: "Mistral AI"
+    sameAs: "https://www.wikidata.org/wiki/Q119718658"
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: ESPO shows that the best automated prompt optimizer is the one that stops padding your prompt: it beats GEPA by 3.76 accuracy points across seven benchmarks while producing prompts 47% shorter, because it diagnoses error patterns once instead of stacking a new rule after every failure.
+
+If you have ever watched an automated prompt optimizer run, you know the shape of the problem. It finds a failure, writes a rule to patch it, appends the rule, finds another failure, writes another rule. A few iterations later your prompt is three times longer, slower at inference, and no more accurate. That is prompt bloat, and it is the specific thing "ESPO: Error-Structured Prompt Optimization via Diagnose, Diversify, and Stabilize" (posted to arXiv under both cs.AI and cs.CL) sets out to kill.
+
+The named target here is GEPA, the current strong baseline for evolutionary prompt optimization. ESPO's authors argue GEPA loses because of three things: it observes errors incompletely, it searches too narrowly, and it selects candidates unreliably. Their fix is a three-phase pipeline, and the results are worth taking seriously because they hold up across models, not just one favorable setup.
+
+## What actually causes prompt bloat?
+
+The diagnosis is the interesting part, more than the fix. Evolutionary optimizers treat each failure as a one-off. See an error, write a caveat, move on. The problem is that failures cluster. Twenty wrong answers often trace back to three or four underlying misunderstandings, but if you patch them one at a time you get twenty rules where you needed four. The prompt grows linearly with the number of errors you happen to sample, not with the number of distinct things the model gets wrong.
+
+That is why longer prompts stop helping. Past a point you are not adding information, you are adding redundant, sometimes contradictory instructions that the model has to weigh against each other. ESPO's numbers put a figure on it: GEPA prompts averaged 1,878 characters, ESPO's averaged 1,004, and ESPO was the more accurate of the two. Shorter and better, not shorter and worse. That combination is the whole point.
+
+![a tangle of many small patches piled onto one object versus a few clean groupings, contrast between clutter and structur](../../assets/blog/2026-09-04-espos-fix-for-prompt-bloat-diagnose-errors-then-stop-appending-rules/inline-1.png)
+
+## How does ESPO's three-phase pipeline work?
+
+The design maps to the three deficiencies. Diagnose clusters all training errors into structural patterns in a single round, so instead of reacting to failures one by one, ESPO looks at the whole error distribution at once and names the underlying categories. That is what stops the append-forever behavior: you address a pattern, not an incident.
+
+Propose then generates candidate prompts using four complementary strategies, each with its own independent bias. The idea is search diversity. If every candidate comes from the same generative tendency, you explore a narrow slice of the space and converge early on something mediocre. Four biased strategies cover more ground.
+
+Select is where the discipline lives. ESPO uses bootstrap stability selection, meaning it does not just pick the candidate with the best score on one evaluation pass. It resamples and keeps what holds up. This matters because prompt scores are noisy, and picking the top scorer on a single run is how you overfit to your validation set and get a prompt that looks great in testing and disappoints in production.
+
+The ablation is the sentence I would tattoo on anyone building these systems: adding diversity without bootstrap selection actually hurts performance, by 1.20%. More candidates plus a sloppy picker is worse than fewer candidates. If you generate a wide, varied search but then trust a single noisy score to choose the winner, you have built a machine for confidently selecting lucky flukes. Diversity and reliable selection are a package deal, not two independent knobs.
+
+## Do the gains hold across different models?
+
+This is where I usually get skeptical of prompt-optimization papers, because a technique that only works on one model is often just noise dressed up as method. ESPO tested on seven public benchmarks (Tweet, MMLU, GSM8K, HotpotQA, ScoNe, HoVer, and PUPA) and then ran cross-model experiments on four additional student models: Gemma 3 12B, Mistral 14B, Qwen3 32B, and Claude Haiku 4.5.
+
+The reported headline is +3.76 percentage points average accuracy over GEPA (74.67% versus 70.91%), matching or exceeding GEPA on every dataset. Across the four extra models, ESPO gave the best average accuracy on every one. The most dramatic single number is Qwen3 on GSM8K going from 15.00% to 91.40%, which is less a gentle improvement and more a sign that the baseline prompt was actively fighting the model on that task.
+
+I would read that giant jump with some caution. A 15% starting point on grade-school math means the original prompt was near-broken for that model, so the gain says as much about how bad a mismatched prompt can be as it does about ESPO's ceiling. The average of +3.76 pp is the honest number to anchor on. It is a solid, believable improvement, not a miracle, and the fact that it is positive on every model and every dataset is more convincing than any one spike.
+
+![the same method producing consistent modest gains across several different shaped vessels, uniformity across variety](../../assets/blog/2026-09-04-espos-fix-for-prompt-bloat-diagnose-errors-then-stop-appending-rules/inline-2.png)
+
+## What should a builder actually do with this?
+
+The paper also includes a generalization bound in the appendix that ties each phase to a corresponding term in the test-time gap. I will be honest about what that is worth: a bound like this is a nice theoretical grounding, a story for why the three phases matter, but it is not the reason to adopt the method. The ablation and the cross-model results carry the argument. The theory is scaffolding.
+
+One caveat before anyone treats this as settled: as of this writing these are arXiv preprints, and I have not seen an independent reproduction. The benchmarks are public and the recipe is described clearly, which is good, but "beats GEPA on everything" is the kind of claim that deserves a second lab running it before you rebuild your pipeline around it.
+
+![one short clean instruction outperforming a long scroll of stacked rules, simplicity beating accumulation](../../assets/blog/2026-09-04-espos-fix-for-prompt-bloat-diagnose-errors-then-stop-appending-rules/inline-3.png)
+
+Practitioner's take: even if you never run ESPO, steal its three moves for your own prompt work. Before you patch a failure, collect a batch of failures and cluster them by hand into three or four root causes, then fix the causes, not the instances. That alone kills most prompt bloat. When you compare prompt variants, do not trust a single eval run, resample your test set a few times and keep the variant that wins consistently, because prompt scores are noisier than people admit. And if you are running an automated optimizer today, watch your prompt length as a health metric: if it keeps growing while accuracy plateaus, your optimizer is appending rules it cannot verify, and shorter is very likely better. The catch most readers will miss is that Qwen3 jump. Do not read it as ESPO's typical result. Read it as a warning about how badly a mismatched default prompt can hurt a capable model, and go check whether one of your own tasks is quietly stuck at a floor like that.
