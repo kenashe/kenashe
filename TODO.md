@@ -17,3 +17,12 @@ notes leaked to /newsroom/ until 2026-08-18); park them here instead.
   byte-identical with a copy on luckydomains.io (DECISIONS.md D9). Updating it to the
   "AI application builder" identity and pointing `mainEntityOfPage` at `/about/` requires
   changing both sites together. Awaiting Ken's decision.
+
+## OG cards (assets needed from Ken)
+- **Dedicated social cards for `/about/` and the AI Werewolf essay.** The per-page mechanism
+  already exists: pass `image="/og/<file>.png"` plus `ogImageWidth={1200}` and
+  `ogImageHeight={630}` to `BaseLayout` (see `src/pages/news/site-launch.astro`). Both pages
+  stay on `og-default.png` until these files exist in `public/og/` (PNG, 1200 x 630):
+  - `public/og/kenashe-ai-about.png` -> wire in `src/pages/about.astro`
+  - `public/og/kenashe-ai-agents-reasoning.png` -> wire in
+    `src/pages/writing/ai-agents-reasoning-from-events-that-never-happened/index.astro`
