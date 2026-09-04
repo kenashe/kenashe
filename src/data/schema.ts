@@ -7,24 +7,51 @@
 // inline a second, hand-written copy that could drift.
 //
 // Source of truth: entity-schema-linking-spec-final.md
-// ("Shared node - Ken Ashe Person"). Do not reorder keys, add/remove fields,
-// or edit values.
+// ("Shared node - Ken Ashe Person"), revised 2026-09-04 for the "AI application
+// builder" identity (jobTitle, description, mainEntityOfPage -> /about/, credentials,
+// contact, sameAs incl. PMI; Substack dropped). Any change here must be mirrored in
+// the Lucky Domains repo's index.html in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
   '@type': 'Person',
   '@id': 'https://kenashe.ai/#ken-ashe',
   name: 'Ken Ashe',
   url: 'https://kenashe.ai/',
+  mainEntityOfPage: 'https://kenashe.ai/about/',
   image: 'https://kenashe.ai/images/ken-ashe.jpeg',
-  jobTitle: ['Digital Marketer', 'AI Operator', 'Founder'],
-  description: 'Digital marketer, CPA, PMP, and AI operator building with AI in public.',
-  sameAs: [
-    'https://www.linkedin.com/in/kenashe/',
-    'https://substack.com/@kenashe',
-    'https://x.com/kenashe',
-    'https://github.com/kenashe',
+  jobTitle: 'AI application builder',
+  description: 'AI application builder, CPA, and PMP who builds with AI in public.',
+  email: 'hello@kenashe.ai',
+  address: {
+    '@type': 'PostalAddress',
+    addressRegion: 'NJ',
+    addressCountry: 'US',
+  },
+  hasCredential: [
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'Certified Public Accountant (CPA)',
+      credentialCategory: 'certification',
+    },
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'Project Management Professional (PMP)',
+      credentialCategory: 'certification',
+      recognizedBy: { '@type': 'Organization', name: 'Project Management Institute' },
+    },
   ],
-  affiliation: { '@id': 'https://luckydomains.io/#organization' },
+  sameAs: [
+    'https://github.com/kenashe',
+    'https://www.linkedin.com/in/kenashe',
+    'https://x.com/kenashe',
+    'https://community.pmi.org/profile/kenashe',
+  ],
+  affiliation: {
+    '@type': 'Organization',
+    '@id': 'https://luckydomains.io/#organization',
+    name: 'Lucky Domains',
+    url: 'https://luckydomains.io/',
+  },
   knowsAbout: [
     'AI workflows',
     'AI agents',
