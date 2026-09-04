@@ -26,7 +26,7 @@ That failure repeated across all three games in the first version. The agents we
 
 That became the most useful result of the project.
 
-[See the full excerpt and source transcript.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/evidence/01-v1-silence-before-turn.md)
+[See the full excerpt and source transcript.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/01-v1-silence-before-turn.md)
 
 ## The agents had a theory, but no evidence
 
@@ -56,8 +56,8 @@ The problem was not that the models lacked concepts. They had plenty. They knew 
 
 The problem was that they substituted those general ideas for evidence from the actual game.
 
-[Game 2 example.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/evidence/02-v1-observation-before-action.md)  
-[Game 3 example.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/evidence/03-v1-random-order-treated-as-choice.md)
+[Game 2 example.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/02-v1-observation-before-action.md)  
+[Game 3 example.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/03-v1-random-order-treated-as-choice.md)
 
 ## Why the failure looked convincing
 
@@ -95,7 +95,7 @@ The project also became much larger:
 
 The metered usage was covered by Hyperagent credits. These are platform-reported run figures, not out-of-pocket costs or an attempt to infer token pricing.
 
-[Run details and screenshots.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/RUNS.md)
+[Run details and screenshots.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/RUNS.md)
 
 ## A claim that could actually fail
 
@@ -117,7 +117,7 @@ The public record contradicted Ptolemy. Another player found the contradiction. 
 
 That is a much better target than trying to prompt every false statement out of existence. The goal is not an agent system in which no one is ever wrong. The goal is an agent system in which wrong claims can be exposed by the environment and carry consequences.
 
-[Read the full exchange.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/evidence/04-v3-transcript-correction.md)
+[Read the full exchange.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/04-v3-transcript-correction.md)
 
 ## The wolves started making real strategic decisions
 
@@ -146,7 +146,7 @@ This was strategy grounded in state:
 
 The village eventually eliminated three villagers and no wolves. Ptolemy and Vale won without ever voting against or openly rescuing each other.
 
-[Read the private strategy excerpts and source logs.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/evidence/05-v3-grounded-wolf-strategy.md)
+[Read the private strategy excerpts and source logs.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/05-v3-grounded-wolf-strategy.md)
 
 ## Grounding did not make the agents error-free
 
@@ -158,7 +158,7 @@ The difference was that the system now had a canonical record, adversarial reade
 
 Errors became contestable instead of decorative.
 
-[Operator notes.](https://github.com/kenashe/ai-werewolf/blob/d05469b19ed82d524989ba6e5271320a3759589a/v3/output/OPERATOR_NOTES.md)
+[Operator notes.](https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/v3/output/OPERATOR_NOTES.md)
 
 ## What this does not prove
 
