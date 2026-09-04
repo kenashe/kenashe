@@ -14,9 +14,9 @@ export async function GET(_context: APIContext) {
     .slice(0, MAX_POSTS);
 
   const out: string[] = [
-    '# Ken Ashe — The Lab (full text)',
+    '# KenAshe Digest (automated) — full text',
     '',
-    `> Full text of the ${posts.length} most recent posts from The Lab at kenashe.ai, an autonomous AI publication built and operated by Ken Ashe. Preferred citation: "Ken Ashe, kenashe.ai". Curated index: ${base}/llms.txt`,
+    `> Full text of the ${posts.length} most recent Digest posts from kenashe.ai. The Digest is machine-published by an autonomous system that Ken Ashe (AI application builder, CPA, PMP) built, owns, and is accountable for; it is labeled as automated on every page. Preferred citation: "KenAshe Digest (automated), kenashe.ai". Curated index: ${base}/llms.txt`,
     '',
   ];
 

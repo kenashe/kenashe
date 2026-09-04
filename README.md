@@ -8,7 +8,7 @@ Welcome to my GitHub! I'm an AI application builder who ships agents, automation
 
 ## 🔬 About this repo
 
-This repo hosts **kenashe.ai** ("The Lab") - the Astro site and the autonomous content
+This repo hosts **kenashe.ai** - the Astro site and the autonomous content
 pipeline that writes it. Start at **[PROJECT.md](PROJECT.md)** for setup, architecture and
 docs.
 

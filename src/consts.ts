@@ -8,14 +8,14 @@ export const AUTHOR = 'Ken Ashe';
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
 // Order is deliberate: the personal body of work leads; the autonomous digest is
-// labeled as such and never sits first. "About" points at the disclosure page, the
-// closest thing to an about page until a dedicated one exists.
+// labeled as such and never sits first. "About" is the canonical bio page (/about/);
+// Disclosure stays linked from the footer under Legal.
 export const NAV: { label: string; href: string }[] = [
   { label: 'Building', href: '/building/' },
   { label: 'Topics', href: '/topics/' },
   { label: 'Writing', href: '/writing/' },
   { label: 'Digest', href: '/blog/' },
-  { label: 'About', href: '/disclosure/' },
+  { label: 'About', href: '/about/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [

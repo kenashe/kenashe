@@ -1,6 +1,6 @@
 # kenashe.ai — project guide
 
-The site at **[kenashe.ai](https://kenashe.ai)** ("The Lab") plus the autonomous content
+The site at **[kenashe.ai](https://kenashe.ai)** plus the autonomous content
 pipeline that writes it. This repo is the source of truth for both.
 
 > This repository doubles as the GitHub **profile** repo for `kenashe`, so the root
