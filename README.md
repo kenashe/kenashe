@@ -1,20 +1,22 @@
-# Hi, I'm Ken Ashe
+# Ken Ashe
 
-### AI application builder | CPA | PMP | Building with AI in public
+**AI application builder | CPA | PMP**
 
-Welcome to my GitHub! I'm an AI application builder who ships agents, automations, and AI-assisted websites, then documents the receipts in public at KenAshe.ai. As a CPA and PMP, I build practical AI systems and write up what shipped, what broke, and what other builders can learn.
+I build agents, automations, and AI-assisted websites using existing models, APIs, coding tools, and automation platforms. At [KenAshe.ai](https://kenashe.ai/), I document what shipped, what broke, and what the evidence supports.
 
----
+**How I work:** explicit state, checkable claims, measurable outcomes, and public postmortems.
 
-## 🔬 About this repo
+## Selected work
 
-This repo hosts **kenashe.ai** - the Astro site and the autonomous content
-pipeline that writes it. Start at **[PROJECT.md](PROJECT.md)** for setup, architecture and
-docs.
+* **[AI Werewolf](https://github.com/kenashe/ai-werewolf):** Prompts, transcripts, and logs from three iterations of a multi-agent social deduction simulation, including the failure modes that shaped later versions. [Read the write-up](https://kenashe.ai/writing/ai-agents-reasoning-from-events-that-never-happened/).
+* **[KenAshe.ai](https://github.com/kenashe/kenashe):** The Astro site and autonomous AI publishing system behind my public build log.
+* **[Lucky Domains](https://github.com/kenashe/luckydomains):** The website and operating documentation for my domain acquisition, brokerage, and SEO company.
 
----
+## This repository
 
-## 📫 Let's Connect
+This repository contains the Astro site and autonomous publishing pipeline behind [KenAshe.ai](https://kenashe.ai/). Start with [PROJECT.md](PROJECT.md) for setup, architecture, and documentation.
 
-*   **Website:** [kenashe.ai](https://kenashe.ai/)
-*   **LinkedIn:** [linkedin.com/in/kenashe/](https://www.linkedin.com/in/kenashe/)
+## Elsewhere
+
+[Website](https://kenashe.ai/) · [LinkedIn](https://www.linkedin.com/in/kenashe/) · [X](https://x.com/kenashe) · [Lucky Domains](https://luckydomains.io/)
+
