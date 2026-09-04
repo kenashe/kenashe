@@ -6,6 +6,8 @@
 
 A multi-agent social deduction simulation that tested whether AI agents could create believable deception, trust, persuasion, and emergent drama inside a hidden-role game.
 
+Related: [Read the technical write-up](/writing/ai-agents-reasoning-from-events-that-never-happened/) · [View prompts, transcripts, and logs](https://github.com/kenashe/ai-werewolf)
+
 ### The Goal
 
 I wanted to explore whether autonomous AI agents could create genuinely interesting social dynamics when placed inside a hidden-role game involving deception, persuasion, trust, and group decision-making.
@@ -24,7 +26,7 @@ I iterated through three increasingly sophisticated versions of an autonomous, T
 
 **Version 3** expanded the cast to nine characters and added stronger speaking styles, daily social challenges, private confessionals, direct interrogation, and two edited formats: a mystery version where the audience could guess the traitors and a Traitors-style version where the audience knew the hidden roles.
 
-The final shipped artifact was a reusable HyperAgent and Fable simulation framework plus multiple completed game transcripts that could be edited into future scripts or AI-generated video.
+The final shipped artifact was a reusable set of HyperAgent prompts, game specifications, and completed transcripts that could be adapted into future experiments, scripts, or AI-generated video.
 
 ### How It Works
 
@@ -48,7 +50,7 @@ The first version was too artificial.
 
 With almost no real information or consequences, agents began accusing players who had not even spoken yet. They manufactured meaning from speaking order, silence, and tiny signals that did not actually support the accusation.
 
-**No consequences means fake strategy.** The agents needed changing game state, private information, and real eliminations before their choices started to feel grounded.
+When the first version supplied almost no observable state changes, agents filled the gaps with plausible but unsupported social reasoning. Later versions added a canonical transcript, private information, votes, eliminations, and role reveals, giving claims something concrete to succeed or fail against.
 
 **Private information changed the quality of deception.** Once werewolves could coordinate privately and the Seer had asymmetric knowledge, the game became more believable. Agents began lying, deflecting, protecting allies, and pushing false narratives in ways that felt strategically coherent.
 
@@ -58,14 +60,14 @@ With almost no real information or consequences, agents began accusing players w
 
 **Text does not scale as entertainment.** The larger nine-player version created compelling moments, but it became slow and produced far too much material to consume comfortably as raw text. The project started pointing toward edited formats and AI-generated video instead of transcript-first publishing.
 
-The biggest lesson was that the agents became interesting only when the game became real to them. Private information, consequences, memory, and changing incentives mattered more than personality prompts.
+The strongest pattern I observed was that the richer versions gave the agents more grounded material to reason over. Private information, canonical state, consequences, and changing incentives mattered more than personality prompts alone.
 
 ### Outcome
 
-The experiment successfully demonstrated that AI agents can create surprisingly rich social-deduction dynamics when given real incentives, private information, history, and consequences.
+Across these runs, the richer environments produced more grounded and strategically coherent behavior. This was an iterative build rather than a controlled benchmark because several variables changed between versions.
 
 The strongest next direction is shifting from fictional AI characters toward **model-versus-model competition**, putting models such as GPT, Claude, Gemini, Kimi, and GLM directly against one another to test which models are best at deception, persuasion, detecting lies, and surviving a social deduction game.
 
 The existing simulations could also serve as scripts for future AI-generated video, where the Traitors-style format may have significantly more entertainment value than raw text transcripts.
 
-This project sits somewhere between a game, a benchmark, and an entertainment prototype. It showed that multi-agent systems become much more interesting when the agents are not just talking. They need stakes, memory, hidden information, and a reason to lie.
+This project sits somewhere between a game, a benchmark, and an entertainment prototype. The broader lesson was not simply that agents need more personality. They need observable state that can challenge their claims.
