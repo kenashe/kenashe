@@ -16,11 +16,13 @@ export const personKenAshe = {
   '@type': 'Person',
   '@id': 'https://kenashe.ai/#ken-ashe',
   name: 'Ken Ashe',
+  alternateName: 'Kenneth Ashe',
   url: 'https://kenashe.ai/',
   mainEntityOfPage: 'https://kenashe.ai/about/',
   image: 'https://kenashe.ai/images/ken-ashe.jpeg',
   jobTitle: 'AI application builder',
-  description: 'AI application builder, CPA, and PMP who builds with AI in public.',
+  description:
+    'Ken Ashe is a CPA and PMP who builds and evaluates AI agent systems in public, publishing what shipped, what broke, and what the evidence supports.',
   email: 'hello@kenashe.ai',
   address: {
     '@type': 'PostalAddress',
@@ -31,13 +33,38 @@ export const personKenAshe = {
     {
       '@type': 'EducationalOccupationalCredential',
       name: 'Certified Public Accountant (CPA)',
-      credentialCategory: 'certification',
+      credentialCategory: 'license',
+      recognizedBy: { '@type': 'Organization', name: 'State of New Jersey' },
+    },
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'Chartered Global Management Accountant (CGMA)',
+      credentialCategory: 'designation',
+      recognizedBy: { '@type': 'Organization', name: 'AICPA' },
     },
     {
       '@type': 'EducationalOccupationalCredential',
       name: 'Project Management Professional (PMP)',
       credentialCategory: 'certification',
       recognizedBy: { '@type': 'Organization', name: 'Project Management Institute' },
+    },
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'PMI Agile Certified Practitioner (PMI-ACP)',
+      credentialCategory: 'certification',
+      recognizedBy: { '@type': 'Organization', name: 'Project Management Institute' },
+    },
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'Certified Scrum Product Owner (CSPO)',
+      credentialCategory: 'certificate',
+      recognizedBy: { '@type': 'Organization', name: 'Scrum Alliance' },
+    },
+    {
+      '@type': 'EducationalOccupationalCredential',
+      name: 'SAFe POPM',
+      credentialCategory: 'certificate',
+      recognizedBy: { '@type': 'Organization', name: 'Scaled Agile' },
     },
   ],
   sameAs: [
