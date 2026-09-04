@@ -43,3 +43,33 @@ export const buildingCards: Project[] = [
     (p): p is Project => p !== undefined,
   ),
 ].sort((a, b) => ordinal(b) - ordinal(a));
+
+// --- Homepage continuation helpers -------------------------------------------------
+// The homepage shows the first FEATURED_COUNT cards and then points at the rest. Every
+// number a visitor sees ("3 of N", "View all N builds", "and N more") is derived from
+// `buildingCards` here, so adding a project to builds.ts updates the copy on the next
+// build with no edit, and the homepage count can never disagree with /building/.
+const FEATURED_COUNT = 3;
+
+export const featuredBuilds: Project[] = buildingCards.slice(0, FEATURED_COUNT);
+export const remainingBuilds: Project[] = buildingCards.slice(FEATURED_COUNT);
+export const totalBuilds: number = buildingCards.length;
+
+// Guard against a runaway title in the one-line teaser; current titles are short, this
+// only trims something extreme, at a word boundary, and never invents a name.
+const shortTitle = (s: string, max = 60): string =>
+  s.length <= max ? s : `${s.slice(0, max).replace(/\s+\S*$/, '')}...`;
+
+// "Next on the log: A, B, C, and 4 more." / "A, B, and C." / "A and B." / "A." / null.
+export function nextOnTheLog(): string | null {
+  const titles = remainingBuilds.map((p) => shortTitle(p.title));
+  if (titles.length === 0) return null;
+  const shown = titles.slice(0, 3);
+  const extra = titles.length - shown.length;
+  let list: string;
+  if (shown.length === 1) list = shown[0];
+  else if (shown.length === 2 && extra === 0) list = `${shown[0]} and ${shown[1]}`;
+  else if (extra === 0) list = `${shown.slice(0, -1).join(', ')}, and ${shown[shown.length - 1]}`;
+  else list = `${shown.join(', ')}, and ${extra} more`;
+  return `Next on the log: ${list}.`;
+}

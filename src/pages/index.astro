@@ -5,7 +5,7 @@ import JsonLd from '../components/JsonLd.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import BuildCard from '../components/BuildCard.astro';
 import { SITE_DESCRIPTION } from '../consts';
-import { buildingCards } from '../data/building-cards';
+import { featuredBuilds, remainingBuilds, totalBuilds, nextOnTheLog } from '../data/building-cards';
 import { personKenAshe, websiteKenAshe } from '../data/schema';
 
 // Blog: latest 5 posts, newest first.
@@ -16,8 +16,11 @@ const notes = allNotes
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   .slice(0, 3);
 
-// Building: latest 3 cards (same curated set as /building/).
-const latestBuilds = buildingCards.slice(0, 3);
+// Building: the featured cards plus a continuation to the full log. All counts come
+// from src/data/building-cards.ts so they match /building/ exactly.
+const latestBuilds = featuredBuilds;
+const nextLine = nextOnTheLog();
+const hasMore = remainingBuilds.length > 0;
 
 // Three credibility cards: builder, operator, digital-assets. Tighter than the old
 // six-card grid; Community Leader moved off the homepage per the 2026-08 repositioning.
@@ -110,12 +113,29 @@ const homeSchema = {
 
     <section aria-labelledby="building-heading" class="block">
       <div class="block-head">
-        <h2 id="building-heading">Building</h2>
+        <h2 id="building-heading">
+          Building{hasMore && (
+            <span class="block-count">
+              <span aria-hidden="true"> · </span>{latestBuilds.length} of {totalBuilds}
+            </span>
+          )}
+        </h2>
         <a href="/building/" class="block-link">All builds →</a>
       </div>
       <ul class="receipts">
         {latestBuilds.map((p) => <BuildCard project={p} />)}
       </ul>
+      {
+        hasMore && (
+          <div class="build-more">
+            <a class="cta cta-primary cta-block" href="/building/">
+              View all {totalBuilds} builds
+              <span aria-hidden="true">→</span>
+            </a>
+            {nextLine && <p class="build-next">{nextLine}</p>}
+          </div>
+        )
+      }
     </section>
 
     <section aria-labelledby="hire-heading" class="hire">
@@ -322,6 +342,30 @@ const homeSchema = {
   }
   .block-link:hover {
     color: var(--fg);
+  }
+  .block-count {
+    text-transform: none; /* keep "of" lowercase inside the uppercase heading */
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Building continuation: clearly part of Building, spaced away from Work with me. */
+  .build-more {
+    margin: 1.75rem 0 3rem;
+  }
+  .cta-block {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    font-size: 1rem;
+    padding: 0.85rem 1.25rem;
+  }
+  .build-next {
+    margin: 0.9rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--muted);
   }
 
   /* What I bring */
