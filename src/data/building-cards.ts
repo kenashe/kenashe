@@ -5,7 +5,7 @@ import { projects, type Project } from './builds';
 const autonomousBlog: Project = {
   title: 'Autonomous AI blog',
   status: 'LIVE',
-  dek: "Scans the day's AI sources, clusters them into distinct stories, and auto-publishes only the drafts that clear an editorial quality gate. No human in the loop.",
+  dek: "Scans the day's AI sources, clusters them into distinct stories, and publishes only the drafts that clear an editorial quality gate, without manual approval.",
   stack: ['GitHub Actions', 'n8n', 'Claude Opus 4.8', 'GPT-5.5', 'Gemini 3.1 Pro', 'pgvector'],
   shippedAt: 'Jun 2026',
   metric: 'runs daily',
