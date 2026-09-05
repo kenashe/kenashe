@@ -1,0 +1,66 @@
+---
+title: "AI API outages need postmortems, not vibes"
+description: "A Hacker News thread about unexplained OpenAI and Anthropic outages points to a bigger operator problem: model APIs are becoming core infrastructure, but their incident reporting still often feels too thin for production planning."
+pubDate: 2026-09-05
+tags: ["ai-infrastructure", "llm-ops", "reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-05-ai-api-outages-need-postmortems-not-vibes/hero.png
+  alt: "AI API outages need postmortems, not vibes"
+sources:
+  - title: "Nobody is saying why OpenAI and Anthropic had outages"
+    url: "https://www.wired.com/story/nobody-is-saying-why-openai-and-anthropic-had-outages-today/"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+  - name: "Anthropic"
+    sameAs: "https://www.wikidata.org/wiki/Q116758847"
+  - name: "Google"
+    sameAs: "https://www.wikidata.org/wiki/Q95"
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+---
+
+TL;DR: If your product depends on frontier model APIs, treat unexplained outages as a design requirement, not an edge case.
+
+## What do we actually know?
+
+The primary source here is the Hacker News thread, “Nobody is saying why OpenAI and Anthropic had outages.” That matters because it is not an OpenAI incident report. It is not an Anthropic postmortem. It is a public operator gripe, and the gripe is simple: users saw service disruption, but did not get a satisfying explanation of why it happened.
+
+That distinction is the whole story.
+
+When AWS, Stripe, Cloudflare, or GitHub have serious incidents, customers expect a status update, then a root cause analysis, then a list of mitigations. Not always instantly. Not always perfectly. But the norm is clear: if developers build on your infrastructure, they need more than “degraded performance” and “resolved.”
+
+With model APIs, that norm is still immature. Some outages are visible. Some are partial. Some look like latency spikes, rate-limit weirdness, tool-call failures, streaming stalls, elevated refusals, or lower-quality outputs. To the user, it all blends together as “the AI broke.” To the builder, those are very different failure modes.
+
+The Hacker News discussion is useful less as proof of a specific technical failure and more as a signal of trust friction. Builders are asking for the same thing they ask of every other dependency: tell me what failed, how broad it was, whether data was at risk, whether behavior changed, and what you changed so it is less likely next time.
+
+## Why does the missing “why” matter?
+
+Because AI outages are not like a static database going offline.
+
+A model provider can fail in more ways than a normal API. The endpoint can be unavailable. The model can return errors. The response can be slow enough to wreck the product. A routing layer can silently move requests to another model. A safety system can over-fire. A retrieval system can drift. A tool-use agent can keep running but make worse decisions.
+
+From the outside, customers usually cannot tell which one happened.
+
+That creates bad incentives inside teams. If an AI feature fails and the vendor gives no useful postmortem, the product team has to guess. Was it our prompt? Their model? Our retry logic? A new policy rule? A region problem? A quota issue? A batch of malformed tool responses? The next sprint gets spent adding duct tape instead of fixing the right layer.
+
+![an application connected to two distant model services, with one connection broken, a small cache buffer, and a human fa](../../assets/blog/2026-09-05-ai-api-outages-need-postmortems-not-vibes/inline-1.png)
+
+There is also a planning issue. If OpenAI, Anthropic, Google, Meta, and others are becoming application infrastructure, then reliability data becomes product input. Teams need to know whether to go multi-provider, cache more aggressively, queue work, degrade to smaller models, or hold a human review path open for high-value workflows.
+
+Without good incident detail, every team pays the tax independently.
+
+## What should builders change?
+
+Do not wait for perfect vendor transparency. Design as if model providers will have opaque incidents.
+
+That starts with classifying failures in your own app. Track timeouts, 5xx responses, rate limits, empty outputs, malformed JSON, tool-call failures, refusal spikes, latency bands, and user-visible task failures separately. “LLM error” is not a metric. It is a junk drawer.
+
+Next, separate features by blast radius. A writing assistant can show a retry button. A support triage agent may need queueing and escalation. A financial reconciliation workflow should probably pause rather than guess. The fallback should match the risk.
+
+Multi-provider support helps, but it is not magic. Prompts do not port cleanly. Tool schemas behave differently. Safety behavior varies. Latency and cost change. If you only test the backup path during an outage, you do not have a backup path. You have a theory.
+
+I would also add an internal incident note every time a vendor failure affects users, even if the vendor says little. Capture timestamps, symptoms, models used, regions if known, customer impact, retries, and what your system did. Over time, that becomes your reliability map.
+
+Practitioner’s Take: Build a small “AI dependency dashboard” this week. Not fancy. Just provider, model, endpoint, latency, error type, fallback used, and user impact. Then run one forced failover test against your most important AI feature. The catch most teams miss is that reliability is not only whether the model answers. It is whether your product still makes a sane decision when the model does not.
