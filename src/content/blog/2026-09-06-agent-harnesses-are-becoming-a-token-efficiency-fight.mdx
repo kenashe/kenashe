@@ -1,0 +1,54 @@
+---
+title: "Agent Harnesses Are Becoming a Token Efficiency Fight"
+description: "A Reddit benchmark comparing Claude Managed Agents, LangChain DeepAgents, and TrueForge points to a practical question for builders: not which agent feels smartest, but which runtime gets the same work done with fewer tokens, fewer tool calls, and less operational drag."
+pubDate: 2026-09-06
+tags: ["ai-agents", "builder-tools", "local-llama", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-06-agent-harnesses-are-becoming-a-token-efficiency-fight/hero.png
+  alt: "Agent Harnesses Are Becoming a Token Efficiency Fight"
+sources:
+  - title: "Which agent harness do you use and why?"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1w8f7bp/which_agent_harness_do_you_use_and_why/"
+entities:
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: Agent harness choice is starting to look less like a model-quality decision and more like a runtime-efficiency decision, but the benchmarks are still too thin to crown winners.
+
+## What did the benchmark actually test?
+
+The primary source here is the r/LocalLLaMA thread titled “Which agent harness do you use and why?” by /u/Background-Job-862, who reported running 14 cross-system agent tasks across three MCP servers: a CRM, an issue tracker, and a doc store. The comparison covered Claude Managed Agents, LangChain’s DeepAgents, and TrueForge, with the TrueForge benchmark kit linked at `https://github.com/truefoundry/trueforge/tree/main/benchmark`.
+
+The interesting part was not that one system crushed the others. It was that two setups reportedly landed at the same solve count with very different resource use.
+
+According to /u/Background-Job-862, Claude Managed Agents with Opus 4.8 solved 11 of 14 tasks at $11.80 per run and 10.0 million tokens per run. TrueForge with Opus 4.8 also solved 11 of 14 tasks, but at $8.60 per run and 3.7 million tokens per run. Tool calls showed the same pattern: 32 per task for Claude Managed Agents versus 19 for TrueForge, as reported in the thread.
+
+That is the real signal. Same model. Same prompt. Same tasks. Similar outcome. Different runtime behavior.
+
+The user also reported swapping the model: TrueForge plus GLM-5.2 averaged 11.7 of 14 solved, at $3.00 per run and 3.8 million tokens per run. Treat that carefully. This is one user’s benchmark, not a controlled public evaluation with broad replication. But it points at the thing agent builders should be measuring more often: how much thinking, context stuffing, and tool churn the harness adds around the model.
+
+![three different agent paths moving through tools toward similar completed outputs, with one path visibly shorter and les](../../assets/blog/2026-09-06-agent-harnesses-are-becoming-a-token-efficiency-fight/inline-1.png)
+
+## Why does the harness matter if the model is the same?
+
+Most agent demos still frame the model as the star. That is too simple.
+
+An agent harness decides how tasks are decomposed, how tools are called, how context is packed, what gets remembered, when the model is asked to reflect, and how often it loops. Those choices turn into tokens. Tokens turn into latency, cost, and failure surface area.
+
+This is why the TrueForge result is worth paying attention to, even with all the caveats. /u/Background-Job-862 described TrueForge as interesting because it separates the model from the runtime, making it easier to experiment with different models. That is not a first-party product claim in this material, so I would not treat it as confirmed product positioning. But as an architectural idea, it matters.
+
+If your runtime is model-neutral, you can test Opus, GLM, Qwen, Llama, or whatever comes next without rewriting the whole workflow. If your runtime is efficient, a slightly weaker or cheaper model may become good enough. That is where applied AI gets fun. Not magic agents. Boring harness work that changes the unit economics.
+
+## Should you switch from Claude Code or managed agents?
+
+Probably not just because of one Reddit benchmark.
+
+The same thread is clear about the tradeoffs. /u/Background-Job-862 said Claude Code or Claude managed agents feel stronger on maturity and managed experience, while cost and token burn are high. They also said TrueForge is early, lacks first-class tracing and eval tooling, does not ship its own code-execution sandbox, and uses intentionally lossy context compaction.
+
+That is not a small footnote. For production systems, tracing and evals are not polish. They are how you debug weird tool calls, silent context loss, and “worked yesterday” regressions. A cheaper run that is harder to inspect can become expensive fast.
+
+So the practical split is this: managed agent platforms still win when teams need batteries included, safer defaults, and less infrastructure ownership. Open, model-neutral harnesses become attractive when cost pressure is real, workloads are repetitive enough to benchmark, and the team can own sandboxing, observability, and evals.
+
+For builders, I would not start by migrating. I would start by copying the shape of this test. Pick 10 to 20 real tasks from your own workflow, freeze the prompt, freeze the tool servers, run two harnesses with the same model, then track solve rate, tokens, tool calls, wall time, and debuggability. The catch most readers miss: the cheapest harness is not the one with the lowest token count, it is the one whose failures you can understand and fix without turning every agent run into archaeology.

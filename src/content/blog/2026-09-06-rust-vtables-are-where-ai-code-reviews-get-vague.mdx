@@ -1,0 +1,49 @@
+---
+title: "Rust vtables are where AI code reviews get vague"
+description: "A Rust memory visualization is a useful reminder that AI coding tools can suggest abstractions quickly, but builders still need to understand what dynamic dispatch stores, what it hides, and where runtime costs or design constraints actually show up."
+pubDate: 2026-09-06
+tags: ["rust", "coding-agents", "software-engineering"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-06-rust-vtables-are-where-ai-code-reviews-get-vague/hero.png
+  alt: "Rust vtables are where AI code reviews get vague"
+sources:
+  - title: "Visualizing Rust's Vtables: How dyn Trait Works In Memory"
+    url: "https://sofiabelen.github.io/projects/visualizing-rusts-vtables-how-dyn-trait-works-in-memory/"
+---
+
+TL;DR: If an AI tool suggests `dyn Trait`, do not accept it as a harmless abstraction until you know what pointer shape, dispatch behavior, and ownership constraints it implies.
+
+## What does `dyn Trait` really add?
+
+The useful hook in **“Visualizing Rust's Vtables: How dyn Trait Works In Memory”**, surfaced on Hacker News, is not just Rust trivia. It is a reminder that “cleaner interface” often means “different runtime model.”
+
+In Rust, `dyn Trait` is dynamic dispatch. Instead of the compiler generating a separate concrete version of code for each type, a trait object carries enough metadata to call the right implementation at runtime. Behind a pointer, that generally means two pieces: a pointer to the actual value, and a pointer to a vtable, the table of function pointers and type metadata used for calls through the trait.
+
+That is the part AI code assistants tend to flatten.
+
+Ask a model whether you should use generics or `dyn Trait`, and you will usually get the right vocabulary: static dispatch, dynamic dispatch, monomorphization, object safety. The answer often sounds competent. The risk is that it stops at labels. In real Rust code, the choice changes API shape. It affects whether the compiler can inline. It affects binary size tradeoffs. It affects whether a trait can be made into an object at all. It can also force boxing or references in places where a beginner expected “just pass the thing.”
+
+None of that means `dyn Trait` is bad. It is often exactly right when you need heterogeneous collections, plugin-like boundaries, or smaller public interfaces. The problem is treating it as a style preference.
+
+![two concrete objects flowing into a shared behavior table, then one uniform pointer shape reaching a caller](../../assets/blog/2026-09-06-rust-vtables-are-where-ai-code-reviews-get-vague/inline-1.png)
+
+## Why do coding agents miss this?
+
+AI coding tools are very good at local syntax and pattern completion. They are weaker at invisible machine contracts unless you force the issue.
+
+A coding agent can replace a generic parameter with `Box<dyn Trait>` and all the types may line up after a few compiler-driven edits. That does not mean the design improved. It may have moved cost from compile time to runtime. It may have erased type information that another part of the program wanted. It may have made testing easier and performance harder. Or the reverse.
+
+This is where visual explanations of memory layout matter. Not because every web service needs hand-tuned dispatch. Most do not. They matter because they give the human reviewer a concrete model for asking sharper questions.
+
+When I see `dyn Trait` in code proposed by an assistant, I want to know three things. Is there actually more than one concrete type crossing this boundary? Is the dynamic boundary stable and intentional, or did it appear because the model got stuck on lifetimes or generics? Is the performance profile relevant here, or are we in boring orchestration code where clarity wins?
+
+Those are design questions, not lint questions.
+
+## The better prompt is not “fix my Rust”
+
+The practical move is to make the AI explain the runtime shape of its own suggestion. Ask it to compare a generic version, an enum version, and a `dyn Trait` version for your exact function boundary. Ask what gets allocated, what gets monomorphized, what can be inlined, and what becomes object-safe or not. Then run the compiler, tests, and benchmarks where it matters.
+
+This is also a good example of where AI makes senior engineering more valuable, not less. A junior developer with an assistant can get working Rust faster. A senior developer can spot when “working” smuggles in a bad abstraction boundary.
+
+The catch most readers miss: `dyn Trait` is not mainly a performance footgun. It is an architecture choice wearing syntax clothes. Use the assistant to generate both versions, then review the memory model before you bless the interface.
