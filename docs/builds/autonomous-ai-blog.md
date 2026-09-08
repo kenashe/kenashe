@@ -66,8 +66,8 @@ Plenty broke. The recurring theme was that the model was almost never the proble
 
 The Autonomous AI Blog has been live since June 2026.
 
-It publishes roughly ten posts per day, each one sourced, illustrated, deduplicated, and self-reviewed before going live. Total human involvement is a glance at a Telegram digest. Failed pieces queue politely as drafts instead of publishing.
+It publishes roughly ten posts per day, each one sourced, illustrated, deduplicated, and self-reviewed before going live. On most days, my involvement is limited to reviewing the Telegram digest. Failed pieces queue politely as drafts instead of publishing.
 
 The system has survived model outages, feed rate limits, a GitHub Actions outage, and its own bugs while keeping the daily cadence intact.
 
-The repo now carries the full architecture and decision log, so any competent engineer, or agent, could take it over tomorrow.
+The repository contains the architecture and decision log needed to support a future handoff to another engineer or agent.

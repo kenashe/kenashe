@@ -158,6 +158,25 @@ the ones most likely to be an entry point, carried no identity disambiguation.
 **Constraint.** `personKenAshe` is mirrored on luckydomains.io and must stay byte-identical
 across both sites. Adding a `sameAs` profile means updating **both**.
 
+**How the mirror is done (2026-09-08).** The node lives once as TypeScript in
+`src/data/schema.ts`. On Lucky Domains it is embedded as pretty-printed JSON inside the
+`@graph` of two files in the `kenashe/luckydomains` repo: `index.html` and
+`news/website-relaunch.html` (`about.html` carries only a short founder blurb that shares the
+`@id`). The check that matters is semantic, not textual: serialize `personKenAshe` and compare
+it, key for key, with the Person object parsed from each Lucky Domains page. Procedure: edit
+`schema.ts`, push, then replace the Person object in both Lucky Domains files with the
+serialized node (JSON-LD only, no visible copy) in the same pass. Lucky Domains deploys from
+`main` via GitHub Pages in under a minute; kenashe.ai takes 10 to 20 minutes on Vercel, so
+the two sites can briefly disagree after a change. That window is expected.
+
+**Revision log.** The node changed four times on 2026-09-04 through 2026-09-08 as the
+"AI application builder" identity settled: jobTitle, description, `mainEntityOfPage`
+(/about/), email, NJ/US address, credentials (now CPA, CGMA, PMP, PMI-ACP), `alternateName`
+"Kenneth Ashe", and `sameAs` (GitHub, LinkedIn, X, PMI, Investing.com contributor profile,
+Sessionize). `@id` stayed `https://kenashe.ai/#ken-ashe`. `sameAs` is for profiles Ken
+controls; published works and press coverage never go in it. `founder` is expressed on the
+Lucky Domains Organization node, not on the Person (schema.org has no Person.founder).
+
 ## <a id="d10"></a>D10 — Name the primary source in every post
 
 **Observation.** The daily gate pass rate sat at 4–5 of 10. Four of five failures on one run

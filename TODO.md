@@ -11,13 +11,6 @@ notes leaked to /newsroom/ until 2026-08-18); park them here instead.
   Contact page. Email is the press contact until then. `/contact` still 301s to the
   homepage via `vercel.json`; remove that redirect before building the page.
 
-## Identity
-- **Person schema alignment** (see the 2026-09-04 consistency pass): `personKenAshe` in
-  `src/data/schema.ts` still carries the pre-repositioning `jobTitle`/`description` and is
-  byte-identical with a copy on luckydomains.io (DECISIONS.md D9). Updating it to the
-  "AI application builder" identity and pointing `mainEntityOfPage` at `/about/` requires
-  changing both sites together. Awaiting Ken's decision.
-
 ## OG cards (assets needed from Ken)
 - **Dedicated social cards for `/about/` and the AI Werewolf essay.** The per-page mechanism
   already exists: pass `image="/og/<file>.png"` plus `ogImageWidth={1200}` and

@@ -52,7 +52,7 @@ With almost no real information or consequences, agents began accusing players w
 
 When the first version supplied almost no observable state changes, agents filled the gaps with plausible but unsupported social reasoning. Later versions added a canonical transcript, private information, votes, eliminations, and role reveals, giving claims something concrete to succeed or fail against.
 
-**Private information changed the quality of deception.** Once werewolves could coordinate privately and the Seer had asymmetric knowledge, the game became more believable. Agents began lying, deflecting, protecting allies, and pushing false narratives in ways that felt strategically coherent.
+**Later versions introduced private wolf coordination and asymmetric Seer knowledge.** In those runs, agents produced more convincing lies, deflections, ally protection, and false narratives tied to the evolving game state.
 
 **History made behavior legible.** The pre-game prologue and shared relationships helped establish a baseline. Suspicion became more interesting when characters could compare current behavior to prior behavior.
 
@@ -60,7 +60,7 @@ When the first version supplied almost no observable state changes, agents fille
 
 **Text does not scale as entertainment.** The larger nine-player version created compelling moments, but it became slow and produced far too much material to consume comfortably as raw text. The project started pointing toward edited formats and AI-generated video instead of transcript-first publishing.
 
-The strongest pattern I observed was that the richer versions gave the agents more grounded material to reason over. Private information, canonical state, consequences, and changing incentives mattered more than personality prompts alone.
+The strongest pattern I observed was that the richer versions gave the agents more grounded material to reason over. Because several variables changed together, these runs do not isolate the individual effects of private information, canonical state, consequences, changing incentives, or personality prompts.
 
 ### Outcome
 
