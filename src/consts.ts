@@ -7,15 +7,15 @@ export const AUTHOR = 'Ken Ashe';
 // SVG does not (notably Facebook/LinkedIn), so the card ships as a raster.
 export const DEFAULT_OG_IMAGE = '/og-default.png';
 
-// Order is deliberate: the personal body of work leads; the autonomous digest is
-// labeled as such and never sits first. "About" is the canonical bio page (/about/);
-// Disclosure stays linked from the footer under Legal.
+// Order is deliberate: what Ken builds, what he writes, who he is, external coverage and
+// media info, then the autonomous digest last and labeled as such. Topics stay live at
+// /topics/ but are reached from the Digest and the footer, not the primary nav.
 export const NAV: { label: string; href: string }[] = [
   { label: 'Building', href: '/building/' },
-  { label: 'Topics', href: '/topics/' },
   { label: 'Writing', href: '/writing/' },
-  { label: 'Digest', href: '/blog/' },
   { label: 'About', href: '/about/' },
+  { label: 'Newsroom', href: '/newsroom/' },
+  { label: 'Digest', href: '/blog/' },
 ];
 
 export const SOCIAL: { label: string; href: string }[] = [
