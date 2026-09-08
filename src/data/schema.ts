@@ -62,6 +62,7 @@ export const personKenAshe = {
     'https://community.pmi.org/profile/kenashe',
     'https://www.investing.com/members/contributors/201067762',
     'https://sessionize.com/ken-ashe',
+    'https://www.projecttimes.com/author/kenneth-ashe/',
   ],
   affiliation: {
     '@type': 'Organization',
