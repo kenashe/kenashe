@@ -60,6 +60,8 @@ export const personKenAshe = {
     'https://www.linkedin.com/in/kenashe',
     'https://x.com/kenashe',
     'https://community.pmi.org/profile/kenashe',
+    'https://www.investing.com/members/contributors/201067762',
+    'https://sessionize.com/ken-ashe',
   ],
   affiliation: {
     '@type': 'Organization',
