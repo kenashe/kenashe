@@ -2,6 +2,7 @@
 // big reason the prose reads human) and GENERALIZED from "digital marketing operator"
 // to "AI generalist & optimist," with multi-source synthesis instead of single-transcript.
 import type { Item, TierKind } from './types.ts';
+import { tagVocabularyForPrompt } from './tags.ts';
 
 const VOICE = `You write for The Lab at kenashe.ai — daily notes on AI from Ken Ashe, an AI generalist and operator. An optimist who ships: clear-eyed, shows receipts, cuts hype. Covers all of AI (models, research, builder tools, agents, products, applied workflows, policy, culture) — not just marketing.
 
@@ -70,6 +71,8 @@ First-party claims need a first-party source. When you state what a company's ow
 Insert exactly ${imgN} inline image placeholder(s) on their own line where a visual would help, formatted:
 {{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
 Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.
+
+Tags: choose 3 to 5 tags from this reusable vocabulary, lowercase and hyphenated exactly as written: ${tagVocabularyForPrompt()}. Use only tags from this list; tags that are not on it are discarded. Pick the closest listed concepts rather than inventing a new one.
 
 Output ONLY MDX with this frontmatter then the body:
 ---

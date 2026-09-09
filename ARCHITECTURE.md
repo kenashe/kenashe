@@ -146,6 +146,41 @@ gated — **a slot is not a publish**. After synthesis they get canonical beachh
 `withCanonicalTags()` additionally maps tag aliases onto canonical hub tags
 (e.g. `agentic` → `ai-agents`).
 
+### Topics vs tags (tag governance, since 2026-09-09)
+
+**Topics** are the four fixed hubs in `src/data/topics.ts` (`/topics/<slug>/`); each aggregates
+a *family* of tags. **Tags** are the reusable vocabulary underneath them, one level more
+granular than a Topic but still durable: `coding-agents`, `agent-evaluation`, `model-reliability`,
+not a headline or a company-plus-event phrase. Before this rule the model minted tags freely
+and 685 posts produced 685 distinct tags (419 used once), each with its own `/blog/tags/` page.
+
+How tags are assigned now (`pipeline/src/tags.ts`):
+
+1. The synthesis prompt lists the canonical vocabulary (`CANONICAL_TAGS`) and asks the model
+   to choose 3 to 5 from it and nothing else.
+2. `governTags(tags, title)` post-processes whatever comes back: lowercase and hyphenate,
+   collapse trivial plural/singular variants, map `TAG_SYNONYMS` onto canonical forms
+   (`agents` -> `ai-agents`, `evaluation` -> `evals`, `open-weights` -> `open-source-ai`, ...),
+   de-duplicate, keep every canonical tag, **drop anything not in the vocabulary**
+   (`MAX_NEW_TAGS_PER_POST = 0`), and cap at `MAX_TAGS = 5`.
+3. New concepts enter the vocabulary only by editing `CANONICAL_TAGS` in a reviewed commit.
+   A tag invented at publish time would exist on one post and never be offered to later runs
+   (the vocabulary is a static list), which is exactly the one-off pattern this replaces. If
+   `MAX_NEW_TAGS_PER_POST` is ever raised, `isAcceptableNewTag()` still rejects headline-like
+   tags (over `MAX_TAG_WORDS = 3` words, under 3 or over 32 characters, numeric, or a fragment
+   of the post title).
+4. `withCanonicalTags()` (selection.ts) then adds the hub tag when a family alias is present,
+   and run.ts adds `digital-assets` / `marketing-ops` / `deep-dive` where sources or tier
+   require. Those hub tags are canonical, so they pass governance unchanged.
+
+Adding to the vocabulary: append to `CANONICAL_TAGS` only when several published posts would
+share the concept; add surface variants to `TAG_SYNONYMS`. `pipeline/test/tags.test.ts` checks
+that every synonym points at a canonical tag and that no canonical tag is also a synonym key.
+
+**Historical tags are not rewritten.** Existing post frontmatter and `/blog/tags/` pages keep
+their tags; this governs future publication only. A retroactive merge is a separate decision
+to be made on Search Console evidence.
+
 ### The weekly deep-dive (pillar)
 
 Config: `pipeline/config/deepdive.json`.

@@ -1,13 +1,43 @@
 ---
 // origin: human — written by Ken, not the pipeline. Static page by design (see /writing/).
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import JsonLd from '../../../components/JsonLd.astro';
 import { essayBySlug, authorshipOf } from '../../../data/writing';
+import { personKenAshe, websiteKenAshe } from '../../../data/schema';
+import { SITE_URL, DEFAULT_OG_IMAGE } from '../../../consts';
 
-const authorship = authorshipOf(essayBySlug('the-digest-is-the-system'));
+const essay = essayBySlug('the-digest-is-the-system');
+const authorship = authorshipOf(essay);
 
 const title = 'The digest is the system. Building is the work.';
 const description =
   'The autonomous blog was an experiment that worked. That is exactly why it stops being the public face of this site.';
+
+// Article node for this essay. Author and publisher are the canonical Person (imported, not
+// forked: DECISIONS.md D9); the essay is human-directed, so unlike Digest posts the author
+// is Ken Ashe himself. Same self-contained @graph pattern as every other content page.
+const pageUrl = new URL(`/writing/the-digest-is-the-system/`, SITE_URL).toString();
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Article',
+      '@id': `${pageUrl}#article`,
+      headline: title,
+      description: description,
+      url: pageUrl,
+      mainEntityOfPage: pageUrl,
+      image: new URL(DEFAULT_OG_IMAGE, SITE_URL).toString(),
+      datePublished: essay.published,
+      author: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isPartOf: { '@id': 'https://kenashe.ai/#website' },
+      inLanguage: 'en-US',
+    },
+    websiteKenAshe,
+    personKenAshe,
+  ],
+};
 ---
 
 <BaseLayout
@@ -19,6 +49,7 @@ const description =
     { name: title, path: '/writing/the-digest-is-the-system/' },
   ]}
 >
+  <JsonLd slot="jsonld" data={articleSchema} />
   <article class="essay">
     <nav class="crumbs" aria-label="Breadcrumb">
       <a href="/writing/"><span aria-hidden="true">←</span> Writing</a>
@@ -29,7 +60,7 @@ const description =
       <h1>{title}</h1>
       <p class="meta">
         <span class="meta-key">By</span> Ken Ashe
-        <span aria-hidden="true">·</span> August 2026
+        <span aria-hidden="true">·</span> August 28, 2026
         <span aria-hidden="true">·</span> {authorship}
       </p>
     </header>

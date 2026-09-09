@@ -26,10 +26,12 @@ test('cleanSlug expands & and collapses separators', () => {
   assert.equal(cleanSlug('Agents & Evals', '2026-01-01'), '2026-01-01-agents-and-evals');
 });
 
-test('governTags canonicalises aliases, de-dupes, and caps at 5', () => {
+test('governTags canonicalises aliases, de-dupes, caps at 5, and allows one new tag', () => {
   assert.deepEqual(governTags(['LLM Evals', 'ai-evals', 'Agent Architecture']), ['evals', 'ai-agents']);
-  assert.equal(governTags(['a', 'b', 'c', 'd', 'e', 'f', 'g']).length, 5);
-  assert.deepEqual(governTags(['', '  ', 'ok']), ['ok']);
+  // seven canonical tags -> capped at 5
+  assert.equal(governTags(['openai', 'claude', 'gemini', 'mistral', 'qwen', 'codex', 'anthropic']).length, 5);
+  // unknown tags are dropped: the vocabulary is the only source of tags
+  assert.deepEqual(governTags(['', '  ', 'agent observability', 'another-fresh-idea', 'Claude']), ['claude']);
 });
 
 // --- D5, bug 1: invalid YAML escape from an arXiv LaTeX title ---

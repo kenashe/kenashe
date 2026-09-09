@@ -88,6 +88,14 @@ plainly, and treat the next deploy as the real verification.
   and never label one as a press asset. They are unlinked on purpose.
 - Do not generate, edit, or upscale Ken's likeness with AI.
 
+## Digest tags: reuse, don't mint
+
+Tags come only from `CANONICAL_TAGS` in `pipeline/src/tags.ts`; synonyms collapse via
+`TAG_SYNONYMS`; anything else is dropped at publish time. Add to the vocabulary (in a reviewed
+commit) only when several posts would share the tag. Never rewrite historical tags or tag pages to "clean up"
+the taxonomy; that is a Search-Console-evidence decision. Details: ARCHITECTURE.md
+"Topics vs tags".
+
 ## Things that look like bugs but aren't
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls

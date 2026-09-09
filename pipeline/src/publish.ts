@@ -22,24 +22,9 @@ export function cleanSlug(title: string, date: string): string {
 }
 
 // Controlled tag vocabulary (same merges applied in Bucket B) so the long tail stops growing.
-const TAG_CANON: Record<string, string> = {
-  'marketing-operations': 'marketing-ops', 'ai-marketing-ops': 'marketing-ops',
-  'llm-evals': 'evals', 'ai-evals': 'evals',
-  'agent-architecture': 'ai-agents', 'agent-workflows': 'ai-agents', 'agentic-systems': 'ai-agents',
-  'llm-workflows': 'ai-workflows', 'workflow': 'ai-workflows',
-  'programmatic-seo': 'seo', 'programmatic': 'seo',
-  'gtm-tools': 'marketing-tools', 'automation': 'marketing-automation', 'claude-opus': 'claude',
-};
-export function governTags(tags: string[]): string[] {
-  const out: string[] = [];
-  for (const raw of tags) {
-    const slug = raw.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (!slug) continue;
-    const canon = TAG_CANON[slug] ?? slug;
-    if (!out.includes(canon)) out.push(canon);
-  }
-  return out.slice(0, 5);
-}
+// Tag governance lives in tags.ts (canonical vocabulary, synonyms, new-tag cap). Re-exported
+// here so existing call sites and tests keep working.
+export { governTags } from './tags.ts';
 
 // Parse the model's MDX output. Title/description capture the FULL line (no apostrophe halt).
 export function parseGenerated(mdx: string): { title: string; description: string; tags: string[]; body: string } {
