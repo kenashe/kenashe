@@ -71,3 +71,5 @@ It publishes roughly ten posts per day, each one sourced, illustrated, deduplica
 The system has survived model outages, feed rate limits, a GitHub Actions outage, and its own bugs while keeping the daily cadence intact.
 
 The repository contains the architecture and decision log needed to support a future handoff to another engineer or agent.
+
+Related: [The digest is the system. Building is the work.](https://kenashe.ai/writing/the-digest-is-the-system/)
