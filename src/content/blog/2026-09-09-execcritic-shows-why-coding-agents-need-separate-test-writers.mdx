@@ -1,0 +1,60 @@
+---
+title: "ExecCritic shows why coding agents need separate test writers"
+description: "ExecCritic’s useful lesson is not just that tests improve coding agents. It is that bad self-written tests can make agents worse, while separated, trained test generation can turn execution feedback into real repair signal."
+pubDate: 2026-09-09
+tags: ["coding-agents", "agent-evaluation", "reinforcement-learning", "model-reliability"]
+draft: true
+image:
+  src: ../../assets/blog/2026-09-09-execcritic-shows-why-coding-agents-need-separate-test-writers/hero.png
+  alt: "ExecCritic shows why coding agents need separate test writers"
+sources:
+  - title: "ExecCritic: Learn to Test, Test to Improve for Coding Agents"
+    url: "http://arxiv.org/abs/2609.09133v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Coding agents get better from execution feedback only when the tests are independently generated, behaviorally valid, and frozen before repair starts.
+
+## Why do coding agents fail even when they write tests?
+
+The primary source here is the arXiv paper “ExecCritic: Learn to Test, Test to Improve for Coding Agents,” which reports code availability at `https://github.com/MSR-Orchard/execcritic`.
+
+The paper’s central claim is simple and useful: execution feedback is not magic. It helps coding agents when the test actually captures the behavior requested by the issue. It hurts when the test is wrong, incomplete, or quietly aligned with the agent’s own mistaken patch.
+
+That last failure mode is the one builders should care about. If the same coding trajectory writes the patch and writes the test, the two can share the same blind spot. The agent can build a broken fix, then create a test that blesses that broken fix. Green checkmark. False confidence.
+
+ExecCritic attacks this by splitting the work. A Test agent generates repository-native tests. A fail-closed harness qualifies them and freezes them. A Repair agent then changes the source code using execution feedback, but cannot edit the tests. That separation matters because it turns tests into an external constraint instead of a self-signed permission slip.
+
+The numbers make the point. On SWE-bench Verified, holding the base Repair agent fixed, tests from the base Test agent reduced resolved rate from a no-test baseline of 61.2% to 57.3%. So, yes, adding tests made the system worse. But tests from GPT-5.6-sol raised the resolved rate to 65.3%. Same basic idea, very different outcome, because test quality changed.
+
+That is the receipt: “run tests” is not a strategy. “Run trustworthy tests that target the requested behavior” is closer.
+
+![two separate agents working in parallel, one producing locked test cases and the other repairing code against them, with](../../assets/blog/2026-09-09-execcritic-shows-why-coding-agents-need-separate-test-writers/inline-1.png)
+
+## What did ExecCritic actually train?
+
+ExecCritic uses Qwen-3.5-35B-A3B as the backbone for both roles, but trains the roles separately.
+
+In “Learn to Test,” the Test agent learns to create behaviorally valid tests that distinguish correct patches from incorrect ones. That is a sharper goal than “write plausible unit tests.” The test has to separate good repair from bad repair.
+
+In “Test to Improve,” the Repair agent learns both direct issue resolution and feedback-guided revision. That second part is important. A repair model that cannot use failure output well is just guessing again after the test fails.
+
+The paper reports that role-specific post-training raises the Qwen Test agent’s Base-to-Gold success from 22.2% to 62.2%. Then, composing the two post-trained Qwen agents reaches 72.6% on SWE-bench Verified, an 11.4-point gain over the original no-test baseline, without stronger-model or Oracle feedback at evaluation time.
+
+I would not read that as “Qwen coding agents now solve software engineering.” SWE-bench Verified is still a benchmark, and benchmark wins can hide painful real-repo edge cases: flaky tests, underspecified tickets, integration environments, old dependencies, weird build systems, and maintainers who meant something different than the issue text said.
+
+But I do read it as a strong design pattern. The agent loop improves when critique is trained as its own job, not treated as an afterthought.
+
+## What should builders copy from this?
+
+The copyable part is not necessarily the full reinforcement learning recipe. Most teams will not train separate Qwen agents next week.
+
+The copyable part is the workflow boundary.
+
+Do not let one agent freely write the implementation, write the tests, revise the tests, and declare success. Split test creation from repair. Freeze tests before the repair loop. Reject tests that do not fail against known-bad behavior when you can construct that check. Treat weak tests as worse than no tests, because ExecCritic shows they can be.
+
+For production coding agents, I would start with a three-stage harness: generate tests from the issue and existing repo patterns, qualify them with a conservative gate, then run a repair agent that cannot modify those tests. Keep logs of which failures led to useful revisions versus noise. That log becomes your eval set.
+
+Practitioner’s take: if you are building an internal coding agent, add a separate “test critic” role before adding more model horsepower. Try it on 20 real tickets where you already know the expected fix. The catch most readers miss is that execution feedback is only as good as the test writer. Bad tests do not just waste tokens. They train your system to trust the wrong signal.
