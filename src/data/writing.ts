@@ -27,7 +27,7 @@ export const essays: Essay[] = [
   {
     slug: 'the-digest-is-the-system',
     title: 'The digest is the system. Building is the work.',
-    date: 'August 2026',
+    date: 'August 28, 2026',
     published: '2026-08-28',
     dek: 'Why the autonomous blog stops being the public face of this site, and what stands behind it instead.',
   },

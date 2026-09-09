@@ -90,9 +90,9 @@ plainly, and treat the next deploy as the real verification.
 
 ## Digest tags: reuse, don't mint
 
-Tags come from `CANONICAL_TAGS` in `pipeline/src/tags.ts`; synonyms collapse via `TAG_SYNONYMS`;
-a post may add at most one new tag and never a headline phrase. Add to the vocabulary only when
-several posts would share the tag. Never rewrite historical tags or tag pages to "clean up"
+Tags come only from `CANONICAL_TAGS` in `pipeline/src/tags.ts`; synonyms collapse via
+`TAG_SYNONYMS`; anything else is dropped at publish time. Add to the vocabulary (in a reviewed
+commit) only when several posts would share the tag. Never rewrite historical tags or tag pages to "clean up"
 the taxonomy; that is a Search-Console-evidence decision. Details: ARCHITECTURE.md
 "Topics vs tags".
 

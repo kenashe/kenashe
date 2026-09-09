@@ -1,12 +1,14 @@
 // Tag governance for Digest posts. Topics (src/data/topics.ts) are the four fixed hubs;
 // tags are the reusable, more granular vocabulary underneath them. Before 2026-09-09 the
 // model minted tags freely (685 posts produced 685 distinct tags, 419 used once), so tags
-// now come from a canonical vocabulary, synonyms collapse onto it, and a post may add at
-// most ONE new tag. Historical tags are never rewritten by this module: it governs future
-// output only. See ARCHITECTURE.md "Topics vs tags".
+// now come ONLY from the canonical vocabulary: synonyms collapse onto it and anything else is
+// dropped. A tag the model invents would live on that one post and never be offered to later
+// runs (the vocabulary is this static list), so allowing it just recreates one-off tags. To
+// add a concept, add it to CANONICAL_TAGS in a reviewed commit. Historical tags are never
+// rewritten by this module: it governs future output only. See ARCHITECTURE.md "Topics vs tags".
 
 export const MAX_TAGS = 5;
-export const MAX_NEW_TAGS_PER_POST = 1;
+export const MAX_NEW_TAGS_PER_POST = 0; // vocabulary-only: new concepts are added to CANONICAL_TAGS deliberately, never minted at publish time
 export const MAX_TAG_WORDS = 3; // anything longer reads like a headline, not a concept
 
 // Reusable concepts, chosen from the tags that had already accumulated 5+ posts by
@@ -138,8 +140,8 @@ export function isAcceptableNewTag(slug: string, title = ''): boolean {
 }
 
 /**
- * Govern a post's tags: normalize, collapse synonyms, prefer canonical tags, allow at most
- * MAX_NEW_TAGS_PER_POST genuinely new concepts, de-duplicate, cap at MAX_TAGS.
+ * Govern a post's tags: normalize, collapse synonyms, keep canonical tags, drop everything
+ * else (MAX_NEW_TAGS_PER_POST is 0; raise it only with a reason), de-duplicate, cap at MAX_TAGS.
  */
 export function governTags(tags: string[], title = ''): string[] {
   const canonical: string[] = [];

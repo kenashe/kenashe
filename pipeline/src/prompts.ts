@@ -72,7 +72,7 @@ Insert exactly ${imgN} inline image placeholder(s) on their own line where a vis
 {{IMAGE:inline:short description of the ideal visual, e.g. "three stages feeding into one output"}}
 Describe a conceptual visual that carries a concrete idea (a relationship, a process, a contrast). It renders in the post's art style with NO text or numeric labels, so don't rely on words, data values, or chart axes in the image.
 
-Tags: choose 3 to 5 tags from this reusable vocabulary, lowercase and hyphenated exactly as written: ${tagVocabularyForPrompt()}. Reuse before you invent: add at most ONE tag that is not on the list, and only when no listed tag fits and the concept will recur across many future posts (a durable topic, not this story's headline, company-plus-event combination, or a wording variant of a listed tag).
+Tags: choose 3 to 5 tags from this reusable vocabulary, lowercase and hyphenated exactly as written: ${tagVocabularyForPrompt()}. Use only tags from this list; tags that are not on it are discarded. Pick the closest listed concepts rather than inventing a new one.
 
 Output ONLY MDX with this frontmatter then the body:
 ---

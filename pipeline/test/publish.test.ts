@@ -30,8 +30,8 @@ test('governTags canonicalises aliases, de-dupes, caps at 5, and allows one new 
   assert.deepEqual(governTags(['LLM Evals', 'ai-evals', 'Agent Architecture']), ['evals', 'ai-agents']);
   // seven canonical tags -> capped at 5
   assert.equal(governTags(['openai', 'claude', 'gemini', 'mistral', 'qwen', 'codex', 'anthropic']).length, 5);
-  // unknown tags: at most one survives, and only if it looks like a durable concept
-  assert.deepEqual(governTags(['', '  ', 'agent observability', 'another-fresh-idea']), ['agent-observability']);
+  // unknown tags are dropped: the vocabulary is the only source of tags
+  assert.deepEqual(governTags(['', '  ', 'agent observability', 'another-fresh-idea', 'Claude']), ['claude']);
 });
 
 // --- D5, bug 1: invalid YAML escape from an arXiv LaTeX title ---

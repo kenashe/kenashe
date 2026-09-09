@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { governTags, normalizeTag, isAcceptableNewTag, CANONICAL_TAGS, TAG_SYNONYMS, MAX_TAGS } from '../src/tags.ts';
+import { governTags, normalizeTag, isAcceptableNewTag, CANONICAL_TAGS, TAG_SYNONYMS, MAX_TAGS, MAX_NEW_TAGS_PER_POST } from '../src/tags.ts';
 
 test('normalizeTag collapses case, punctuation, plurals and synonyms onto canonical forms', () => {
   assert.equal(normalizeTag('AI Agent'), 'ai-agents');
@@ -14,13 +14,15 @@ test('normalizeTag collapses case, punctuation, plurals and synonyms onto canoni
   assert.equal(normalizeTag("Claude’s Code"), 'claudes-code'); // unknown stays a normalized slug
 });
 
-test('governTags keeps canonical tags, dedupes, and allows at most one new tag', () => {
+test('governTags keeps canonical tags, dedupes, and drops tags outside the vocabulary', () => {
   const out = governTags(['agents', 'AI Agents', 'evaluation', 'brand-new-concept', 'another-new-one'], 'Some title');
-  assert.deepEqual(out, ['ai-agents', 'evals', 'brand-new-concept']);
+  assert.deepEqual(out, ['ai-agents', 'evals']);
+  assert.equal(MAX_NEW_TAGS_PER_POST, 0);
 });
 
 test('governTags rejects empty tags and caps the total', () => {
-  assert.deepEqual(governTags(['', '  ', 'ok-tag']), ['ok-tag']);
+  assert.deepEqual(governTags(['', '  ', 'ok-tag']), []); // 'ok-tag' is not canonical
+  assert.deepEqual(governTags(['', '  ', 'OpenAI']), ['openai']);
   const many = CANONICAL_TAGS.slice(0, 9).map((t) => t.toUpperCase());
   assert.equal(governTags(many).length, MAX_TAGS);
 });
@@ -33,7 +35,7 @@ test('a headline never becomes a tag', () => {
   assert.deepEqual(governTags(['SEO', 'Google spam update and the AI SEO content factory'], title), ['seo']);
 });
 
-test('new tags must look like durable concepts', () => {
+test('isAcceptableNewTag still guards durable-concept shape (used if MAX_NEW_TAGS_PER_POST is ever raised)', () => {
   assert.equal(isAcceptableNewTag('x'), false);
   assert.equal(isAcceptableNewTag('2026'), false);
   assert.equal(isAcceptableNewTag('one-two-three-four'), false);
