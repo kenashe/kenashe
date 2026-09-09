@@ -12,17 +12,24 @@ const all = await getCollection('blog', ({ data }) =>
 );
 const posts = all.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-// Full cards for the latest posts; the long tail collapses into a compact,
-// month-grouped archive so the index stops being one gigantic page of image cards.
-const RECENT = 30;
+// Rich cards for the newest posts; everything older stays directly linked from this page
+// (SEO: /blog/ is the hub for every Digest article) but in a lightweight date + title list,
+// grouped year -> month. Groups are derived from pubDate, so new months appear on their own.
+const RECENT = 100;
 const recent = posts.slice(0, RECENT);
 const archive = posts.slice(RECENT);
-const byMonth = new Map<string, typeof archive>();
-for (const p of archive) {
-  const key = p.data.pubDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const g = byMonth.get(key) ?? [];
-  g.push(p);
-  byMonth.set(key, g);
+const monthLabel = (d: Date) =>
+  d.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const dayLabel = (d: Date) =>
+  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+// year -> month label -> posts (insertion order is already newest first)
+const byYear = new Map<string, Map<string, typeof archive>>();
+for (const post of archive) {
+  const year = String(post.data.pubDate.getUTCFullYear());
+  const months = byYear.get(year) ?? new Map<string, typeof archive>();
+  const key = monthLabel(post.data.pubDate);
+  months.set(key, [...(months.get(key) ?? []), post]);
+  byYear.set(year, months);
 }
 ---
 
@@ -49,7 +56,7 @@ for (const p of archive) {
 
     <aside class="auto-note" aria-label="How this feed is made">
       <p>
-        This feed is written and published by an autonomous system Ken built. He is the publisher
+        This feed is written and published by an autonomous system Ashe built. He is the publisher
         and is accountable for it. It is not a first-person build log.
       </p>
       <p class="auto-note-links">
@@ -78,7 +85,10 @@ for (const p of archive) {
         <p class="empty">New posts coming soon.</p>
       ) : (
         <>
-          <ul class="grid">
+          <h2 class="list-h" id="latest-h">
+            Latest <span class="count">({recent.length})</span>
+          </h2>
+          <ul class="grid" aria-labelledby="latest-h">
             {recent.map((post) => {
               const cls = post.data.image ? 'card has-image' : 'card no-image';
               return (
@@ -126,24 +136,35 @@ for (const p of archive) {
 
           {archive.length > 0 && (
             <section class="archive" aria-labelledby="archive-h">
-              <h2 id="archive-h">Archive</h2>
-              <p class="archive-sub">{archive.length} earlier posts, grouped by month.</p>
-              {[...byMonth.entries()].map(([month, group]) => (
-                <details class="archive-month">
-                  <summary>
-                    {month} <span class="count">({group.length})</span>
-                  </summary>
-                  <ul class="archive-list">
-                    {group.map((post) => (
-                      <li>
-                        <a href={`/blog/${post.id}/`}>
-                          <span class="archive-title">{post.data.title}</span>
-                          <FormattedDate date={post.data.pubDate} format="short" />
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
+              <h2 id="archive-h" class="list-h">
+                Earlier posts <span class="count">({archive.length})</span>
+              </h2>
+              <p class="archive-sub">
+                Every earlier Digest post, newest first, grouped by month. Date and title only.
+              </p>
+              {[...byYear.entries()].map(([year, months]) => (
+                <section class="archive-year" aria-labelledby={`y-${year}`}>
+                  <h3 id={`y-${year}`}>{year}</h3>
+                  {[...months.entries()].map(([month, group]) => (
+                    <div class="archive-month">
+                      <h4>
+                        {month} <span class="count">({group.length})</span>
+                      </h4>
+                      <ul class="archive-list">
+                        {group.map((post) => (
+                          <li>
+                            <a href={`/blog/${post.id}/`}>
+                              <time datetime={post.data.pubDate.toISOString().slice(0, 10)}>
+                                {dayLabel(post.data.pubDate)}
+                              </time>
+                              <span class="archive-title">{post.data.title}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </section>
               ))}
             </section>
           )}
@@ -473,53 +494,85 @@ for (const p of archive) {
   .filters a.tag-alltags {
     text-decoration: none;
   }
+  .list-h {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.25rem;
+    color: var(--fg);
+  }
+  .list-h .count {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-left: 0.35rem;
+    font-variant-numeric: tabular-nums;
+  }
   .archive {
     margin-top: 3.5rem;
     border-top: 1px solid var(--border);
     padding-top: 2rem;
   }
-  .archive h2 {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0 0 0.35rem;
-    color: var(--fg);
-  }
   .archive-sub {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--muted);
-    margin: 0 0 1.25rem;
+    margin: -0.5rem 0 1.5rem;
   }
-  .archive-month {
-    border-bottom: 1px solid var(--border);
-    padding: 0.6rem 0;
-  }
-  .archive-month summary {
-    cursor: pointer;
+  .archive-year h3 {
     font-family: var(--font-mono);
-    font-size: 0.875rem;
-    color: var(--fg);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 2rem 0 0.75rem;
   }
-  .archive-month summary .count { color: var(--muted); }
+  .archive-month h4 {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin: 1.25rem 0 0.5rem;
+  }
+  .archive-month h4 .count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 0.3rem;
+  }
   .archive-list {
     list-style: none;
-    margin: 0.75rem 0 0.4rem;
+    margin: 0;
     padding: 0;
-    display: grid;
-    gap: 0.5rem;
+  }
+  .archive-list li {
+    border-top: 1px solid var(--border);
   }
   .archive-list a {
     display: flex;
-    justify-content: space-between;
     gap: 1rem;
     align-items: baseline;
+    padding: 0.45rem 0;
     text-decoration: none;
-    color: var(--muted);
+    color: var(--fg);
     font-family: var(--font-sans);
     font-size: 0.9375rem;
+    line-height: 1.4;
   }
-  .archive-list a:hover .archive-title { color: var(--accent); }
-  .archive-title { color: var(--fg); }
+  .archive-list time {
+    flex: 0 0 3.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .archive-list a:hover .archive-title {
+    color: var(--accent);
+  }
 </style>

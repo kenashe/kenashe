@@ -15,11 +15,11 @@ export async function GET(_context: APIContext) {
   const lines: string[] = [
     '# Ken Ashe — AI application builder',
     '',
-    '> Ken Ashe is an AI application builder (CPA, PMP) shipping agents, automations, and AI-assisted websites in public. The primary body of work is Building: dated project write-ups with stacks and honest failure notes. Writing carries occasional human-written essays. The site also hosts the Digest: a machine-published daily brief produced by an autonomous pipeline Ken built, owns, and is accountable for — labeled as automated on every page, synthesized from multiple sources and gated by an editorial quality check, but not personally edited before publish.',
+    '> Ken Ashe is an AI application builder (CPA, PMP) shipping agents, automations, and AI-assisted websites in public. The primary body of work is Building: dated project write-ups with stacks and honest failure notes. Writing carries occasional human-written essays. The site also hosts the Digest: a machine-published daily brief produced by an autonomous pipeline Ken Ashe built, owns, and is accountable for — labeled as automated on every page, synthesized from multiple sources and gated by an editorial quality check, but not personally edited before publish.',
     '',
     '## Key pages',
-    `- [Building](${base}/building/): The primary body of work — systems and agents Ken shipped, including the autonomous pipeline behind the Digest.`,
-    `- [Writing](${base}/writing/): Occasional human-written essays by Ken.`,
+    `- [Building](${base}/building/): The primary body of work — systems and agents Ken Ashe shipped, including the autonomous pipeline behind the Digest.`,
+    `- [Writing](${base}/writing/): Occasional essays Ken Ashe directs, edits, and stands behind; AI assistance is disclosed on each piece.`,
     `- [Topics](${base}/topics/): Four topic hubs — AI agents & evals, AI for marketing & ops, building with AI, AI × digital assets.`,
     `- [Digest](${base}/blog/): The machine-published daily brief (automated).`,
     `- [Disclosure](${base}/disclosure/): How content is made and who is accountable.`,
@@ -38,7 +38,7 @@ export async function GET(_context: APIContext) {
   lines.push(
     '',
     '## About this content',
-    `Digest posts are produced by an autonomous AI pipeline (multi-source synthesis with an editorial quality gate) that Ken Ashe built, owns, and is accountable for; they are labeled as automated on-page. Building and Writing are first-party pages by Ken. Full digest text for ingestion is at ${base}/llms-full.txt. Preferred citation: "KenAshe Digest (automated), kenashe.ai" for digest posts and "Ken Ashe, kenashe.ai" for first-party pages.`,
+    `Digest posts are produced by an autonomous AI pipeline (multi-source synthesis with an editorial quality gate) that Ken Ashe built, owns, and is accountable for; they are labeled as automated on-page. Building and Writing are first-party pages by Ken Ashe. Full digest text for ingestion is at ${base}/llms-full.txt. Preferred citation: "KenAshe Digest (automated), kenashe.ai" for digest posts and "Ken Ashe, kenashe.ai" for first-party pages.`,
     '',
   );
 

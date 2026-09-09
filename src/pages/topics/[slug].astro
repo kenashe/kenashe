@@ -23,6 +23,14 @@ const posts = all
 const pillar = posts.find((p) => (p.data.tags ?? []).includes('deep-dive'));
 const listPosts = pillar ? posts.filter((p) => p.id !== pillar.id) : posts;
 
+// Rich entries for the newest posts; every older matching post stays directly linked from
+// this page (no pagination) in a lightweight date + title list.
+const RECENT_HUB = 30;
+const recentPosts = listPosts.slice(0, RECENT_HUB);
+const earlierPosts = listPosts.slice(RECENT_HUB);
+const dayLabel = (d: Date) =>
+  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
 const url = new URL(`/topics/${topic.slug}/`, SITE_URL).toString();
 const collectionSchema = {
   '@type': 'CollectionPage',
@@ -89,18 +97,43 @@ const hubSchema = {
     }
 
     {
-      listPosts.length > 0 && (
-        <ul class="hub-list">
-          {listPosts.map((p) => (
-            <li>
-              <a href={`/blog/${p.id}/`}>
-                <span class="t">{p.data.title}</span>
-                <span class="d">{p.data.description}</span>
-                <FormattedDate date={p.data.pubDate} />
-              </a>
-            </li>
-          ))}
-        </ul>
+      recentPosts.length > 0 && (
+        <section aria-labelledby="recent-h">
+          <h2 id="recent-h" class="list-h">
+            Recent articles <span class="list-count">({recentPosts.length})</span>
+          </h2>
+          <ul class="hub-list">
+            {recentPosts.map((p) => (
+              <li>
+                <a href={`/blog/${p.id}/`}>
+                  <span class="t">{p.data.title}</span>
+                  <span class="d">{p.data.description}</span>
+                  <FormattedDate date={p.data.pubDate} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      earlierPosts.length > 0 && (
+        <section class="earlier" aria-labelledby="earlier-h">
+          <h2 id="earlier-h" class="list-h">
+            Earlier articles <span class="list-count">({earlierPosts.length})</span>
+          </h2>
+          <ul class="earlier-list">
+            {earlierPosts.map((p) => (
+              <li>
+                <a href={`/blog/${p.id}/`}>
+                  <time datetime={p.data.pubDate.toISOString().slice(0, 10)}>{dayLabel(p.data.pubDate)}</time>
+                  <span class="earlier-title">{p.data.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       )
     }
   </div>
@@ -249,5 +282,57 @@ const hubSchema = {
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .list-h {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.75rem;
+    color: var(--fg);
+  }
+  .list-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 0.3rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .earlier {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .earlier-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .earlier-list li {
+    border-top: 1px solid var(--border);
+  }
+  .earlier-list a {
+    display: flex;
+    gap: 1rem;
+    align-items: baseline;
+    padding: 0.45rem 0;
+    text-decoration: none;
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.4;
+  }
+  .earlier-list time {
+    flex: 0 0 6.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .earlier-list a:hover .earlier-title {
+    color: var(--accent);
   }
 </style>
