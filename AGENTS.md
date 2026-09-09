@@ -78,6 +78,16 @@ plainly, and treat the next deploy as the real verification.
 - Post JSON-LD: `author` is the Organization "KenAshe Digest (automated)"; `publisher` stays
   the canonical Person. Keep it that way.
 
+## Image assets: current vs archive
+
+- `public/images/ken-ashe.jpeg` is the **current** headshot and the only press photo. The
+  Newsroom media kit offers it, the SVG logo, and `og-default.png`; nothing else.
+- `public/images/archive/` holds older images kept for career-history use only (currently
+  `ken-ashe-headshot-corporate-archive.png`, a corporate headshot more than ten years old).
+  Never surface archive images in the media kit, on the About page, or as a current photo,
+  and never label one as a press asset. They are unlinked on purpose.
+- Do not generate, edit, or upscale Ken's likeness with AI.
+
 ## Things that look like bugs but aren't
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls
