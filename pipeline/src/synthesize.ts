@@ -25,7 +25,7 @@ export async function synthesize(story: Story, spokes: { slug: string; title: st
     title: p.title,
     description: p.description,
     pubDate,
-    tags: governTags(p.tags),
+    tags: governTags(p.tags, p.title),
     draft: true, // gate flips this to false on pass
     body: p.body,
     images: [],

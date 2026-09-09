@@ -10,6 +10,7 @@ export interface Essay {
   slug: string;
   title: string;
   date: string; // as displayed on the index
+  published: string; // ISO date for structured data (datePublished)
   dek: string;
   authorship?: string;
 }
@@ -19,6 +20,7 @@ export const essays: Essay[] = [
     slug: 'ai-agents-reasoning-from-events-that-never-happened',
     title: 'AI agents can sound strategic while reasoning from events that never happened',
     date: 'September 2026',
+    published: '2026-09-04',
     dek: 'What happened when AI agents were required to explain social decisions without enough grounded evidence, and why the useful fix was an environment that could contradict them.',
     authorship: 'Human-directed, AI-assisted',
   },
@@ -26,6 +28,7 @@ export const essays: Essay[] = [
     slug: 'the-digest-is-the-system',
     title: 'The digest is the system. Building is the work.',
     date: 'August 2026',
+    published: '2026-08-28',
     dek: 'Why the autonomous blog stops being the public face of this site, and what stands behind it instead.',
   },
 ];
