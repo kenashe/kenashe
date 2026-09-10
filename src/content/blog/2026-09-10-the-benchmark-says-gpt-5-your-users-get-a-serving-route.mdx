@@ -1,0 +1,70 @@
+---
+title: "The Benchmark Says GPT-5. Your Users Get a Serving Route."
+description: "A new arXiv protocol called IB2 argues enterprise AI benchmarks measure the wrong thing: the model name on the box, not the deployed system of weights, precision, harness, and serving route your users actually hit."
+pubDate: 2026-09-10
+tags: ["evals", "benchmarks", "enterprise-ai", "model-reliability", "agent-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-10-the-benchmark-says-gpt-5-your-users-get-a-serving-route/hero.png
+  alt: "The Benchmark Says GPT-5. Your Users Get a Serving Route."
+sources:
+  - title: "IBIB: A Protocol for Measuring Enterprise AI Systems by Serving Route, Not Model Identifier"
+    url: "http://arxiv.org/abs/2609.10494v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: A protocol called IB2 argues that every enterprise AI benchmark scores a model identifier, when the thing users actually experience is a full serving route (weights plus precision plus output contract plus harness), and those two can score differently enough to flip conclusions.
+
+The paper is "IBIB: A Protocol for Measuring Enterprise AI Systems by Serving Route, Not Model Identifier," posted across arXiv's cs.AI, cs.CL, and cs.LG. It makes a claim that sounds pedantic until you sit with it: when you deploy an AI system, you are not deploying a checkpoint. You are deploying a route. The same weights served through a different endpoint, at a different precision, with a different tool-call parser, is a different system in practice. And the authors report that all 18 benchmarks they audited score the advertised name, not the route.
+
+That gap is the whole story.
+
+## What does IB2 actually claim is broken?
+
+The core argument: usable capability depends jointly on weights, serving route, precision, output contract, and harness. Benchmarks collapse all of that into one label, the model identifier, and then rank labels against each other. The authors call this measurement error and treat it as something you can make reportable rather than something you shrug at.
+
+Here is the concrete number they put on it. Serving-arm choice moved one system's declared revision and precision from 77.38 to 82.54, a paired interval of [0.11, 10.60]. Same underlying model. Different serving arm. Five points of swing, and the interval's lower bound sits just above zero, so it is a real effect but not a clean one. The authors are careful to note the arms differed in access mode, harness generation, and the serving tool-call parser, and that harness generation is a property of their evaluator, not any endpoint. In other words: they are not claiming the endpoint is worse. They are claiming the *system* scores differently, and the model name told you nothing about which system you were getting.
+
+If you run any AI in production, you have felt this. You test against an API, you like the numbers, you switch to a cheaper quantized route or a different provider hosting the "same" model, and behavior shifts. The benchmark that sold you the model never measured the thing that changed.
+
+![a single labeled box being unpacked into a chain of distinct components feeding into an output, contrasted against the c](../../assets/blog/2026-09-10-the-benchmark-says-gpt-5-your-users-get-a-serving-route/inline-1.png)
+
+## How does the protocol try to fix it?
+
+IB2 has three parts, and they are worth understanding because they are the actual contribution, not the scores.
+
+First, a gold-blind capability-binding preflight. Before any real task reaches a route, the protocol verifies the route can even execute the evaluation contract. Can it emit the required output format, make the tool calls, hold the structure? This runs blind to the answer key. It is a gate, not a grade.
+
+Second, a reliability-inclusive first-pass scoring rule. This one matters more than it sounds. The idea is to keep failures in the score while keeping unsupported capability out. Most benchmarks quietly drop malformed or failed responses from the denominator, which flatters any system that fails loudly. The authors report that excluding failed responses from denominators changes the point ordering. So reliability inclusion, they write, changes a conclusion, not its wording. Read that twice: whether you count failures decides who wins, not just how you phrase the win.
+
+Third, adjudication is structurally score-blind. The scoring machinery does not know which system it is grading. That is a defense against the slow contamination where the thing you are measuring starts steering how you measure.
+
+The reference instantiation is 128 locked tasks and 987 assertions over document, spreadsheet, chart, tool, and database work. And here is the deliberate choice: the corpus stays sealed. The authors release the algorithms, classification tables, request contract, and manifest schemas, but not the tasks themselves. Their line is that the procedure is the artifact, not the corpus. That is a direct swing at benchmark contamination, where any public test set eventually leaks into training data and stops measuring anything.
+
+## What did they actually find across systems?
+
+Four results across eleven systems, and none of them are a leaderboard.
+
+Capability availability is measurable and unstable. Two complete single-route runs on identical weights later failed distinct predicates of the finalized binding gate. A third passed the gate before a fresh run. Same weights, different outcomes at the gate, and the advertised identifier exposed neither limit. That is the whole thesis in one finding: the name could not have warned you.
+
+Discrimination is not uniform. Four of seven suites saturate under a six-system band, meaning most of the tasks no longer separate the top systems at all. The spread that remains comes almost entirely from governed database work and multi-tab joins. So the interesting signal lives in the hard, structured, enterprise-shaped tasks, and the rest is noise dressed as precision. The authors refuse to publish ranks here. They report interval-backed resolution groups instead, and they note that two of the nominal five-label output's four cuts fail multiplicity adjustment, which is the statistically honest way of saying some of those distinctions do not survive scrutiny.
+
+![a cluster of points collapsing into one indistinguishable band, with a few points pulling clearly apart at one edge](../../assets/blog/2026-09-10-the-benchmark-says-gpt-5-your-users-get-a-serving-route/inline-2.png)
+
+This is the part I respect. It would have been easy to ship a ranked table. They looked at their own numbers, saw that most of the spread was not real, and reported groups with intervals instead of a clean ordering that would have gotten more attention. That is the opposite of how benchmarks usually get marketed.
+
+## Should an operator care, or is this academic?
+
+Care, but calibrate. The dense, hedged writing here is doing real work, and it is also a barrier. The paper is not offering you a number to quote. It is offering you a discipline.
+
+The takeaway is not "IB2 is the new benchmark." The corpus is sealed, only eleven systems ran, and the effect sizes are honest to the point of being inconclusive on their own. The takeaway is that the unit of measurement is wrong across the industry, and this is the clearest statement I have seen of why.
+
+![two identical objects labeled the same, sending signals down two different paths that arrive at visibly different destin](../../assets/blog/2026-09-10-the-benchmark-says-gpt-5-your-users-get-a-serving-route/inline-3.png)
+
+The catch most readers will miss: this cuts against your own internal evals too, not just vendor marketing. If you benchmarked "Claude" or "GPT-5" once and locked in a decision, you measured a route you may no longer be serving. Precision changed. The provider swapped hardware. Your harness got a new parser. The name on your config is stable while the system underneath drifts.
+
+Here is what to actually do with this. Stop recording model names in your eval logs and start recording the full route: endpoint, precision, output contract, harness version, tool-call parser. Add a preflight that checks whether a route can even satisfy your output contract before you score its answers, so a formatting failure never masquerades as a reasoning failure. And stop dropping failed responses from your denominators, because as the IB2 authors show, that single accounting choice can flip which system you think is winning. You do not need their sealed corpus to adopt those three habits. That is the part you can ship this week.

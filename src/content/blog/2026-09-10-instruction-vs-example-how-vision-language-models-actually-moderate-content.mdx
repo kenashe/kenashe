@@ -1,0 +1,70 @@
+---
+title: "Instruction vs. Example: How Vision-Language Models Actually Moderate Content"
+description: "A new benchmark from Bluesky posts shows foundation models nearly tripling a deployed moderation system's F1 score, and it settles a real debate about whether to feed models policy rules or labeled examples."
+pubDate: 2026-09-10
+tags: ["benchmarks", "evals", "multimodal-ai", "applied-ai", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-10-instruction-vs-example-how-vision-language-models-actually-moderate-content/hero.png
+  alt: "Instruction vs. Example: How Vision-Language Models Actually Moderate Content"
+sources:
+  - title: "Can Foundation Models Moderate Online Content? Evaluating Instruction- vs. Example-Driven Policy Operationalization"
+    url: "http://arxiv.org/abs/2609.10410v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A new benchmark called ModerationBench shows off-the-shelf vision-language models scoring 0.60 F1 against Bluesky's deployed moderation system at 0.22, and it finds that giving a model written policy rules works about as well as giving it labeled examples, so your choice comes down to operations, not accuracy.
+
+Content moderation is one of those problems everyone assumes is already solved by AI. It isn't. Most platforms still run a mix of keyword filters, brittle classifiers, and overwhelmed human review queues. The interesting question isn't whether a model *can* read a post and flag it. It's whether it can do that consistently against a real policy, on real messy content, well enough to trust in production.
+
+The paper "Can Foundation Models Moderate Online Content? Evaluating Instruction- vs. Example-Driven Policy Operationalization" (arXiv, cs.AI and cs.CL) takes a swing at that. It's worth reading closely because it does two things at once: it builds a benchmark on actual in-the-wild posts, and it runs a head-to-head on the single design decision most teams get stuck on.
+
+## What is ModerationBench and why does it matter?
+
+ModerationBench is 4,000 manually annotated posts pulled from Bluesky, the decentralized social platform. That "in-the-wild" detail is the part I'd underline. A lot of moderation research runs on synthetic examples or scrubbed academic datasets that don't look anything like what actually shows up in a feed. Real posts are ambiguous, context-dependent, full of sarcasm and inside references, and often sitting right on the line between fine and not fine.
+
+The headline result: foundation models scored an F1 of 0.60 on the benchmark's Random Posts split, versus 0.22 for Bluesky's deployed moderation system. That's nearly a 3x jump on the metric that balances catching bad content against not over-flagging good content.
+
+![two funnels side by side, one narrow and leaky, one wide and clean, both sorting a stream of small shapes](../../assets/blog/2026-09-10-instruction-vs-example-how-vision-language-models-actually-moderate-content/inline-1.png)
+
+Before anyone treats 0.60 as a triumph, sit with what it means. An F1 of 0.60 is not "solved." It means the model is wrong a meaningful chunk of the time, in both directions. The story here isn't that AI aces moderation. It's that a general-purpose model, with no task-specific training, roughly tripled the performance of a system built specifically for the job. That gap is the actual finding, and it's a big one for any small platform that can't afford a large trust-and-safety engineering team.
+
+One caveat the authors are honest about: the comparison is against Bluesky's *deployed* system, and we don't get a full picture of how that system is configured or what it was optimized for. A deployed system tuned for extreme precision (flag almost nothing, avoid false positives) would post a low F1 on purpose. So read 0.60 vs. 0.22 as "these models are competitive-to-better on a balanced metric," not as "the old system is broken."
+
+## Should you give a model rules or examples?
+
+This is the part that pays rent for practitioners. Every team building an LLM-based classifier hits the same fork:
+
+The instruction-driven approach hands the model the policy. You write out the precepts ("hate speech includes X, does not include Y, edge cases go this way") and ask the model to reason from them. It's how most people start, because it maps to how you'd brief a human reviewer.
+
+The example-driven approach skips the prose and shows the model prior decisions. Here are 40 posts we labeled as violations, here are 40 we labeled as fine, now generalize. This is closer to few-shot learning and closer to how case law works: reason by precedent, not from first principles.
+
+The paper's finding is refreshingly clean. Both paradigms hit "comparable peak effectiveness." Neither one wins on accuracy. That's a more useful result than a decisive victory would have been, because it moves the decision out of the "which is smarter" column and into the "which is cheaper to run and maintain" column.
+
+![a set of written rules on one path and a stack of sorted example cards on another path, both arriving at the same gate](../../assets/blog/2026-09-10-instruction-vs-example-how-vision-language-models-actually-moderate-content/inline-2.png)
+
+## So which one should an operator actually pick?
+
+If accuracy is a tie, the tiebreakers are all operational, and they cut in opposite directions depending on your situation.
+
+Instructions are easier to audit and change. When your policy shifts (and moderation policy always shifts), you edit a paragraph. You can show that paragraph to a lawyer, a regulator, or a user who's appealing a decision. The reasoning is legible. The downside is that writing precise policy prose is genuinely hard, and models can misread a clause the same way a rushed human would.
+
+Examples are easier to source if you already have a labeled history. Most established platforms are sitting on years of moderation decisions. That's a ready-made example bank. The catch is drift and bias: your old labels encode old policy and old mistakes, and the model will faithfully generalize from both. Change the policy and your example set is suddenly out of date, and refreshing it means relabeling, not rewriting.
+
+There's a hybrid worth testing that the paper's framing points toward without fully endorsing: instructions for the stable core of a policy, examples for the fuzzy edges where prose keeps failing. In practice the hardest 10% of moderation calls are edge cases that no rulebook nails, and that's exactly where a handful of well-chosen precedents earns its keep.
+
+![a single decision gate fed by two inputs, a rulebook and a small set of example cards, blended together](../../assets/blog/2026-09-10-instruction-vs-example-how-vision-language-models-actually-moderate-content/inline-3.png)
+
+## Where this breaks in production
+
+A benchmark result is a lab number. Three things separate 0.60 on ModerationBench from a system you'd actually ship.
+
+First, cost and latency. Running a vision-language model on every post is expensive at platform scale. Bluesky-sized volume means you're either sampling, cascading (cheap filter first, expensive model only on the maybes), or eating a large inference bill. The paper measures accuracy, not throughput economics.
+
+Second, adversarial pressure. Bad actors adapt. A static benchmark can't capture people actively probing your classifier for gaps, using coded language, or splitting violations across posts. Moderation is a moving target in a way that most benchmarks aren't.
+
+Third, the appeals problem. When a model flags a human's post, that human wants a reason. Instruction-driven systems have a natural advantage here because the policy text *is* the explanation. Example-driven systems have to reconstruct a rationale after the fact, which is harder to defend and harder to trust.
+
+Practitioner's take: if you're building moderation on top of an LLM right now, don't waste weeks agonizing over instructions versus examples on accuracy grounds, because this paper suggests you'll land in roughly the same place. Spend that time on the eval harness instead. Build your own small ModerationBench from a few hundred of your real posts, labeled by the people who own your policy, and measure precision and recall separately (not just F1) because your business cares about those two errors differently. Then pick the paradigm your team can maintain: instructions if your policy changes often and you need auditable reasoning, examples if you're sitting on labeled history and your edge cases resist description. The catch most readers miss is that 0.60 is the starting line, not the finish. A model that's right 60% of the time on hard content still needs a human review layer, a clear appeals path, and a cascade to keep inference costs sane. The model is the cheap part now. The system around it is still the work.
