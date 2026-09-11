@@ -11,7 +11,8 @@
 // ("Shared node - Ken Ashe Person"), revised 2026-09-04 for the "AI application
 // builder" identity (jobTitle, description, mainEntityOfPage -> /about/, credentials,
 // contact, sameAs incl. PMI; Substack dropped); 2026-09-10 sameAs gains the Lucky
-// Domains founder profile page. Any change here must be mirrored in the Lucky Domains
+// Domains founder profile page; 2026-09-11 sameAs gains HackerNoon, DEV, Hashnode,
+// Medium, YouTube and Crunchbase author/profile pages. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -65,6 +66,12 @@ export const personKenAshe = {
     'https://www.investing.com/members/contributors/201067762',
     'https://sessionize.com/ken-ashe',
     'https://www.projecttimes.com/author/kenneth-ashe/',
+    'https://hackernoon.com/u/kenashe',
+    'https://dev.to/kenashe',
+    'https://hashnode.com/@KenAshe',
+    'https://medium.com/@kenashe',
+    'https://www.youtube.com/@KenAshe',
+    'https://www.crunchbase.com/person/ken-ashe-42ad',
     'https://luckydomains.io/founder/ken-ashe/',
   ],
   affiliation: {
