@@ -155,6 +155,11 @@ the ones most likely to be an entry point, carried no identity disambiguation.
 **Fix.** Every content page emits a self-contained `@graph`: page node + breadcrumbs +
 `WebSite` + `Person`. Homepage output verified byte-identical afterwards. ~1 KB per page.
 
+**2026-09-10 addendum.** Lucky Domains now carries three identical copies of the node
+(`index.html`, `news/website-relaunch.html`, `founder/ken-ashe/index.html`) and `sameAs`
+gained `https://luckydomains.io/founder/ken-ashe/`, a `ProfilePage` whose `mainEntity` is
+this node. Both repos were updated in the same pass.
+
 **Constraint.** `personKenAshe` is mirrored on luckydomains.io and must stay byte-identical
 across both sites. Adding a `sameAs` profile means updating **both**.
 

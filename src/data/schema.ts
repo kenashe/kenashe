@@ -3,14 +3,16 @@
 // `personKenAshe` is the load-bearing entity for cross-domain triangulation
 // (KenAshe.ai <-> Lucky Domains). It MUST stay byte-identical everywhere it
 // appears - on KenAshe.ai (homepage, about, news/site-launch) and, as an
-// identical copy, on Lucky Domains. Define it once here and import it; never
+// identical copy, on Lucky Domains (index.html, news/website-relaunch.html,
+// founder/ken-ashe/index.html). Define it once here and import it; never
 // inline a second, hand-written copy that could drift.
 //
 // Source of truth: entity-schema-linking-spec-final.md
 // ("Shared node - Ken Ashe Person"), revised 2026-09-04 for the "AI application
 // builder" identity (jobTitle, description, mainEntityOfPage -> /about/, credentials,
-// contact, sameAs incl. PMI; Substack dropped). Any change here must be mirrored in
-// the Lucky Domains repo's index.html in the same pass (DECISIONS.md D9).
+// contact, sameAs incl. PMI; Substack dropped); 2026-09-10 sameAs gains the Lucky
+// Domains founder profile page. Any change here must be mirrored in the Lucky Domains
+// repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
   '@type': 'Person',
@@ -63,6 +65,7 @@ export const personKenAshe = {
     'https://www.investing.com/members/contributors/201067762',
     'https://sessionize.com/ken-ashe',
     'https://www.projecttimes.com/author/kenneth-ashe/',
+    'https://luckydomains.io/founder/ken-ashe/',
   ],
   affiliation: {
     '@type': 'Organization',
