@@ -1,0 +1,64 @@
+---
+title: "Conversational XAI works best when it is a control surface, not a chatbot"
+description: "Explainability Assistant shows a practical pattern for AI interfaces: let domain users ask messy questions in natural language, but route the work through explicit tools, model explanations, and constrained functions instead of trusting free-form answers."
+pubDate: 2026-09-11
+tags: ["building-with-ai", "ai-workflows", "model-reliability", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-11-conversational-xai-works-best-when-it-is-a-control-surface-not-a-chatbot/hero.png
+  alt: "Conversational XAI works best when it is a control surface, not a chatbot"
+sources:
+  - title: "Explainability Assistant: A Conversational XAI Interface for Interpreting Energy Consumption Models"
+    url: "http://arxiv.org/abs/2609.11860v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Conversational explainability is useful when the LLM translates human questions into trusted analysis tools, not when it invents explanations on its own.
+
+## What problem is Explainability Assistant actually solving?
+
+The primary source here is the arXiv paper, "Explainability Assistant: A Conversational XAI Interface for Interpreting Energy Consumption Models," listed under both cs.AI and cs.LG. The domain is energy consumption forecasting, where building operators and facility managers increasingly depend on complex ML models, including Genetic Programming-based symbolic regressors.
+
+That sounds narrow. It is not.
+
+Energy forecasting is a good stress test because the user often has operational responsibility but not ML fluency. A facilities manager does not want to learn the quirks of an XAI dashboard just to ask, "Why did the model predict a spike tomorrow?" or "Which features mattered most for this building last week?" They want an answer they can check, challenge, and use.
+
+Traditional XAI dashboards expose charts, feature importances, partial dependence plots, and model diagnostics. Useful, if you know what you are doing. Brittle, if you do not. The paper argues that prior conversational XAI work, such as TalkToModel, was also constrained by rigid custom grammars and reached 76.8% intent-parsing accuracy.
+
+Explainability Assistant takes the more modern route: use LLM function calling as the translation layer. The user asks in natural language. The system maps that request to specific explanation functions. The paper reports 94% intent-parsing accuracy, flexible natural language interaction, and adaptation to different ML problem types without task-specific fine-tuning.
+
+That is the important bit. The LLM is not the explainer. It is the router.
+
+![an operator asking a question into a conversational interface that routes through several tool-like nodes before returni](../../assets/blog/2026-09-11-conversational-xai-works-best-when-it-is-a-control-surface-not-a-chatbot/inline-1.png)
+
+## Why does function calling matter for explainability?
+
+Function calling changes the failure mode.
+
+A normal chatbot can sound confident while making up a reason for a model prediction. That is dangerous in operations. If an energy manager changes building schedules, HVAC settings, or maintenance plans based on a hallucinated explanation, the cost is real.
+
+In Explainability Assistant, the LLM’s job is narrower. It parses intent, selects the relevant XAI operation, and passes structured inputs to underlying tools. That makes the interface conversational without making the explanation free-form by default.
+
+This is the same pattern showing up across useful AI systems right now. Natural language on the front. Deterministic or inspectable tools underneath. The magic is not that the model "understands energy." The practical gain is that a domain expert can ask follow-up questions without hunting through menus or learning dashboard grammar.
+
+The paper reports a comparative evaluation with energy domain specialists against a traditional XAI dashboard. Task accuracy stayed consistent, usability improved, and all experts preferred the conversational interface for practical use.
+
+Good signal. Not final proof.
+
+Preference is not the same as better operational decisions. The abstract does not give sample size, deployment duration, or error cost analysis. I would want to see whether users catch bad model behavior faster, whether they over-trust conversational answers, and whether the assistant improves decisions under time pressure. Especially in facilities work, where "seems easier" can hide new risks.
+
+## What should builders copy from this?
+
+The transferable lesson is interface architecture.
+
+Do not start by asking, "Can we add a chatbot to our dashboard?" Start by listing the questions users already ask when they are confused by a model. Then map those questions to existing analysis functions: feature attribution, counterfactuals, similar examples, data quality checks, confidence intervals, residual analysis, or whatever your domain uses.
+
+Only then put an LLM in front of it.
+
+This paper’s 94% intent-parsing result matters because intent parsing is the choke point. If the assistant misunderstands the user, every clean chart and explanation behind it becomes irrelevant. But once intent is captured correctly, the rest of the system can stay grounded in known methods.
+
+I also like the open-source framing, though the abstract does not spell out repository details. Open systems matter here because explainability interfaces should be auditable. If a team cannot inspect the routing logic, prompts, available functions, and outputs, they are just replacing one black box with another prettier black box.
+
+My practitioner's take: if you run ML in a real workflow, build a thin conversational layer over your existing diagnostics before buying or building a giant "AI analyst." Pick five high-friction questions users ask today, expose only the tools needed to answer them, log every intent and function call, and review failures weekly with domain experts. The catch most teams miss: the assistant should make uncertainty more visible, not smooth it away.
