@@ -18,5 +18,5 @@ This repository contains the Astro site and autonomous publishing pipeline behin
 
 ## Elsewhere
 
-[Website](https://kenashe.ai/) · [Lucky Domains](https://luckydomains.io/founder/ken-ashe/) · [LinkedIn](https://www.linkedin.com/in/kenashe/) · [X](https://x.com/kenashe)
+[Personal Site](https://kenashe.ai/) · [Lucky Domains](https://luckydomains.io/founder/ken-ashe/) · [LinkedIn](https://www.linkedin.com/in/kenashe/) · [X](https://x.com/kenashe)
 
