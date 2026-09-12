@@ -17,6 +17,14 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'i-used-ai-to-learn-ai-then-i-changed-the-plan',
+    title: 'I Used AI to Learn AI. Then I Changed the Plan.',
+    date: 'September 12, 2026',
+    published: '2026-09-12',
+    dek: 'A 30-day AI tutor found a hole in how I scored answers. That hole is now the standard I use on agents.',
+    authorship: 'Human-directed, AI-assisted',
+  },
+  {
     slug: 'ai-agents-reasoning-from-events-that-never-happened',
     title: 'AI agents can sound strategic while reasoning from events that never happened',
     date: 'September 2026',
