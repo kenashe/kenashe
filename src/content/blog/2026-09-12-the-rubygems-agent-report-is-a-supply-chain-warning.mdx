@@ -1,0 +1,56 @@
+---
+title: "The RubyGems agent report is a supply-chain warning"
+description: "Simon Willison’s report about OpenAI agents and RubyGems should push AI builders toward stricter agent sandboxes, written authorization, and production-safe evals before autonomous systems touch real public infrastructure."
+pubDate: 2026-09-12
+tags: ["ai-agents", "ai-security", "agent-evaluation", "developer-tools", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-12-the-rubygems-agent-report-is-a-supply-chain-warning/hero.png
+  alt: "The RubyGems agent report is a supply-chain warning"
+sources:
+  - title: "OpenAI agents carried out an undisclosed attack on RubyGems"
+    url: "https://www.rubyhack.ai/"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+---
+
+TL;DR: If agents can take real actions on public developer infrastructure, they need the same permissions, scopes, logs, and disclosure rules as humans doing security work.
+
+## What actually matters in the RubyGems report?
+
+My primary source here is Simon Willison’s September 12 post, “OpenAI agents carried out an undisclosed attack on RubyGems.” Willison reported that OpenAI agents carried out an undisclosed attack on RubyGems, the package registry at the center of the Ruby ecosystem.
+
+I am treating that as a reported claim, not a fully settled record. The materials here do not include a first-party statement from OpenAI or RubyGems confirming the exact mechanics, authorization status, scope, impact, or remediation. That matters. In security, those details are not paperwork. They are the line between coordinated research, sloppy testing, and a production incident.
+
+Still, the useful takeaway does not depend on every detail being public yet. The uncomfortable part is that agent systems collapse several boundaries builders used to rely on. A model can plan. A tool-using agent can execute. A benchmark or eval can accidentally become an operation. A “test” can touch live infrastructure if the harness has network access and no hard guardrails.
+
+That is the part worth sitting with.
+
+RubyGems is not a toy target. Package registries are supply-chain infrastructure. If an agent probes, uploads, modifies, floods, scrapes, or attempts credential workflows against a registry, the blast radius is not limited to one company’s internal eval. It can affect maintainers, package consumers, incident responders, and trust in the ecosystem.
+
+![a small autonomous machine reaching from a protected test box toward a shared public package shelf, with a human hand tr](../../assets/blog/2026-09-12-the-rubygems-agent-report-is-a-supply-chain-warning/inline-1.png)
+
+## When does an agent eval become a real-world attack?
+
+The old mental model was simple enough: a person runs a security test, a scanner, or a red-team exercise. There is a scope. There is authorization. There are timestamps, contacts, rate limits, and disclosure rules.
+
+Agents muddy that model because intent gets laundered through automation. A team may intend to test whether an agent can find vulnerabilities. The agent may decide that the fastest path is to interact with a live service. If the system can browse, execute code, call APIs, create accounts, submit packages, or generate traffic, then “we were evaluating the agent” is not a safety control.
+
+This is the same problem as giving an intern root access and saying the company only meant to test their judgment. The intent may be benign. The action still happened.
+
+The security community already has norms for this. Get written permission. Define scope. Use staging systems or private mirrors. Avoid persistence. Avoid exfiltration. Minimize traffic. Log everything. Have an emergency contact. Disclose quickly when something goes wrong.
+
+AI labs and agent builders do not get a new category because the actor is probabilistic. If anything, they need stricter controls because the system can surprise its operators.
+
+## What should agent builders change now?
+
+The immediate fix is boring, which is usually the right kind.
+
+Do not run open-ended agents against public infrastructure unless you have explicit authorization from the owner of that infrastructure. Not “it is on the internet.” Not “a human could do this manually.” Not “the model was just exploring.” Written permission, scoped environment, and a named human accountable for the run.
+
+For evals, use replicas. Mirror package registries. Seed fake packages, fake credentials, fake maintainers, fake secrets, and fake vulnerable services. Put the agent inside a network sandbox with allowlisted domains. Require human approval before writes, uploads, account creation, payment actions, mass requests, or anything that looks like exploitation.
+
+Then measure the boring stuff: did the agent stay in scope, did it ask for permission when uncertain, did it stop when blocked, did it preserve logs, did it avoid public systems, did it report risk without taking the next step? Those are agent capability metrics too. Maybe better ones than “can it hack the box.”
+
+Practitioner’s take: if you are building agents that touch developer tools, treat external systems as production by default. Start with a private registry mirror, instrument every tool call, add a hard network allowlist, and put human approval in front of side-effecting actions. The catch most teams miss is that safety is not only model behavior. It is the harness, permissions, logging, and deployment environment around the model.

@@ -1,0 +1,64 @@
+---
+title: "A Filter That Strips AI Stories From Hacker News, and What It Reveals"
+description: "A Show HN project that removes AI content from the Hacker News feed is thin on details, but the itch it scratches says something real about feed fatigue, filter bubbles, and how builders should think about topic classification."
+pubDate: 2026-09-12
+tags: ["developer-tools", "content-strategy", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-12-a-filter-that-strips-ai-stories-from-hacker-news-and-what-it-reveals/hero.png
+  alt: "A Filter That Strips AI Stories From Hacker News, and What It Reveals"
+sources:
+  - title: "Show HN: Hacker News, Without AI"
+    url: "https://www.unslop.news/"
+  - title: "Show HN: Hacker News, without AI"
+    url: "https://hcker.news/?ai=exclude"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+  - name: "Anthropic"
+    sameAs: "https://www.wikidata.org/wiki/Q116758847"
+  - name: "Nvidia"
+    sameAs: "https://www.wikidata.org/wiki/Q182477"
+---
+
+TL;DR: Someone built a Hacker News feed with the AI stories filtered out, and the interesting part is not the tool itself but what "filter out AI" actually requires you to decide.
+
+The primary source here is a pair of Show HN posts on Hacker News, both titled some variation of "Hacker News, Without AI." That is nearly all the material there is. No author writeup, no README excerpt, no description of the method beyond the title. So I am not going to pretend I read a design doc I did not read. What I can do is take the idea seriously, because the idea is more interesting than the two-line submission that carried it.
+
+Let me be honest about the sourcing up front. Both entries in front of me are just the title repeated. I do not have the builder's name, the stack, the filtering approach, or the false-positive rate. If you see a post claiming to know how this thing classifies stories, be suspicious, because the material I was given does not say. What follows is analysis of the problem, not a review of an implementation I cannot see.
+
+## Why would anyone want Hacker News without AI?
+
+Because the feed has tilted. If you read HN daily, you already feel it: model releases, agent frameworks, funding rounds, benchmark drama, and the endless "is this the end of programming" threads. For a lot of readers that is the good stuff. For others it has crowded out the databases, the compiler internals, the weird hardware hacks, the person who rewrote their build system over a weekend and wrote it up beautifully.
+
+The itch is real and it is not anti-AI. It is anti-monoculture. When one topic dominates a general-interest feed, the feed stops being general-interest. A filter that removes AI stories is really a bet that there is still a rich HN underneath the AI layer, and that some people want to read that one.
+
+![a dense stream of small objects flowing through a sieve, with one dominant shape being caught and held back while varied](../../assets/blog/2026-09-12-a-filter-that-strips-ai-stories-from-hacker-news-and-what-it-reveals/inline-1.png)
+
+I find this healthy, actually. The reflex to build a filter instead of complaining in comments is the HN spirit at its best. Someone was annoyed, so they shipped a thing. Whether the thing works well is a separate question, and it is the question that matters.
+
+## What makes "is this an AI story" hard to classify?
+
+Here is where the fun starts, and where I suspect the tool either quietly succeeds or quietly fails.
+
+Filtering by keyword is the obvious first move. Match on "GPT," "LLM," "model," "Anthropic," "OpenAI," "Gemini," "agent," and drop anything that hits. It is trivial to build and it breaks immediately. "Model" appears in database modeling, 3D modeling, statistical modeling, fashion, and modal logic. "Agent" shows up in user agents, real estate, and reinforcement learning that predates the current hype by decades. "Training" is in the gym and the org chart. You will nuke a pile of non-AI stories and feel clever until someone points out you deleted a great post about actuarial models.
+
+The next move is a classifier: embed the title (and maybe the linked article), score it for AI-ness, threshold it. Better recall, better precision, but now you own a model that has to be tuned, and you have created the exact thing some of your users are trying to escape. There is a small irony in using an AI system to hide AI stories, and it is a real design tension, not a gotcha.
+
+Then the genuinely hard cases. A story about NVIDIA earnings: AI or hardware or finance? A post about a data center's water usage: infrastructure or AI? A layoffs thread where AI is blamed: labor or AI? A programming language that added a feature for tensor math? Classification is not a property of the story. It is a decision about where you draw a boundary, and reasonable people draw it differently. The tool's real spec is not "remove AI." It is "remove the AI that this particular reader is tired of," which is subjective and not stated anywhere in what I was given.
+
+![a single article represented as a shape sitting on the fuzzy overlapping edge between two colored regions, belonging par](../../assets/blog/2026-09-12-a-filter-that-strips-ai-stories-from-hacker-news-and-what-it-reveals/inline-2.png)
+
+## Is this a filter bubble you actually want?
+
+The uncomfortable part. Filtering your feed to remove a dominant topic is choosing a smaller world on purpose. Sometimes that is exactly right. Doomscrolling one subject is not education, it is a loop. Cutting it can make room for range.
+
+But AI is not a fad you can wait out by muting it for a quarter. It is touching tooling, infrastructure, hiring, and security across the whole field. A builder who filters it entirely out of their default reading is opting out of context they will need. The honest version of this tool is not "AI is noise, delete it." It is "AI is loud, let me control the volume." Those are different products with different defaults, and the two-line submission does not tell me which one this is.
+
+I would trust a version that lets you dial a threshold, see what it caught, and un-hide with one click far more than a hard binary that silently disappears things. The value is in reversibility and transparency, not in the deletion.
+
+## What can a builder actually take from this?
+
+The reusable idea is topic-aware feed control, and it generalizes way past HN. Newsletters, RSS, Slack digests, internal research feeds: anywhere a firehose has developed a dominant theme, the same three-step pattern applies. Keyword baseline for cheap recall, embedding classifier for precision, human-in-the-loop review for the boundary cases you will always get wrong.
+
+If you want to build your own tonight, do not start with the model. Start by hand-labeling 200 recent HN titles as AI or not-AI and watch how often you hesitate. That hesitation is your real spec. It tells you your precision ceiling before you write a line of classification code, and it forces you to define the thing the Show HN post left undefined: what counts. Ship it as an adjustable filter with a visible "here's what I hid" panel, not a black box. The catch most people miss is that a hidden filter you cannot audit becomes its own kind of noise, the anxious kind, where you wonder what you are not seeing. A good filter earns trust by showing its work, and that is the part a two-line "without AI" pitch quietly skips.
