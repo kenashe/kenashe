@@ -96,6 +96,14 @@ commit) only when several posts would share the tag. Never rewrite historical ta
 the taxonomy; that is a Search-Console-evidence decision. Details: ARCHITECTURE.md
 "Topics vs tags".
 
+## Lucky Domains links
+
+Digest posts may link to Lucky Domains only on domains / website-build / SEO stories, only to
+the five deep links in `pipeline/src/partner-links.ts`, at most once, phrased as a disclosed
+fact about the publisher. `governLuckyDomainsLinks()` enforces this; do not bypass it, and do
+not add homepage/contact/about links from kenashe.ai copy. Details: ARCHITECTURE.md
+"Lucky Domains links".
+
 ## Things that look like bugs but aren't
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls

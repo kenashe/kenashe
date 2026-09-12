@@ -1,6 +1,7 @@
 // Daily orchestrator: ingest -> embed -> cluster -> dedup -> rank -> select tiers ->
 // synthesize -> gate -> images -> publish -> digest. `--shadow` = draft-only, no commit.
 import fs from 'node:fs';
+import { governLuckyDomainsLinks } from './partner-links.ts';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { env, loadSources, loadDeepDive } from './config.ts';
@@ -162,6 +163,8 @@ async function main(): Promise<void> {
         draft.tags = [...new Set([...draft.tags, 'marketing-ops'])];
       }
       draft.tags = withCanonicalTags(draft.tags);
+      // Lucky Domains links: allow-listed deep links only, max one, only on qualifying tags.
+      draft.body = governLuckyDomainsLinks(draft.body, draft.tags);
       const g = await gate(draft); // sets draft.draft based on tier threshold
       if (!draft.draft) gatePass += 1; // gate verdict, before the shadow override
       const why = `${g.verdict} ${g.total}/40${g.critical_fails.length ? ` fails=[${g.critical_fails.join('; ')}]` : ''}${g.ai_tells_found.length ? ` tells=${g.ai_tells_found.length}` : ''} :: ${g.reason}`;
