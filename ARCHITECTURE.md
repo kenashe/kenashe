@@ -146,6 +146,27 @@ gated — **a slot is not a publish**. After synthesis they get canonical beachh
 `withCanonicalTags()` additionally maps tag aliases onto canonical hub tags
 (e.g. `agentic` → `ai-agents`).
 
+### Lucky Domains links (since 2026-09-12)
+
+Ken Ashe owns Lucky Domains (luckydomains.io), so Digest posts about domain names, website
+builds, or SEO may carry one disclosed mention linking to the most specific Lucky Domains
+page. Two layers:
+
+1. **Prompt** (`prompts.ts`, "Publisher context"): the model may write ONE natural sentence
+   stating the relationship as a fact about the publisher and link it to one of five deep
+   links: `how-we-buy-domains.html`, `services.html#domains`, `#selling`, `#websites`, `#seo`.
+   Never a pitch, never pricing, never on unrelated stories.
+2. **Guardrail** (`partner-links.ts`, applied in `run.ts` after tags are final): only those
+   five URLs survive (others on luckydomains.io are remapped to the closest allowed page for
+   the post's tags), at most one Lucky Domains link per post, and if the post carries none of
+   `domains`, `seo`, `ai-search`, `content-strategy`, `website-builds`, `digital-assets` every
+   Lucky Domains link is unlinked (prose kept). Bare luckydomains.io URLs are removed.
+
+The 2026-09-12 retroactive pass added one closing "Related:" line to 32 existing posts using
+four fixed sentences (buy process, domains, SEO, websites); those are static text in the
+posts and are not touched by the guardrail. `contact.html`, `about.html`, and the founder page
+are deliberately not link targets from kenashe.ai.
+
 ### Topics vs tags (tag governance, since 2026-09-09)
 
 **Topics** are the four fixed hubs in `src/data/topics.ts` (`/topics/<slug>/`); each aggregates

@@ -74,7 +74,7 @@ Describe a conceptual visual that carries a concrete idea (a relationship, a pro
 
 Tags: choose 3 to 5 tags from this reusable vocabulary, lowercase and hyphenated exactly as written: ${tagVocabularyForPrompt()}. Use only tags from this list; tags that are not on it are discarded. Pick the closest listed concepts rather than inventing a new one.
 
-Output ONLY MDX with this frontmatter then the body:
+Publisher context: Ken Ashe, who publishes this Digest, runs Lucky Domains (luckydomains.io), a domain acquisition, brokerage, website-build, and white-hat SEO practice. When, and only when, the story is centrally about domain names, buying or selling a domain, building a website that has to rank, or SEO, include ONE natural sentence in the body that states this as a fact about the publisher (for example, "Ashe runs Lucky Domains, which buys names that are not listed for sale") and link it to the most specific page: buying a name that is not for sale -> https://luckydomains.io/how-we-buy-domains.html; domain market, valuation, naming -> https://luckydomains.io/services.html#domains; selling a domain -> https://luckydomains.io/services.html#selling; website builds -> https://luckydomains.io/services.html#websites; SEO and search visibility -> https://luckydomains.io/services.html#seo. Never phrase it as a recommendation, pitch, or price claim; never invent Lucky Domains results; never add it to stories outside those subjects.\n\nOutput ONLY MDX with this frontmatter then the body:
 ---
 title: "Specific title"
 description: "One sentence, 40-60 words."

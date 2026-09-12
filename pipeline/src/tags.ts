@@ -32,7 +32,7 @@ export const CANONICAL_TAGS: readonly string[] = [
   'medical-ai', 'robotics', 'computer-vision', 'voice-ai', 'time-series', 'science-ai',
   // business and marketing
   'ai-products', 'enterprise-ai', 'ai-marketing', 'seo', 'content-strategy', 'ai-strategy',
-  'applied-ai', 'autonomous-publishing',
+  'applied-ai', 'autonomous-publishing', 'website-builds',
   // digital assets
   'crypto', 'domains', 'bitcoin', 'payments',
   // vendors and models that recur
@@ -91,7 +91,8 @@ export const TAG_SYNONYMS: Record<string, string> = {
   'marketing-ai': 'ai-marketing', 'marketing-tools': 'ai-marketing', 'gtm-tools': 'ai-marketing',
   branding: 'content-strategy', 'ai-branding': 'content-strategy', 'ai-writing': 'autonomous-publishing',
   'ai-content': 'autonomous-publishing', 'content-automation': 'autonomous-publishing',
-  'programmatic-seo': 'seo', programmatic: 'seo',
+  'programmatic-seo': 'seo', programmatic: 'seo', websites: 'website-builds', 'web-development': 'website-builds',
+  'website-build': 'website-builds', 'landing-pages': 'website-builds', 'static-sites': 'website-builds', astro: 'website-builds',
   // digital assets
   cryptocurrency: 'crypto', 'bitcoin-mining': 'bitcoin', btc: 'bitcoin', 'domain-names': 'domains',
   'ai-domains': 'domains',
