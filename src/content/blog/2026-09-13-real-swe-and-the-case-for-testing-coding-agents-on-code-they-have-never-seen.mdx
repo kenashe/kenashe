@@ -1,0 +1,68 @@
+---
+title: "Real-SWE and the Case for Testing Coding Agents on Code They Have Never Seen"
+description: "A new benchmark called Real-SWE proposes scoring AI coding models against private enterprise codebases instead of public repos, and the shift exposes how much of today's SWE-bench success may be leakage, not skill."
+pubDate: 2026-09-13
+tags: ["coding-agents", "benchmarks", "agent-evaluation", "model-reliability", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-13-real-swe-and-the-case-for-testing-coding-agents-on-code-they-have-never-seen/hero.png
+  alt: "Real-SWE and the Case for Testing Coding Agents on Code They Have Never Seen"
+sources:
+  - title: "Real-SWE: Benchmarking AI models on private, real-world, enterprise codebases"
+    url: "https://withspecific.com/benchmarks/real-swe"
+entities:
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: Real-SWE argues that the way we grade coding agents is broken because they are tested on public code they likely trained on, and moving evaluation to private enterprise repos is the honest fix, even if it makes the numbers uglier.
+
+The story here comes from a single item surfaced on Hacker News: Real-SWE, described as a benchmark for testing AI models on private, real-world, enterprise codebases. The details available are thin, so I am going to be careful about what I claim it proves and spend more time on why the idea matters and what an operator should actually do with it. I have not seen a paper, a leaderboard, or a methodology writeup in the source material, so treat everything about Real-SWE's specific scores and setup as unconfirmed until its authors publish them.
+
+But the premise deserves a serious look, because it targets the biggest lie in coding-agent evaluation.
+
+## What problem is Real-SWE actually trying to fix?
+
+The dominant benchmark for coding agents is SWE-bench: real GitHub issues from real open-source projects, where a model has to produce a patch that passes the project's tests. It is a genuinely good idea and it moved the field forward. It is also public. Every issue, every repo, every fix lives on GitHub, which means it lives in the training data of basically every frontier model.
+
+That is the contamination problem in one sentence. When a model scores well on a public benchmark, you cannot cleanly separate "the model reasoned about this code" from "the model has seen this exact fix before." The two look identical on the scoreboard and mean completely different things in your codebase.
+
+![two paths leading to the same finish line, one path a straight memorized shortcut and the other a winding road of actual](../../assets/blog/2026-09-13-real-swe-and-the-case-for-testing-coding-agents-on-code-they-have-never-seen/inline-1.png)
+
+Real-SWE's pitch, as far as the title tells us, is to test against private enterprise codebases the model has never ingested. No leakage possible, because the code was never public. If that holds up, it is the difference between an open-book exam where the student wrote the answer key and a closed-book exam on material they have never read. The second one tells you something the first one cannot.
+
+I want to be precise: I am inferring the motivation from the title and the well-known limits of public benchmarks. The Hacker News item does not spell out the methodology, so I am describing the problem Real-SWE claims to attack, not verified evidence that it attacks it well.
+
+## Why do public benchmark scores overstate real-world coding skill?
+
+Enterprise code is a different animal than a tidy open-source library, and this is where most demo-driven excitement quietly falls apart.
+
+Real internal repos have private frameworks nobody has documented. They have naming conventions that make sense only to the team that left two years ago. They have implicit context spread across Slack, Jira, and one senior engineer's head. They have tests that are slow, flaky, or missing entirely. A model that crushes a clean Python library issue can stall the moment it needs to understand a homegrown dependency-injection system with zero public examples.
+
+This is the gap that matters for anyone deciding whether to trust a coding agent on their own stack. The published SWE-bench-style numbers, whatever they are this quarter, are measured on code that is public, well-tested, and community-maintained. Your codebase is none of those things. So the honest question is not "what does the model score on the benchmark" but "how much does that score degrade when the code is unfamiliar, undocumented, and weird."
+
+![a polished sample object next to a tangled cluttered version of the same object, side by side](../../assets/blog/2026-09-13-real-swe-and-the-case-for-testing-coding-agents-on-code-they-have-never-seen/inline-2.png)
+
+A private-codebase benchmark is a way to actually measure that degradation instead of guessing at it. And I would bet the degradation is large, because the entire advantage of a model having read the internet disappears the moment the relevant code was never on the internet.
+
+## Can a private-codebase benchmark even be trusted?
+
+Here is the catch, and it is a real one. The very thing that makes Real-SWE valuable, private code, is the thing that makes it hard to verify.
+
+If I cannot see the repos, I cannot audit the task selection. I cannot check whether the issues were cherry-picked to be hard or easy. I cannot confirm the tests are meaningful. I cannot reproduce the run. A public benchmark is contaminated but transparent; a private benchmark is clean but opaque. You are trading one integrity problem for another, and whether that trade is worth it depends entirely on how the authors handle it.
+
+The good versions of this exist. Trusted third-party evaluators can run models against held-out private tasks and publish only aggregate results, the way some security and finance benchmarks already work. That preserves the no-leakage property while giving outsiders enough methodology to judge the work. The bad version is a vendor waving a private benchmark that nobody can inspect as proof their model is best. Until Real-SWE's authors publish how tasks are chosen, how tests are validated, and who runs the evaluation, I would file it as a promising idea rather than a settled result.
+
+The signal to watch: does it show a big, consistent gap between public and private performance for the same models? If it does, that gap is the actual product. It tells you exactly how much to discount the marketing numbers.
+
+## What should a builder do with this today?
+
+You do not need to wait for Real-SWE to ship to act on its core insight, because you already have the one private codebase that matters most to you. Yours.
+
+![a single lightbulb formed from interlocking gears representing a team building its own test set](../../assets/blog/2026-09-13-real-swe-and-the-case-for-testing-coding-agents-on-code-they-have-never-seen/inline-3.png)
+
+Build your own tiny private benchmark. Pull ten to twenty closed pull requests from your own history, ones with clear before-and-after states and real tests that pass. Strip the solution, hand the agent the issue and the repo, and see if it produces a patch your existing tests accept. This is the highest-signal eval you can run, because it is your code, your conventions, your definition of correct, and it is not in anybody's training set. Run it against Claude, Codex, Gemini, whatever you are considering, and rank them on your work instead of somebody's leaderboard.
+
+Do it once a quarter. Model releases move fast and the ranking on your specific stack is not the ranking on the public board. The teams getting real leverage from coding agents are not the ones chasing the highest SWE-bench score. They are the ones who measured the drop-off on their own repos, found the tasks where the agent is reliable, and fenced it out of the tasks where it quietly guesses. Real-SWE, if it delivers, formalizes that instinct at industry scale. The instinct itself you can borrow this afternoon, and the catch most readers miss is that the benchmark you build for your own code will outpredict any public number, precisely because nobody else can study for it.
