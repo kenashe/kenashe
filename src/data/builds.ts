@@ -20,6 +20,15 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'VetStack',
+    status: 'LIVE',
+    dek: 'First Grok Bot I published. A military and veteran savings desk that finds current discounts and benefits that actually apply, without collecting IDs or running a 20-question intake.',
+    stack: ['Grok Bot', 'xAI templates'],
+    shippedAt: 'Sep 2026',
+    metric: 'public template',
+    link: '/building/vetstack/',
+  },
+  {
     title: 'AI werewolf / social deduction lab',
     status: 'SHIPPED',
     dek: 'Built a cast of 9 AI characters with distinct personalities, relationships, and hidden roles, then had them play a Traitors-style social deduction game where they form alliances, deceive, and vote each other out.',
