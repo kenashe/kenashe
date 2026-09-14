@@ -6,13 +6,16 @@ import JsonLd from '../../../components/JsonLd.astro';
 import { essayBySlug, authorshipOf } from '../../../data/writing';
 import { personKenAshe, websiteKenAshe } from '../../../data/schema';
 import { SITE_URL } from '../../../consts';
+import EssayFigure from '../../../components/EssayFigure.astro';
+import { ogImageOf } from '../../../data/writing-images';
 
 const essay = essayBySlug('ai-agents-reasoning-from-events-that-never-happened');
 const authorship = authorshipOf(essay);
 
 const title = 'AI agents can sound strategic while reasoning from events that never happened';
 const description = 'I built three versions of an AI Werewolf game. The first agents made confident accusations from behavior that had not occurred. The useful fix was not more polished prose. It was an environment that could contradict them.';
-const image = '/images/writing/ai-agents-reasoning-from-events-that-never-happened.jpg';
+// Social/schema image: a 1200px derivative of the essay's declared image (writing.ts).
+const og = await ogImageOf(essay);
 
 // Article node for this essay. Author and publisher are the canonical Person (imported, not
 // forked: DECISIONS.md D9); the essay is human-directed, so unlike Digest posts the author
@@ -28,7 +31,7 @@ const articleSchema = {
       description: description,
       url: pageUrl,
       mainEntityOfPage: pageUrl,
-      image: new URL(image, SITE_URL).toString(),
+      ...(og ? { image: new URL(og.src, SITE_URL).toString() } : {}),
       datePublished: essay.published,
       author: { '@id': 'https://kenashe.ai/#ken-ashe' },
       publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
@@ -44,9 +47,9 @@ const articleSchema = {
 <BaseLayout
   title={title}
   description={description}
-  image={image}
-  ogImageWidth={1024}
-  ogImageHeight={559}
+  image={og?.src}
+  ogImageWidth={og?.width}
+  ogImageHeight={og?.height}
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Writing', path: '/writing/' },
@@ -81,14 +84,7 @@ const articleSchema = {
       <p>They just did not describe anything that had happened.</p>
       <p>That failure repeated across all three games in the first version. The agents were not producing random gibberish. They were producing plausible social reasoning from nonexistent evidence.</p>
       <p>That became the most useful result of the project.</p>
-      <figure class="essay-figure">
-        <img
-          src="/images/writing/ai-agents-reasoning-from-events-that-never-happened.jpg"
-          alt="Illustration for the essay: AI agents debating inside a cloud of hypothetical events labeled counterfactual debate, simulated deception, and events that never happened, floating above a timeline of what actually happened: agent A spoke, agent B voted."
-          width="1024"
-          height="559"
-        />
-      </figure>
+      <EssayFigure essay={essay} />
       <p><a href="https://github.com/kenashe/ai-werewolf/blob/2ce5356e779b1b29c839244b44394a7ce96dedf1/evidence/01-v1-silence-before-turn.md" target="_blank" rel="noopener">See the full excerpt and source transcript.</a></p>
       <h2>The agents had a theory, but no evidence</h2>
       <p>Version 1 was intentionally stripped down. I wanted to test whether four strongly defined AI characters could remain distinct.</p>
@@ -330,16 +326,5 @@ const articleSchema = {
   .prose th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   @media (max-width: 600px) {
     .prose table { display: block; overflow-x: auto; }
-  }
-  /* Essay figure: block-level, full width of the prose column, never wider than the column. */
-  .essay-figure {
-    margin: 2rem 0 2rem;
-  }
-  .essay-figure img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
   }
 </style>

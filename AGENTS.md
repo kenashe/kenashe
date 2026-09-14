@@ -78,6 +78,26 @@ plainly, and treat the next deploy as the real verification.
 - Post JSON-LD: `author` is the Organization "KenAshe Digest (automated)"; `publisher` stays
   the canonical Person. Keep it that way.
 
+### Publishing a Writing essay (image rule)
+
+Every essay ships with one image, and that image is declared once:
+
+1. Put the file in `src/assets/writing/<slug>.jpg` (landscape, ideally 16:9; 2816×1536 or
+   1200×630 both work). Never `public/` — astro:assets needs the import to emit sized
+   derivatives.
+2. Add `image: { file, alt, caption? }` to the essay's entry in `src/data/writing.ts`.
+3. Render `<EssayFigure essay={essay} />` once in the page. Directly under the byline with
+   `priority` for a hero, or inline where the text needs it. Do not hand-write `<img>`.
+4. In the page frontmatter use `const og = await ogImageOf(essay)` for `image`,
+   `ogImageWidth`, `ogImageHeight`, and the Article `image`. Copy an existing essay page.
+
+`/writing/` derives each thumbnail from that entry (`src/data/writing-images.ts`), so there
+is no index edit and no list of thumbnails to maintain. The build **fails** if the declared
+file is missing or the page never renders it, and **warns** `[writing] WARNING` when an essay
+has no image at all (that essay is listed text-only, with no empty box). Treat the warning as
+a publishing defect to fix, not a state to leave. Rules are unit-tested:
+`node --experimental-strip-types --test src/data/writing-image-rules.test.ts`.
+
 ## Image assets: current vs archive
 
 - `public/images/ken-ashe.jpeg` is the **current** headshot and the only press photo. The

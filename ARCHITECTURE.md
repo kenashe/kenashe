@@ -40,6 +40,22 @@ Notable routes:
 | `/llms.txt`, `/llms-full.txt` | generated | LLM-oriented site summary |
 | `/robots.txt` | generated | explicitly AI-crawler-friendly |
 
+### Writing essays and their images
+
+Essays under `/writing/` are static pages (see AGENTS.md, human/machine split). Their
+metadata is `src/data/writing.ts`; each entry may declare one `image` (file in
+`src/assets/writing/`, alt, optional caption). Three consumers read that single entry:
+
+- `src/components/EssayFigure.astro` renders it on the page (hero with `priority`, or inline);
+- `src/pages/writing/index.astro` derives the 16:9 thumbnail via `coverOf()`;
+- the page frontmatter derives the social/schema image via `ogImageOf()` (1200px JPEG).
+
+`src/data/writing-images.ts` is the resolver: declared image if the page source renders
+`<EssayFigure>` (else the build fails), otherwise the first `essay-figure` `<img>` on the page,
+otherwise `null` with a build warning and a text-only listing. The pure rules live in
+`writing-image-rules.ts` with node tests. Derivatives are emitted by astro:assets (sharp) with
+explicit dimensions; thumbnails lazy-load, a hero loads eagerly.
+
 ### Structured data (load-bearing for the LLM-discoverability goal)
 
 `src/data/schema.ts` holds two canonical nodes — `personKenAshe` and `websiteKenAshe`.

@@ -5,6 +5,8 @@ import JsonLd from '../../../components/JsonLd.astro';
 import { essayBySlug, authorshipOf } from '../../../data/writing';
 import { personKenAshe, websiteKenAshe } from '../../../data/schema';
 import { SITE_URL } from '../../../consts';
+import EssayFigure from '../../../components/EssayFigure.astro';
+import { ogImageOf } from '../../../data/writing-images';
 
 const essay = essayBySlug('you-can-use-ai-to-learn-almost-anything-even-ai');
 const authorship = authorshipOf(essay);
@@ -12,7 +14,8 @@ const authorship = authorshipOf(essay);
 const title = 'You Can Use AI to Learn Almost Anything. Even AI.';
 const description =
   'I asked ChatGPT to build me a 30-day course with exercises, quizzes, and feedback instead of just answering questions. Here is how to turn it into a tutor for almost anything, and a starting prompt.';
-const image = '/images/writing/you-can-use-ai-to-learn-almost-anything-even-ai.jpg';
+// Social/schema image: a 1200px derivative of the essay's declared image (writing.ts).
+const og = await ogImageOf(essay);
 
 // Article node for this essay. Author and publisher are the canonical Person (imported, not
 // forked: DECISIONS.md D9); the essay is human-directed, so unlike Digest posts the author
@@ -28,7 +31,7 @@ const articleSchema = {
       description: description,
       url: pageUrl,
       mainEntityOfPage: pageUrl,
-      image: new URL(image, SITE_URL).toString(),
+      ...(og ? { image: new URL(og.src, SITE_URL).toString() } : {}),
       datePublished: essay.published,
       author: { '@id': 'https://kenashe.ai/#ken-ashe' },
       publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
@@ -44,9 +47,9 @@ const articleSchema = {
 <BaseLayout
   title={title}
   description={description}
-  image={image}
-  ogImageWidth={2816}
-  ogImageHeight={1536}
+  image={og?.src}
+  ogImageWidth={og?.width}
+  ogImageHeight={og?.height}
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Writing', path: '/writing/' },
@@ -69,6 +72,8 @@ const articleSchema = {
       </p>
     </header>
 
+    <EssayFigure essay={essay} priority />
+
     <div class="prose">
       <p>I wanted to get better at using AI, so I asked ChatGPT to teach me.</p>
       <p>I did not just ask it questions. I asked it to build a 30-day course with practical exercises, quizzes, and feedback. About 30 minutes a day, focused on what I wanted to become able to do.</p>
@@ -90,15 +95,6 @@ const articleSchema = {
       <p>Your answers give you something to work with. Ask for another example, challenge the feedback, or try a harder exercise.</p>
       <h2>Change the lessons when your goals change</h2>
       <p>I eventually stopped following my original curriculum because I wanted to focus on agents that use tools and complete tasks. I changed the training to match.</p>
-      <figure class="essay-figure">
-        <img
-          src="/images/writing/you-can-use-ai-to-learn-almost-anything-even-ai.jpg"
-          alt="Pixel illustration of a person at a computer under a sign showing a loop: practice, feedback, mastery. A stone path leads away from the desk toward a wooden signpost that reads new goals."
-          width="2816"
-          height="1536"
-        />
-        <figcaption>I kept the tutor. I did not finish the plan.</figcaption>
-      </figure>
       <p>The earlier program was still useful. I did not need to finish it just because it was the original plan.</p>
       <p><strong>You do not have to use AI only to do things for you. You can use it to help you learn how to do them yourself.</strong></p>
       <p>I started with AI. The subject you choose is up to you.</p>
@@ -204,23 +200,5 @@ const articleSchema = {
   .prose strong {
     color: var(--fg);
     font-weight: 650;
-  }
-  /* Essay figure: block-level, full width of the prose column, never wider than the column. */
-  .essay-figure {
-    margin: 2rem 0 2rem;
-  }
-  .essay-figure img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-  }
-  .essay-figure figcaption {
-    margin-top: 0.6rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    letter-spacing: 0.04em;
-    color: var(--muted);
   }
 </style>
