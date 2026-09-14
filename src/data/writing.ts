@@ -6,6 +6,17 @@
 // in a template.
 export const DEFAULT_AUTHORSHIP = 'Written by hand';
 
+// The essay's cover image: the file in src/assets/writing/, its alt text, and an optional
+// caption. The page displays it through <EssayFigure essay={essay} /> (hero or inline, the
+// page decides where); /writing/ derives the thumbnail and BaseLayout gets the social image
+// from the same entry, so changing the file here changes all three. The build fails if the
+// declared file is missing or the page never renders it (src/data/writing-images.ts).
+export interface EssayImage {
+  file: string;
+  alt: string;
+  caption?: string;
+}
+
 export interface Essay {
   slug: string;
   title: string;
@@ -13,6 +24,7 @@ export interface Essay {
   published: string; // ISO date for structured data (datePublished)
   dek: string;
   authorship?: string;
+  image?: EssayImage; // omit only when the essay genuinely has no suitable image (listed text-only)
 }
 
 export const essays: Essay[] = [
@@ -23,6 +35,11 @@ export const essays: Essay[] = [
     published: '2026-09-14',
     dek: 'How I turned ChatGPT into a tutor with exercises, quizzes, and feedback, and a starting prompt you can use for almost any subject.',
     authorship: 'Human-directed, AI-assisted',
+    image: {
+      file: 'you-can-use-ai-to-learn-almost-anything-even-ai.jpg',
+      alt: 'Pixel illustration of a person at a computer under a sign showing a loop: practice, feedback, mastery. A stone path leads away from the desk toward a wooden signpost that reads new goals.',
+      caption: 'I kept the tutor. I did not finish the plan.',
+    },
   },
   {
     slug: 'ai-agents-reasoning-from-events-that-never-happened',
@@ -31,6 +48,10 @@ export const essays: Essay[] = [
     published: '2026-09-04',
     dek: 'What happened when AI agents were required to explain social decisions without enough grounded evidence, and why the useful fix was an environment that could contradict them.',
     authorship: 'Human-directed, AI-assisted',
+    image: {
+      file: 'ai-agents-reasoning-from-events-that-never-happened.jpg',
+      alt: 'Illustration for the essay: AI agents debating inside a cloud of hypothetical events labeled counterfactual debate, simulated deception, and events that never happened, floating above a timeline of what actually happened: agent A spoke, agent B voted.',
+    },
   },
   {
     slug: 'the-digest-is-the-system',
@@ -38,6 +59,10 @@ export const essays: Essay[] = [
     date: 'August 28, 2026',
     published: '2026-08-28',
     dek: 'Why the autonomous blog stops being the public face of this site, and what stands behind it instead.',
+    image: {
+      file: 'the-digest-is-the-system.jpg',
+      alt: 'Illustration in two panels. Left, labeled The Digest: the system, robotic arms in a glass case assemble a stack of posts from a chip fed by source icons, marked 600+ posts. Right, labeled Building: the record, a typewriter on a workbench holds a page reading My real name, Building, Work, beside a notebook and pen.',
+    },
   },
 ];
 

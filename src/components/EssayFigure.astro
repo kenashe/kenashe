@@ -1,0 +1,55 @@
+---
+// The one way an essay displays its declared image (writing.ts `image`). Rendering this
+// component is what makes the image count as "displayed" for the /writing/ thumbnail rule
+// in src/data/writing-images.ts, so every essay with an image field must render it once.
+//
+// `priority` is for a hero placed above the fold (directly under the byline): it loads
+// eagerly. Inline figures further down the page lazy-load.
+import { Image } from 'astro:assets';
+import type { Essay } from '../data/writing';
+import { assetFor } from '../data/writing-images';
+
+interface Props {
+  essay: Essay;
+  priority?: boolean;
+}
+
+const { essay, priority = false } = Astro.props;
+const image = assetFor(essay);
+const alt = essay.image!.alt;
+const caption = essay.image!.caption;
+---
+
+<figure class="essay-figure">
+  <Image
+    src={image}
+    alt={alt}
+    widths={[656, 1312]}
+    sizes="(min-width: 44rem) 656px, calc(100vw - 3rem)"
+    loading={priority ? 'eager' : 'lazy'}
+    fetchpriority={priority ? 'high' : 'auto'}
+    decoding={priority ? 'sync' : 'async'}
+  />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  /* Block-level, full width of the prose column, never wider than the column. */
+  .essay-figure {
+    margin: 2rem 0 2rem;
+  }
+  .essay-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .essay-figure figcaption {
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+</style>
