@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import { personKenAshe, websiteKenAshe } from '../../data/schema';
 
 // Phase 0 - Newsroom + orphan fix (spec v2.2 §13/§18).
 // Built on the EXISTING stack and visual conventions; the §3 bright-AI-lab
@@ -37,6 +39,85 @@ const releases = [
   },
 ];
 
+// Structured data for this page. The lists below MIRROR the entries rendered in the Coverage
+// and Bylines sections further down (which are hand-written markup); when you add or remove a
+// visible entry, update the matching array here in the same commit. Roles are kept distinct:
+// coverage and citations use about/mentions (Ken did not write them); bylines use author;
+// press releases are self-published and are marked as such via genre. Partial ISO dates
+// (YYYY-MM) are used where the page itself only shows a month.
+const PERSON = { '@id': 'https://kenashe.ai/#ken-ashe' };
+const pub = (name: string) => ({ '@type': 'Organization', name });
+const coverageSchema = [
+  { headline: 'Nvidia says an open Nemotron model outscored the top human at IOI 2026', url: 'https://news.quantixmind.com/article/nemotron-ultra-cc-ioi-2026-top-human', datePublished: '2026-09-03', publisher: pub('QuantixNews'), mentions: PERSON },
+  { headline: 'New Jersey Operator Ken Ashe Launches KenAshe.ai, a Public Build Log for Real AI Projects', url: 'https://explorenewjersey.org/kenashe-ai/', datePublished: '2026-07-08', publisher: pub('Explore New Jersey'), about: PERSON },
+  { headline: 'La démocratisation du Bitcoin pourrait-elle passer par la « gamification » ?', url: 'https://cryptoast.fr/democratisation-bitcoin-pourrait-elle-passer-par-gamification/', datePublished: '2024-11-26', publisher: pub('Cryptoast'), inLanguage: 'fr', mentions: PERSON },
+  { headline: 'How Can a PMP Study Plan Help You Pass the Exam?', url: 'https://www.smartsheet.com/how-can-pmp-study-plan-help-you-pass-exam', datePublished: '2017-03-22', publisher: pub('Smartsheet'), mentions: PERSON },
+  { headline: '7 Smart Ways to Spend a $1,000 Tax Refund', url: 'https://wtop.com/news/2017/02/7-smart-ways-to-spend-a-1000-tax-refund/', datePublished: '2017-02', publisher: pub('U.S. News & World Report'), mentions: PERSON },
+  { headline: 'Find a mentor, land a new job', url: 'https://www.journalofaccountancy.com/issues/2017/feb/finding-a-mentor/', datePublished: '2017-02-01', publisher: pub('Journal of Accountancy'), about: PERSON },
+  { headline: 'How to build a dashboard that your executives will love', url: 'https://www.mrc-productivity.com/blog/2017/01/how-to-build-a-dashboard-that-your-executives-will-love-2/', datePublished: '2017-01', publisher: pub("mrc's Cup of Joe Blog"), mentions: PERSON },
+  { headline: "5 Project Management Fundamentals Learned the Hard Way (So You Don't Have To)", url: 'https://certwise.com/blog/5-project-management-fundamentals-learned-hard-way-dont/', datePublished: '2016-05-16', publisher: pub('CertWise'), mentions: PERSON },
+  { headline: 'Email Urgency vs. Actual Emergency', url: 'https://www.huffpost.com/entry/email-urgency-vs-actual-e_b_9212690', datePublished: '2016-02-12', publisher: pub('HuffPost'), mentions: PERSON },
+];
+const bylineSchema = [
+  { headline: 'AI Agents Sounded Smart Until the Game Proved Them Wrong', url: 'https://hackernoon.com/ai-agents-sounded-smart-until-the-game-proved-them-wrong', datePublished: '2026-09-10', publisher: pub('HackerNoon') },
+  { headline: '7 Reasons To Invest In Bank Of America Heading In 2017', url: 'https://www.investing.com/analysis/seven-reasons-to-invest-in-bank-of-america-heading-in-2017-200171060', datePublished: '2016-12-29', publisher: pub('Investing.com') },
+  { headline: "It's The Big Banks Time To Shine", url: "https://www.investing.com/analysis/it's-the-big-banks-time-to-shine-200170694", datePublished: '2016-12-23', publisher: pub('Investing.com') },
+  { headline: 'Project Budgets and ROI', url: 'https://www.projecttimes.com/articles/project-budgets-and-roi/', datePublished: '2016-08-17', publisher: pub('Project Times') },
+  { headline: 'Personal Branding: An Important Step', url: 'https://www.projectmanagement.com/articles/318225/Personal-Branding--An-Important-Step', datePublished: '2016-02-11', publisher: pub('ProjectManagement.com (PMI)') },
+];
+const list = (name: string, items: Record<string, unknown>[]) => ({
+  '@type': 'ItemList',
+  name,
+  numberOfItems: items.length,
+  itemListElement: items.map((item, i) => ({ '@type': 'ListItem', position: i + 1, item })),
+});
+const newsroomSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    websiteKenAshe,
+    {
+      '@type': 'CollectionPage',
+      '@id': 'https://kenashe.ai/newsroom/#page',
+      url: 'https://kenashe.ai/newsroom/',
+      name: 'Newsroom',
+      description,
+      inLanguage: 'en-US',
+      isPartOf: { '@id': 'https://kenashe.ai/#website' },
+      about: PERSON,
+      mainEntity: [
+        list('Selected Coverage & Mentions', coverageSchema.map((c) => ({ '@type': 'Article', ...c }))),
+        list('Bylines', bylineSchema.map((b) => ({ '@type': 'Article', ...b, author: PERSON }))),
+        list(
+          'Press Releases',
+          [
+            {
+              '@type': 'NewsArticle',
+              '@id': 'https://kenashe.ai/news/site-launch/#article',
+              headline: 'KenAshe.ai Launches as a Public Build Log for Practical AI Projects and Website Development',
+              url: 'https://kenashe.ai/news/site-launch/',
+              datePublished: '2026-06-24',
+              genre: 'Press release',
+              author: PERSON,
+              publisher: PERSON,
+            },
+            {
+              '@type': 'NewsArticle',
+              '@id': 'https://luckydomains.io/news/website-relaunch.html#article',
+              headline: 'Lucky Domains Launches Redesigned Website for Premium Domain Acquisition and SEO',
+              url: 'https://luckydomains.io/news/website-relaunch.html',
+              datePublished: '2026-06-24',
+              genre: 'Press release',
+              author: PERSON,
+              publisher: { '@id': 'https://luckydomains.io/#organization' },
+            },
+          ],
+        ),
+      ],
+    },
+    personKenAshe,
+  ],
+};
+
 const sections = [
   { id: 'coverage', label: 'Coverage & Mentions' },
   { id: 'bylines', label: 'Bylines' },
@@ -66,6 +147,7 @@ const speakingTopics = [
     { name: 'Newsroom', path: '/newsroom/' },
   ]}
 >
+  <JsonLd slot="jsonld" data={newsroomSchema} />
   <div class="page newsroom">
     <header class="page-header">
       <p class="page-mark" aria-hidden="true">// newsroom</p>
