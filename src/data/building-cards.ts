@@ -14,6 +14,7 @@ const autonomousBlog: Project = {
 
 // The curated builds surfaced as cards (matches the prior Projects card set).
 const CURATED = [
+  'VetStack',
   'AI werewolf / social deduction lab',
   'Geo-targeted affiliate site',
   'kenashe.ai',
