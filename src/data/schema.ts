@@ -3,7 +3,7 @@
 // `personKenAshe` is the load-bearing entity for cross-domain triangulation
 // (KenAshe.ai <-> Lucky Domains). It MUST stay byte-identical everywhere it
 // appears - on KenAshe.ai (homepage, about, news/site-launch) and, as an
-// identical copy, on Lucky Domains (index.html, news/website-relaunch.html,
+// identical copy, on Lucky Domains (index.html, news/website-relaunch/index.html,
 // founder/ken-ashe/index.html). Define it once here and import it; never
 // inline a second, hand-written copy that could drift.
 //
