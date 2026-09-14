@@ -1,0 +1,60 @@
+---
+title: "What Fyxer's AI inbox assistant gets right about trust"
+description: "OpenAI says Fyxer built an email assistant people actually rely on by combining fine-tuning, memory, and real user feedback. The trust problem, not the model, is the real engineering challenge for anyone shipping an agent that acts on your behalf."
+pubDate: 2026-09-14
+tags: ["ai-agents", "fine-tuning", "agent-memory", "building-with-ai", "openai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-14-what-fyxers-ai-inbox-assistant-gets-right-about-trust/hero.png
+  alt: "What Fyxer's AI inbox assistant gets right about trust"
+sources:
+  - title: "How Fyxer built an AI executive assistant people trust"
+    url: "https://openai.com/index/fyxer"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+---
+
+TL;DR: Fyxer's email assistant earns trust not by using a better model but by combining fine-tuning, memory of your voice, and a feedback loop, which is the pattern any builder shipping an agent that acts for the user should copy.
+
+According to OpenAI's blog post "How Fyxer built an AI executive assistant people trust," Fyxer uses OpenAI models plus fine-tuning, memory, and real user feedback to organize inboxes and draft emails that sound like the person sending them. That is the whole story on the tin, and it is worth unpacking because the interesting part is not the model choice. It is the machinery around the model.
+
+I want to be upfront about the sourcing here. OpenAI's post is the primary and only source I have, and it is a customer story published by the vendor whose models Fyxer runs on. So treat the framing as OpenAI's, not as an independent audit. The specifics on how Fyxer's stack is built, what it costs, or how well it actually performs against alternatives are not things OpenAI's post quantifies in the material I have. What I can do is reason about the pattern, because the pattern is the transferable lesson.
+
+## Why is trust the hard part of an email agent, not the model?
+
+Drafting an email is not a hard language task anymore. A base model from any of the frontier labs can write a competent reply. The hard part is that email is a high-stakes, high-frequency, deeply personal surface. You send dozens a day. They go to your boss, your clients, your board. A draft that is 90 percent right but sounds nothing like you is worse than useless, because now you have to rewrite it, and you stop trusting the tool after two bad drafts.
+
+That is the trust cliff. An assistant that acts on your behalf has an asymmetric failure profile: the wins are quiet time savings, the losses are public and embarrassing. So the engineering problem is not "can the model write an email." It is "can the model write an email I would send without checking, and can I learn to trust that it will."
+
+![a steep cliff edge where small gains sit on a flat plateau and a single misstep falls off the side, contrasting quiet wi](../../assets/blog/2026-09-14-what-fyxers-ai-inbox-assistant-gets-right-about-trust/inline-1.png)
+
+OpenAI's framing of Fyxer as an assistant "people trust" is a tell that Fyxer understood this. The product bet is on reliability of voice and judgment, not on raw capability. Those are different things to optimize.
+
+## What does fine-tuning plus memory plus feedback actually buy you?
+
+OpenAI names three ingredients: fine-tuning, memory, and real user feedback. Each solves a distinct slice of the trust problem, and the combination is the point.
+
+Fine-tuning shifts the model's default behavior toward the kind of output you want at the population level. If most Fyxer users want concise, professional replies with a particular structure, fine-tuning bakes that in so you are not re-prompting for it every time. It moves the baseline.
+
+Memory personalizes on top of that baseline. This is where "in each user's voice" comes from. A fine-tuned model knows how professionals write email in general. Memory knows how *you* write email: your greetings, your sign-off, whether you use exclamation points, how blunt you get with vendors versus clients. This is the layer that turns a generic good draft into one that sounds like it came from your hands.
+
+Feedback closes the loop. Every edit a user makes to a draft is a signal. Every draft they send unchanged is a stronger one. That stream is the raw material for improving both the shared model and the per-user memory over time. Without it, the assistant is frozen at day one. With it, it gets more you as you use it.
+
+![three concentric layers around a central figure, an outer general layer, a middle personal layer, and an inner feedback ](../../assets/blog/2026-09-14-what-fyxers-ai-inbox-assistant-gets-right-about-trust/inline-2.png)
+
+The reason this stack matters is that no single piece does the job. Fine-tuning alone gives you a competent generalist that still sounds wrong. Memory alone on a weak base gives you personalized mediocrity. Feedback alone with nothing to update is a comment box. Stacked, they compound: better base, personalized, improving. That is the architecture worth stealing regardless of what you are building.
+
+## Is this pattern specific to email, or does it generalize?
+
+It generalizes, and that is why I am writing about a single vendor customer story at flagship length. Swap "email" for any surface where an agent produces output in your name and the same three-layer stack applies.
+
+Support replies, sales outreach, code review comments, contract redlines, social posts, internal memos. All of them share the email profile: personal voice matters, mistakes are visible, volume is high enough that automation is worth it. In every one of those, a raw model call gets you a demo and loses you the user by week two. The fine-tune plus memory plus feedback loop is what carries you from demo to daily habit.
+
+The catch that is easy to miss: the feedback loop is an operational commitment, not a feature you ship once. Someone has to build the pipeline that captures edits, cleans them, and folds them back into memory or the next fine-tune. Someone has to decide what a "good" signal is versus noise. And you have to do it without leaking one user's private email into another user's model, which is a real privacy and data-boundary problem OpenAI's post does not address in the material I have. If you copy the pattern, copy the responsibility too.
+
+## What should a builder actually do with this?
+
+Start where trust breaks, not where the demo shines. Before you fine-tune anything, ship a plain model call and watch what users edit. Those edits are your spec. If they all fix the tone, that is a fine-tune job. If they all fix facts and personal details, that is a memory job. If they fix different things every time, you are not ready to automate the surface yet, and you should keep the human in the seat.
+
+Then build the smallest feedback capture you can before you build the fancy model layer, because the loop is the moat and it takes the longest to get right. Fine-tuning is a weekend once you have clean data; the clean data is the year. Treat memory as per-user and private by default, and be explicit with users about what the assistant remembers and how they can wipe it, because the same personalization that earns trust destroys it the moment it feels like surveillance. The lesson from Fyxer, as OpenAI tells it, is not that OpenAI models write good email. It is that trust is an architecture, and you have to build all three floors.
