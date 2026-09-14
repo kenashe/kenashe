@@ -29,6 +29,18 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'my-automated-blog-got-cited',
+    title: 'My automated blog got cited. Am I helping kill the internet?',
+    date: 'September 15, 2026',
+    published: '2026-09-15',
+    dek: 'An AI-assisted news site cited my automated Digest. What that citation proves, what it does not, and why a backlink does not need to become an endorsement.',
+    authorship: 'Human-directed, AI-assisted',
+    image: {
+      file: 'my-automated-blog-got-cited.jpg',
+      alt: 'Illustration in three steps. A robot with a code symbol on its face types at a keyboard. An arrow leads to a machine dispensing a page labeled Citation. Another arrow leads to a QuantixNews newspaper marked AI-assisted drafting, human editorial review, headlined Nvidia’s reported performance. Along the bottom: Validate. Corroborate. Disclose.',
+    },
+  },
+  {
     slug: 'you-can-use-ai-to-learn-almost-anything-even-ai',
     title: 'You Can Use AI to Learn Almost Anything. Even AI.',
     date: 'September 14, 2026',
