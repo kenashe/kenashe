@@ -17,11 +17,11 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
-    slug: 'i-used-ai-to-learn-ai-then-i-changed-the-plan',
-    title: 'I Used AI to Learn AI. Then I Changed the Plan.',
-    date: 'September 12, 2026',
-    published: '2026-09-12',
-    dek: 'A 30-day AI tutor found a hole in how I scored answers. That hole is now the standard I use on agents.',
+    slug: 'you-can-use-ai-to-learn-almost-anything-even-ai',
+    title: 'You Can Use AI to Learn Almost Anything. Even AI.',
+    date: 'September 14, 2026',
+    published: '2026-09-14',
+    dek: 'How I turned ChatGPT into a tutor with exercises, quizzes, and feedback, and a starting prompt you can use for almost any subject.',
     authorship: 'Human-directed, AI-assisted',
   },
   {
