@@ -1,0 +1,66 @@
+---
+title: "The Skill Router You Already Have: Gavel Reads Routing From a Frozen LLM"
+description: "A new arXiv paper argues the model choosing your agent's skills is the model itself, and that two trained linear maps beat retrieval pipelines with billions of extra parameters. Here is what that changes for anyone building agents with large skill libraries."
+pubDate: 2026-09-15
+tags: ["ai-agents", "ai-research", "developer-tools", "qwen", "inference", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-15-the-skill-router-you-already-have-gavel-reads-routing-from-a-frozen-llm/hero.png
+  alt: "The Skill Router You Already Have: Gavel Reads Routing From a Frozen LLM"
+sources:
+  - title: "The Router Within: Eliciting Native Skill Routing from a Frozen LLM"
+    url: "http://arxiv.org/abs/2609.15982v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A paper called "The Router Within: Eliciting Native Skill Routing from a Frozen LLM" shows the agent model already knows which skill to use, and you can read that signal out with two small linear maps instead of bolting on a separate retriever.
+
+If you have built an agent with more than a handful of skills, you have hit the routing problem whether you named it or not. You have some library of tools or skills, and on every task the agent has to pick the right one. The two common ways of doing that both have a tax. This paper, posted to arXiv under cs.AI, cs.CL, and cs.LG, argues there is a third way that costs almost nothing and works better.
+
+## What problem is skill routing actually solving?
+
+Skills are how you push an agent past what its weights already know. A skill is a packaged capability: a procedure, a tool, a bit of domain knowledge the base model does not carry. The value of a skill library only shows up if the agent picks the right skill at the right moment. Pick wrong and the skill is dead weight.
+
+The two deployed approaches today both leak capability.
+
+The first is what the paper calls progressive disclosure, which most harnesses do: preload every skill's metadata into the context so the model can see its options. That works at small scale and falls apart as the library grows. Every skill description you stuff into context spends tokens and, worse, spreads the model's attention thinner. There is a hard ceiling on how many skills you can describe before the context is mostly menu and not task.
+
+The second is retrieval. Move skill selection out of the context and into a separate retrieve-and-rerank pipeline, the same pattern as RAG. That fixes the context bloat but introduces a new problem: the retriever is not the agent. It is a separate model with its own understanding, often weaker than the frontier model doing the actual work. You have taken the smartest thing in your stack and handed the most consequential decision to something dumber sitting next to it.
+
+![a large model reaching toward a shelf of tools versus a small separate helper handing tools to the large model](../../assets/blog/2026-09-15-the-skill-router-you-already-have-gavel-reads-routing-from-a-frozen-llm/inline-1.png)
+
+## What does Gavel do differently?
+
+The claim is blunt: the frozen agent LLM already carries the routing signal in its own forward passes. You do not need external metadata in context, and you do not need a separate retriever. You need to read what the model is already computing.
+
+Their method is called Gavel, for Glance And Verdict from a frozen LLM, and it runs in two steps.
+
+The glance is cheap and wide. At skill installation time, one forward pass builds a compact bank of internal-state features for each skill. At query time, the incoming task gets projected through two trained linear maps, and those projections score the entire library at once. Two linear maps are the only parameters trained. Everything else, the base model, stays frozen. That is the whole point of the word frozen in the title: you are not fine-tuning the agent, you are reading it.
+
+The verdict is narrow and careful. For the shortlist the glance produces, Gavel resumes those skills' forward passes and reads the model's own likelihood and its yes/no judgment on whether the skill fits. Then it fuses the glance score and the verdict as a product of experts, which is a fancy way of saying both signals have to agree for a skill to win.
+
+So the fast pass filters the library, the slow pass confirms the finalists, and neither one requires you to describe your skills in the context window.
+
+## Do the numbers hold up?
+
+The headline comparisons are against the two incumbent approaches, and they are specific enough to check.
+
+On Qwen3-32B, Gavel beats both progressive disclosure and retrieve-and-rerank pipelines that add between 1.2B and 16B external parameters. The margin is up to 13.4 points on written tasks. The more interesting number is up to 21.9 points when the need for a skill shows up mid-rollout, meaning the agent is already partway through a task when it turns out a skill is required. That mid-task case is exactly where preloaded menus and one-shot retrieval tend to fail, because the relevant context has moved on.
+
+They trained Gavel once and transferred it zero-shot to three public benchmarks plus SkillTraj, their own new benchmark of 372 simulated agent trajectories. Zero-shot transfer matters here: it suggests the two linear maps are reading something general about how the model represents skill relevance, not overfitting to one benchmark's quirks.
+
+One line deserves a flag for how strong it is. In a bash-agent harness, the same 32B model with Gavel triggers the correct skill on Skill-Use more often than far larger frontier models running in Codex. If that holds up under replication, it means a mid-size open model with the right routing beats bigger closed models on picking the right tool. I would want to see independent runs before treating that as settled, because it is the kind of result that depends heavily on how the frontier baselines were configured. The paper is the only source here, so treat the frontier comparison as the authors' reported result, not a confirmed fact.
+
+![a wide filtering funnel followed by a small precise gate, two stages narrowing a set of options](../../assets/blog/2026-09-15-the-skill-router-you-already-have-gavel-reads-routing-from-a-frozen-llm/inline-2.png)
+
+## What should a builder actually take from this?
+
+The durable idea is bigger than one method. If the routing signal lives inside the model's activations, then a whole class of "add another model to decide" architectures is more optional than it looks. That applies to skill selection, and it plausibly extends to tool choice, sub-agent dispatch, and other places where teams reach for a separate classifier or retriever out of habit.
+
+There is also a cost story. A retriever that adds billions of parameters is real inference cost and real latency on every request. Two linear maps plus a shortlist of resumed forward passes is dramatically cheaper. For anyone running agents at volume, that gap compounds.
+
+![a single unified brain shape absorbing a role that used to sit outside it as a separate box](../../assets/blog/2026-09-15-the-skill-router-you-already-have-gavel-reads-routing-from-a-frozen-llm/inline-3.png)
+
+Practitioner's take: if you are on an open backbone like Qwen3 and your skill library has outgrown "just list them all in the system prompt," this is worth prototyping the moment code is available, because it attacks the exact failure most agent builders paper over with a bigger context window. Start by instrumenting your current routing: measure how often your agent picks the wrong skill, and separately measure the mid-task case, because that is where the paper claims its biggest win and where your current setup is probably weakest. The catch most readers will miss is that Gavel reads the frozen model, so its ceiling is your base model's own understanding of your skills. If your skill descriptions are vague or your model has never seen anything like your domain, there is no internal signal to extract, and no clever router fixes a model that does not understand the job. Get your skills legible to the model first, then read the router within.
