@@ -36,7 +36,7 @@ export interface Story {
 
 export interface ImageAsset {
   role: 'hero' | 'inline' | 'diagram';
-  path: string; // repo-relative, e.g. src/assets/blog/<slug>/hero.png
+  path: string; // repo-relative, e.g. src/assets/blog/<slug>/hero.webp (PNG before 2026-09-16, see D16)
   alt: string;
   prompt?: string;
 }

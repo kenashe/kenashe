@@ -141,7 +141,7 @@ Entry point `pipeline/src/run.ts`. One pass, in order:
 | 6 | **select** | `run.ts` | See "Selection" below. Logs `[select] reserved -> ...`. |
 | 7 | **synthesize** | `synthesize.ts`, `prompts.ts` | Tier-appropriate model writes MDX. Records `sources` + detected `entities` into frontmatter. |
 | 8 | **gate** | `gate.ts` | A *different* model scores the draft 0–40 and lists critical fails. Pass → `draft:false`; fail → `draft:true` (auto-drafted, never deleted). |
-| 9 | **images** | `images.ts` | Hero + inline images; art direction rotates per slug. Skipped unless `IMAGES_ENABLED=1`. |
+| 9 | **images** | `images.ts` | Hero + inline images; art direction rotates per slug. Skipped unless `IMAGES_ENABLED=1`. Output is compressed WebP (`image-output.ts`: `output_format`/`output_compression`), not PNG; a size budget in `assertImageBudget` fails the run before commit if a day's images exceed 15 MB ([D16](DECISIONS.md#d16)). |
 | 10 | **publish** | `publish.ts` | Writes MDX, regenerates `related.json`, commits, pushes, pings the Vercel deploy hook. |
 | 11 | **digest** | `run.ts` | Telegram summary. A hard failure sends a plain-text error ping. |
 

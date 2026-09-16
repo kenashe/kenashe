@@ -128,6 +128,10 @@ not add homepage/contact/about links from kenashe.ai copy. Details: ARCHITECTURE
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls
   OpenAI `gpt-image-1` and counts placeholders. Dead config, documented in ARCHITECTURE.
+- Digest images are **WebP** (`hero.webp`, `inline-N.webp`) since 2026-09-16; the 2,000+
+  `.png` files from June to September are the old format and will be re-encoded in batches
+  ([D16](DECISIONS.md#d16)). Never switch the request back to PNG: `assertImageBudget` fails
+  the run if a day's new images exceed 15 MB or any single file exceeds 1.5 MB.
 - `pipeline/ci/pipeline.yml` is a template copy of the live workflow. Agents usually lack
   `workflows` PAT scope, so edit the template and ask a human to copy it to
   `.github/workflows/pipeline.yml`. If they differ, `.github/workflows` is what runs.

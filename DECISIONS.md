@@ -254,6 +254,34 @@ builds only pass because they run on a warm cache.
 - The durable fix is cutting image work out of the build (the 3.3 GB repo problem) or a
   paid Vercel plan; until then this constraint is structural.
 
+## <a id="d16"></a>D16 — Digest images are compressed WebP, never lossless PNG
+
+**Incident (2026-09-16).** The production deploy of that day's pipeline run failed: Vercel
+spent 42m19s cloning the repository and about 2 minutes building, and hit the 45-minute
+Hobby limit. Deploys of near-identical trees the same day took 11, 33, and 44 minutes.
+
+**Cause.** The tree at `master` was 5.5 GB, 99.7% of it 2,083 `gpt-image-1` PNGs under
+`src/assets/blog/` (1536×1024, average 2.63 MB, ~25 added per run, ~2 GB per month). Vercel
+clones with `--depth=10`, so history is irrelevant; the current tree is the whole payload,
+and PNG bytes neither compress nor delta in a pack. Whether a clone finishes inside the
+window depended only on GitHub-to-Vercel throughput that hour. Visitors never receive the
+PNG: Astro serves 20-450 KB WebP derivatives from it.
+
+**Decision.**
+- `images.ts` requests `output_format: 'webp'`, `output_compression: 80` (constants in
+  `image-output.ts`) and writes `hero.webp` / `inline-N.webp`. The content schema's `image()`
+  accepts WebP, and the MDX path is derived from the file name, so `src/content.config.ts`
+  stays untouched (D15).
+- `assertImageBudget` runs before the pipeline commits: over 15 MB of new images in a day,
+  or any single image over 1.5 MB, fails the run with a message pointing at the request
+  body. A failed run is visible; a silent regression to PNG is how the repo got here.
+- Existing PNGs are re-encoded to WebP in batches of ~100 posts per commit, one batch per
+  successful deploy, so Astro re-optimizes ~250 images at a time instead of all 2,083 (the
+  D15 trap). History keeps the PNG blobs; no rewrite. The full audit is in the operator's
+  thread notes (2026-09-16).
+- Not chosen: moving images to Blob/R2/LFS. It requires a schema change (D15 cold build) and
+  LFS objects still download during the Vercel build.
+
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
 Considered for LLM answer-extraction, rejected. Google restricted FAQ rich results to

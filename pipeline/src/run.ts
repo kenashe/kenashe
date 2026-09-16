@@ -12,6 +12,7 @@ import { embedMany } from './llm.ts';
 import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
 import { addImages } from './images.ts';
+import { assertImageBudget } from './image-output.ts';
 import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
 import { writeRelated, cosine } from './related.ts';
 import { announce } from './indexnow.ts';
@@ -185,6 +186,10 @@ async function main(): Promise<void> {
   console.log(`[related] ${rel.withLinks}/${rel.posts} posts have related links`);
 
   if (!shadow && (report.published.length || report.drafted.length)) {
+    // Size guard (D16): throws before anything is committed if today's new images are
+    // PNG-sized rather than the compressed WebP we ask for. Loud failure beats a silent
+    // return to 60 MB/day of repo growth.
+    assertImageBudget(repoRoot);
     commitAndPush(repoRoot, `pipeline: ${report.published.length} posts, ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
     await triggerDeploy();
   } else if (shadow && report.drafted.length) {
