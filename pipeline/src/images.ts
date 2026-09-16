@@ -7,16 +7,19 @@ import path from 'node:path';
 import { chat } from './llm.ts';
 import { MODELS } from './config.ts';
 import { heroImagePrompt, inlineImagePrompt, altTextUser } from './prompts.ts';
+import { imageRequestBody, imageFileName, IMAGE_SIZE } from './image-output.ts';
 import type { DraftPost, ImageAsset } from './types.ts';
 
 const PLACEHOLDER = /\{\{IMAGE:inline:([^}]*)\}\}/g;
 
+// Output is compressed WebP, not the API's default lossless PNG: see image-output.ts and
+// DECISIONS.md D16 (the PNGs grew the repo to 5.5 GB and broke Vercel's clone).
 async function genImage(prompt: string, size: string): Promise<Buffer | null> {
   if (process.env.IMAGES_ENABLED !== '1' || !process.env.OPENAI_API_KEY) return null;
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: 'gpt-image-1', prompt, size, n: 1 }),
+    body: JSON.stringify(imageRequestBody(prompt, size)),
   });
   if (!res.ok) { console.warn(`[images] ${res.status}: ${await res.text()}`); return null; }
   const j = (await res.json()) as any;
@@ -35,8 +38,12 @@ export async function addImages(draft: DraftPost, repoRoot: string, _shadow: boo
   const write = (file: string, buf: Buffer) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, file), buf); };
   const images: ImageAsset[] = [];
 
-  const heroBuf = await genImage(heroImagePrompt(draft.title, draft.description, draft.tags, draft.slug), '1536x1024');
-  if (heroBuf) { write('hero.png', heroBuf); images.push({ role: 'hero', path: `src/assets/blog/${draft.slug}/hero.png`, alt: await altText('hero', draft.title) }); }
+  const heroBuf = await genImage(heroImagePrompt(draft.title, draft.description, draft.tags, draft.slug), IMAGE_SIZE);
+  if (heroBuf) {
+    const file = imageFileName('hero');
+    write(file, heroBuf);
+    images.push({ role: 'hero', path: `src/assets/blog/${draft.slug}/${file}`, alt: await altText('hero', draft.title) });
+  }
 
   let i = 0;
   const parts: string[] = [];
@@ -44,10 +51,10 @@ export async function addImages(draft: DraftPost, repoRoot: string, _shadow: boo
   for (const m of draft.body.matchAll(PLACEHOLDER)) {
     parts.push(draft.body.slice(last, m.index ?? 0));
     last = (m.index ?? 0) + m[0].length;
-    const buf = await genImage(inlineImagePrompt(m[1].trim(), draft.slug), '1536x1024');
+    const buf = await genImage(inlineImagePrompt(m[1].trim(), draft.slug), IMAGE_SIZE);
     if (buf) {
       i += 1;
-      const file = `inline-${i}.png`;
+      const file = imageFileName('inline', i);
       write(file, buf);
       const a = await altText('inline', m[1].trim());
       images.push({ role: /diagram|chart/i.test(m[1]) ? 'diagram' : 'inline', path: `src/assets/blog/${draft.slug}/${file}`, alt: a });
