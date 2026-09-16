@@ -1,0 +1,72 @@
+---
+title: "ScienceBuddy and the case for training the harness before the model"
+description: "A new arXiv release argues that scientific agents should improve by evolving their tooling and their model together, in nested loops fed by researcher feedback. Here is what that actually means for anyone building agents, and where the claims still need receipts."
+pubDate: 2026-09-16
+tags: ["ai-agents", "reinforcement-learning", "science-ai", "ai-research", "agent-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-16-sciencebuddy-and-the-case-for-training-the-harness-before-the-model/hero.png
+  alt: "ScienceBuddy and the case for training the harness before the model"
+sources:
+  - title: "ScienceBuddy: Recursive-in-Recursive Self-Improvement for Interactive Scientific Agents"
+    url: "http://arxiv.org/abs/2609.17523v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: ScienceBuddy's real idea is not "self-improving science AI," it's a structured split between improving the scaffolding around a model and retraining the model itself, run as nested loops fed by what researchers actually do.
+
+The paper is **ScienceBuddy: Recursive-in-Recursive Self-Improvement for Interactive Scientific Agents**, posted to arXiv under both cs.AI and cs.CL, with a companion site at science-buddy.io. It describes a research workspace where scientists do their normal work, and their requests, corrections, and the evidence from runs get turned into tasks and evaluation rubrics that feed continual learning. The mechanism at the center is what the authors call recursive-in-recursive self-improvement. Two loops. The inner loop improves the harness while the model stays fixed. The outer loop retrains the model under the improved harness.
+
+That framing is worth slowing down on, because it cuts against how most teams currently think about making an agent better.
+
+## What does "recursive-in-recursive" actually mean here?
+
+Strip the naming and you get a clean separation of concerns.
+
+The harness is everything around the model: the tools, the prompts, the retrieval, the orchestration, the way tasks get decomposed and results get checked. The model is the weights. Most people conflate the two when they say an agent "got better." ScienceBuddy insists on keeping them apart and improving them on different clocks.
+
+Inner loop: hold the model constant, evolve the harness. Better tool definitions, better rubrics, better scaffolding. This is fast and cheap because you're not touching weights.
+
+Outer loop: once the harness is better, retrain the model under it. The authors' phrasing is that harness evolution shapes the training experience, and model learning then creates new opportunities for harness adaptation. So the two feed each other. A sharper harness produces cleaner training signal. A retrained model exposes new places where the harness can be pushed further.
+
+![two nested loops turning at different speeds, a small fast loop inside a large slow one, both connected by arrows feedin](../../assets/blog/2026-09-16-sciencebuddy-and-the-case-for-training-the-harness-before-the-model/inline-1.png)
+
+If you've built agents in production, you already do a weak version of the inner loop every time you rewrite a system prompt or add a tool after watching an agent fail. What's new is the claim that this should be formalized as the fast half of a two-speed training process, with the slow half being actual RL on the model.
+
+## Why split the loops instead of just fine-tuning?
+
+Because most of the gains in agent systems today come from the harness, not the weights, and the harness is far cheaper to change.
+
+I've watched this play out repeatedly. Teams reach for fine-tuning when their agent is unreliable, spend weeks and a real compute bill, and get a model that's marginally better at the exact task distribution they trained on and worse at everything else. Meanwhile the actual failure was that the tool descriptions were ambiguous, or the agent had no way to verify its own output, or the retrieval was pulling the wrong context. Those are harness problems. You fix them in an afternoon.
+
+ScienceBuddy's structure encodes that lesson. Exhaust the cheap loop first. Only pay for the expensive loop once the harness is stable enough that model training won't just memorize a broken scaffold. That ordering matters, and it's the part I'd take to any agent project regardless of whether you ever touch RL.
+
+The subtler point is about training signal. If you retrain a model under a bad harness, you bake the harness's mistakes into the weights. Improve the harness first, and the training experience the outer loop learns from is genuinely better. The paper frames the researcher feedback loop as the thing that generates rubrics and tasks in the first place, which means the evaluation criteria come from real use rather than from a benchmark someone guessed at up front.
+
+![a researcher handing corrections into a machine that converts them into checklists and test cases](../../assets/blog/2026-09-16-sciencebuddy-and-the-case-for-training-the-harness-before-the-model/inline-2.png)
+
+That last bit is the most interesting and the least verified. Turning ad hoc researcher feedback into durable evaluation rubrics is the hard, unglamorous core of any continual-learning system. It's also exactly where these systems tend to quietly break, because human feedback is noisy, inconsistent, and often contradictory across sessions.
+
+## Where are the receipts thin?
+
+Here's where I put on the skeptic hat.
+
+The paper presents case studies, not a controlled evaluation. The abstract describes "case studies of researcher interaction, harness refinement, and model learning," with benchmark cases spanning four scientific task families. Case studies are useful for showing a system exists and does something. They are not evidence that the recursive-in-recursive structure outperforms a simpler baseline. The claim I'd want to see tested is direct: does the two-loop approach beat harness-only improvement, and beat one-shot fine-tuning, on the same tasks? The material I have doesn't give me those numbers. Four task families is a small surface, and "spanning" is doing a lot of quiet work in that sentence.
+
+The word "self-improvement" also deserves friction. Nothing here is autonomous discovery. The loops are fed by researchers. The system improves because humans keep correcting it, and those corrections get structured into training signal. That's a good design. It is not a machine bootstrapping itself, and I'd read any coverage that implies otherwise as hype.
+
+There's also the release itself. The authors describe ScienceBuddy as a "research product" available at science-buddy.io. What that product actually does today, who can use it, and under what limits are first-party questions the company would have to answer through its own docs. The paper's abstract is a research claim, not a product spec, and I'm treating it that way. If someone tells you it ships X or costs Y, ask where that came from, because the sources here don't say.
+
+## What should a builder take from this?
+
+The transferable idea is the two-speed loop, and you can apply it without a lab.
+
+Instrument your agent so every failure and every human correction gets captured as a concrete test case, not a Slack complaint that evaporates. That's your rubric-building loop. Then improve the harness against those cases first: tools, prompts, retrieval, verification steps. Measure. Most teams will get more from three iterations of that than from any fine-tune. Only when the harness stops paying off, and you have a stable, well-tested scaffold, should you consider training the model under it. Run those on different clocks. The harness changes weekly. The model changes rarely.
+
+![a two-lane road where one lane moves quickly and the other slowly, both heading the same direction](../../assets/blog/2026-09-16-sciencebuddy-and-the-case-for-training-the-harness-before-the-model/inline-3.png)
+
+The catch most readers will miss: this whole structure lives or dies on the quality of the rubrics you extract from human feedback, and that extraction is the part the paper waves at rather than proves. If your captured test cases are noisy or contradictory, both loops amplify the noise. The inner loop overfits the harness to bad signal, and the outer loop then bakes it into the weights. So the real work isn't the clever recursion. It's the boring discipline of turning messy human corrections into clean, stable evaluation criteria. Get that wrong and the nested loops just help you fail faster.
+
+Named clearly, ScienceBuddy is a good frame with unproven margins. Take the frame. Wait on the numbers.

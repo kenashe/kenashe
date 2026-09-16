@@ -1,0 +1,70 @@
+---
+title: "Teaching Models to Say 'I Don't Know' With a Prompt, Not a Retrain"
+description: "A new arXiv paper on Chain-of-Self-Questioning shows a prompt-only method that cuts confident wrong answers by 32% across eleven models, without fine-tuning, by making answer commitment conditional on a self-check first."
+pubDate: 2026-09-16
+tags: ["prompt-engineering", "model-reliability", "evals", "ai-safety", "language-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-16-teaching-models-to-say-i-dont-know-with-a-prompt-not-a-retrain/hero.png
+  alt: "Teaching Models to Say 'I Don't Know' With a Prompt, Not a Retrain"
+sources:
+  - title: "When Should LLMs Abstain? Chain-of-Self-Questioning for Selective Risk Control"
+    url: "http://arxiv.org/abs/2609.17516v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A prompt-only technique called Chain-of-Self-Questioning cut confident wrong answers from 13.1% to 8.9% across eleven models on TruthfulQA, without any fine-tuning, by forcing the model to assess what it needs to know before it commits to an answer.
+
+The paper is "When Should LLMs Abstain? Chain-of-Self-Questioning for Selective Risk Control," posted to arXiv under both cs.AI and cs.CL. It tackles the failure mode that everyone building on LLMs has hit: the model answers fluently and confidently when it has no business being confident. Not a hallucination in the exotic sense. Just a wrong answer delivered with the same tone as a right one.
+
+What's interesting here is not that abstention is possible. We've known models can be told to say "I don't know." What's interesting is that this works with a prompt, holds across eleven different model families, and gives you a dial you can actually turn.
+
+## What is Chain-of-Self-Questioning and how does it work?
+
+Chain-of-self-questioning (CoSQ) is a prompting framework, not a training method. Instead of asking the model to answer and hope, you make the commitment conditional. The model first assesses the information a correct answer would require, checks whether it actually has that support, and only then decides to answer or abstain.
+
+Think of it as inserting a checkpoint between "I have a thought" and "I'll say it out loud." Standard chain-of-thought reasons toward an answer. CoSQ reasons about whether it should answer at all.
+
+![a single path splitting into two at a gate, one route continuing forward and one curving away](../../assets/blog/2026-09-16-teaching-models-to-say-i-dont-know-with-a-prompt-not-a-retrain/inline-1.png)
+
+The paper tests three variants: Grounded-CoSQ, Critical-CoSQ, and Adaptive-CoSQ. These are different operating points on the same idea. Grounded is the most conservative flavor in the headline numbers, Critical and Adaptive sit nearby with slightly different coverage. The key mechanic is a threshold, written as τ (tau), that sets how much internal confidence the model needs before it commits. Higher τ means more caution and more abstentions.
+
+That threshold is the whole point. It turns "should the model answer?" from a vibe into a knob.
+
+## What did the numbers actually show?
+
+The evaluation ran on the 817-item TruthfulQA multiple-choice validation set, plus a secondary Natural Questions short-answer test for convergent open-form evidence. Eleven model families, both open-weight and hosted. Seventeen conditions.
+
+In the final balanced-option protocol, Grounded-CoSQ at τ=0.90 moved the mean unconditional wrong-commitment rate from 13.1% under plain chain-of-thought down to 8.9%. That's a 32.1% relative reduction in confident wrong answers. At the same time, answered accuracy rose from 86.9% to 89.7%, and the system still answered 87.6% of questions.
+
+Read that combination carefully, because it's the part that matters. The model is answering fewer questions, but the questions it does answer are more accurate, and the ones it drops are disproportionately the ones it would have gotten wrong. You're not trading away good answers to buy safety. You're mostly shedding bad ones.
+
+The authors report that both improvements held for all eleven models and at every evaluated threshold. That consistency is the real signal. Prompt tricks that work on one model and evaporate on the next are common. A method that moves in the same direction across eleven families, open and hosted, is telling you something about the behavior rather than about one model's quirks.
+
+Critical-CoSQ and Adaptive-CoSQ gave neighboring operating points at 88.6% and 86.5% coverage, both more reliable than the baseline. So you get a small menu of tradeoffs, not a single take-it-or-leave-it setting.
+
+## Where does this actually help, and where doesn't it?
+
+The paper frames the use case precisely: this matters "when an unsupported commitment is more costly than referral or review." That's the condition to hold onto.
+
+![a set of scales weighing a wrong confident answer against a handoff to a human](../../assets/blog/2026-09-16-teaching-models-to-say-i-dont-know-with-a-prompt-not-a-retrain/inline-2.png)
+
+If a wrong answer costs you nothing much, or a human is going to check everything anyway, abstention buys you little. But in the places where operators are actually nervous about deploying LLMs, a confident wrong answer is expensive: support flows that trigger refunds, internal tools that feed decisions, anything medical or legal or financial adjacent, RAG systems where a fabricated citation looks identical to a real one. In those, an "I need to refer this" is far cheaper than a wrong commitment that ships downstream.
+
+Now the honest limits. This is a multiple-choice benchmark study. TruthfulQA is designed to bait models into common misconceptions, which is a fair stress test, but multiple-choice with balanced options is a cleaner setting than the messy open-ended prompts most production systems see. The secondary Natural Questions short-answer evaluation is described as convergent open-form evidence, which is reassuring, but it's secondary. I'd want to see how the τ dial behaves on my own domain data before trusting a specific setting.
+
+The wrong-commitment rate also doesn't go to zero. It goes from 13.1% to 8.9%. Better, clearly. Still not a system you leave unsupervised on high-stakes calls. Abstention narrows the risk, it doesn't remove it.
+
+And there's a cost the abstract doesn't dwell on: CoSQ adds reasoning steps. Every answer now includes a self-assessment pass. That's more tokens and more latency per query. For a chatbot answering thousands of requests, that adds up. The tradeoff is real even when it's worth it.
+
+## How would a builder use this today?
+
+Start by finding your abstention path. Before you tune any prompt, decide what "I don't know" actually does in your product. Does it route to a human? Show a "we couldn't verify this" message? Trigger a retrieval retry? If you don't have a graceful landing spot for an abstention, a model that abstains more just fails more visibly. Build the off-ramp first.
+
+Then treat τ as a product decision, not a technical one. The paper hands you a tunable dial across three variants. High τ for the flows where a wrong answer is expensive, lower τ where coverage matters more than caution. You can run different thresholds for different surfaces of the same product.
+
+Test it against your own baseline, not the paper's. The 13.1% to 8.9% figure is TruthfulQA's, on balanced multiple choice. Your numbers will differ. Take a few hundred of your real queries with known-correct answers, run plain chain-of-thought and a CoSQ variant, and measure your own wrong-commitment rate and coverage. That's a weekend of eval work and it tells you far more than the headline.
+
+The catch most readers will miss: this only pays off if abstention is genuinely cheaper than a confident error in your context. If your users treat "I don't know" as a broken product, you've traded a hidden failure for a visible one, and visible failures churn users faster. The method is good. Whether it fits depends entirely on the cost structure you're operating in, and that's a judgment the paper can't make for you.
