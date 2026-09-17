@@ -1,0 +1,56 @@
+---
+title: "Probabilistic Linear Explanations make interpretability more honest"
+description: "The arXiv paper Probabilistic Linear Explanations proposes sparse, anchored local explanations for classification and regression, with a useful trade: accept that perfect relevance is hard, then optimize a tractable fidelity surrogate with clearer constraints than LIME-style methods."
+pubDate: 2026-09-17
+tags: ["interpretability", "model-reliability", "ai-research", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-17-probabilistic-linear-explanations-make-interpretability-more-honest/hero.webp
+  alt: "Probabilistic Linear Explanations make interpretability more honest"
+sources:
+  - title: "Probabilistic Linear Explanations"
+    url: "http://arxiv.org/abs/2609.19077v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The useful move in `Probabilistic Linear Explanations` is not claiming explanations are easy, it is making the explanation small, local, anchored to the instance, and explicit about the optimization shortcut.
+
+## What problem is this paper actually solving?
+
+The arXiv cs.AI/cs.LG paper `Probabilistic Linear Explanations` takes aim at a very practical failure mode in model explanations: they often explain too much.
+
+Formal abductive explanations can be mathematically clean, but they may involve more features than a person can hold in their head. That is not just a UX problem. If the explanation for a prediction needs 30 interacting conditions, the operator probably will not use it. On the other side, local explanation tools like LIME are easier to consume, but they can feel loose. Useful, sometimes. Principled, less often.
+
+`Probabilistic Linear Explanations` tries to sit between those poles. It builds sparse, anchored linear explanations. Sparse means the explanation is forced to use at most `k` features. Anchored means the explanation is tied to the specific instance being explained, not just a generic neighborhood summary. Linear means the explanation can show both direction and magnitude, not merely “these features mattered.”
+
+That last part matters. A subset-style explanation can tell you that income, age, and debt-to-income ratio mattered for a lending model. A linear explanation can also say whether each pushed the score up or down, and by how much under the local setup. That is closer to what an analyst usually wants.
+
+The paper also generalizes across binary classification and continuous regression. That is important because explainability work too often lives in classifier land, while many real systems produce scores, forecasts, rankings, risk estimates, or continuous outputs.
+
+![local model explanation shown as a small transparent plane touching one point on a complex curved surface, with only a f](../../assets/blog/2026-09-17-probabilistic-linear-explanations-make-interpretability-more-honest/inline-1.webp)
+
+## Why not just use LIME or MAPLE?
+
+The core critique is constraints.
+
+According to `Probabilistic Linear Explanations`, baselines such as LIME and MAPLE do not guarantee both anchoring and sparsity by construction. They may still be useful, but the guarantee is the point here. If you tell a compliance team, clinician, fraud analyst, or internal reviewer that every explanation will use at most five features and stay tied to the inspected instance, that property should not be an accident of tuning.
+
+The paper frames the ideal objective as minimizing relevance error, then shows that doing this for neural networks is computationally hard in the worst case. That is the honest part. The work does not wave away the hard target. It relates that intractable objective to a tractable surrogate, fidelity error, and gives conditions where fidelity bounds relevance by a multiplicative factor that stays small locally.
+
+That sounds abstract, but the builder version is simple: if you cannot optimize the thing you truly want, prove when the thing you can optimize is a decent stand-in.
+
+The implementation path has two tracks. One is a Mixed Integer Programming formulation, which can produce provably optimal empirical solutions while keeping polynomial sample complexity. The other is an Iterative Hard Thresholding algorithm, which runs in polynomial time and comes with approximation guarantees. That split is sane. Use the slower exact method when explanations are high-stakes or offline. Use the faster approximation when you need scale.
+
+Empirically, the paper reports lower relevance error than LIME and MAPLE while satisfying the sparsity and anchoring constraints by design. I would still want to see this tested on messy production data, especially tabular systems with correlated features and drifting distributions. But the direction is right.
+
+## Where does this matter for builders?
+
+This is not a magic interpretability layer for frontier models. It is more immediately useful for teams shipping predictive systems where a local explanation has to be short, repeatable, and auditable.
+
+Think credit risk, churn models, pricing, operations forecasts, quality scoring, fraud triage, medical risk support, or internal ranking models. In those systems, an explanation that says “here are the four local factors that moved this prediction, with signs and weights” is much more useful than a sprawling feature attribution chart.
+
+The catch is that sparse explanations are not automatically truthful in the human sense. A five-feature explanation can be clean and still hide feature dependence, proxy variables, or data leakage. The paper’s formalism helps with one part of the problem: making local explanations constrained and measurable. It does not remove the need for dataset audits, counterfactual checks, or domain review.
+
+Practitioner's take: I would try this first as an evaluation layer beside existing explanation tooling, not as a replacement on day one. Pick a model with real users, set a small `k`, compare explanations against LIME or MAPLE, then ask whether the sparse anchored version changes reviewer decisions. The missed catch: optimize for explanations people can act on, but test whether those explanations preserve the model behavior you actually care about.

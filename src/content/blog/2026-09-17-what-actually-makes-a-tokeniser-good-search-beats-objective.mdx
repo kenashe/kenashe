@@ -1,0 +1,63 @@
+---
+title: "What Actually Makes a Tokeniser Good: Search Beats Objective"
+description: "A new arXiv paper breaks tokeniser design into a clean 2x2 grid and finds that how you build the vocabulary matters more than what you optimise for, though the downstream story is messier than the headline."
+pubDate: 2026-09-17
+tags: ["ai-research", "model-training", "language-models", "open-source-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-17-what-actually-makes-a-tokeniser-good-search-beats-objective/hero.webp
+  alt: "What Actually Makes a Tokeniser Good: Search Beats Objective"
+sources:
+  - title: "Objective vs. Search: Decomposing What Makes a Good Tokeniser"
+    url: "http://arxiv.org/abs/2609.19145v1"
+---
+
+TL;DR: A paper titled "Objective vs. Search: Decomposing What Makes a Good Tokeniser" splits tokeniser design into two independent choices, and finds the search procedure (bottom-up merging beats top-down pruning) drives compression far more than the optimisation objective, but that advantage does not reliably carry through to a grammar benchmark.
+
+Tokenisers are the part of the stack almost nobody looks at until something breaks. They sit before the model, chop text into pieces, and shape everything downstream: context length, cost per token, how well the thing handles code or non-English text. For years the practical choice has been a coin flip between two families, byte-pair encoding (BPE) and UnigramLM, with folklore standing in for evidence. This paper actually does the experiment.
+
+## What did the paper actually test?
+
+The setup is the cleanest thing about it. The authors point out that BPE and UnigramLM differ on two axes at once, and everyone has been comparing them without separating those axes.
+
+Axis one is the objective. BPE optimises for compression: pack the text into as few tokens as possible. UnigramLM optimises for log-likelihood: pick a vocabulary that makes the training text most probable under a simple unigram model. Different goals.
+
+Axis two is the search procedure, meaning how you actually build the vocabulary. BPE works bottom-up: start with characters, greedily merge the most frequent pairs. UnigramLM works top-down: start with a big candidate vocabulary and prune tokens that hurt least.
+
+So the two popular algorithms each occupy one corner of a 2x2 grid, and the other two corners have never existed. The paper fills them in. It introduces BottomUpLL, a bottom-up tokeniser that optimises likelihood, and TopDownComp, a top-down tokeniser that optimises compression. Now you have all four combinations and can ask which axis is doing the work.
+
+![a two-by-two grid where two diagonal cells are filled and two empty cells get filled in, four distinct paths converging](../../assets/blog/2026-09-17-what-actually-makes-a-tokeniser-good-search-beats-objective/inline-1.webp)
+
+Then they train language models on each, sweeping model size, vocabulary size, and domain (English-only versus multilingual), and measure two things: bits-per-byte, which is basically how efficiently the model compresses held-out text, and BLiMP, a benchmark for grammatical acceptability.
+
+## Which matters more, the objective or the search?
+
+The search procedure wins, and it is not close. Bottom-up tokenisers, meaning BPE-style merging regardless of whether the objective is compression or likelihood, consistently hit lower bits-per-byte across most settings. The objective, the thing everyone assumed was the real differentiator between BPE and UnigramLM, turns out to matter much less.
+
+Read that again, because it inverts the usual framing. When people argue BPE versus Unigram, they are mostly arguing about compression versus likelihood, the objective. This paper says you have been arguing about the wrong axis. Swap the search strategy and the effect follows the search, not the goal you wrote down.
+
+That is a genuinely useful result because it separates a design choice you can reason about (how the vocabulary is constructed) from one that turns out to be a distraction (which loss you named). If you are building a tokeniser from scratch, this narrows the search space in a real way.
+
+![two staircases climbing to the same height, one built from the bottom up and one carved from the top down, the bottom-up](../../assets/blog/2026-09-17-what-actually-makes-a-tokeniser-good-search-beats-objective/inline-2.webp)
+
+## Does better compression mean a better model?
+
+Here is where I want to slow the hype down, and to the authors' credit, they slow it down too.
+
+Lower bits-per-byte is nice, but it is an intrinsic metric. It measures the tokeniser and model as a compression system. It is not the same as the model being better at anything you care about. So the paper also evaluates on BLiMP, and the result is blunt: no consistent relationship between tokeniser design choice and BLiMP performance.
+
+So the bottom-up advantage that looked so clean on bits-per-byte does not reliably show up on a downstream linguistic task. That is the honest and slightly deflating part of the finding, and it is the part that will get dropped when this gets summarised into "bottom-up tokenisers are better." They are better at compression. Whether that buys you a better model depends on what you are measuring, and on at least one benchmark it buys you nothing consistent.
+
+This is a pattern worth internalising well beyond tokenisers. Intrinsic metrics that are easy to compute (perplexity, bits-per-byte, compression ratio) correlate with the thing you want right up until they do not. The gap between "compresses better" and "performs better on tasks" is exactly the gap where a lot of infrastructure decisions quietly go wrong.
+
+## What should a builder take from this?
+
+Most people reading this will never write a tokeniser. You will inherit one from whatever base model you are using, and you should not go re-tokenising Llama or Qwen on a hunch. That is not the payoff here.
+
+The payoff is threefold. First, if you do control tokenisation, for a domain-specific model, a new language, a specialised corpus of code or chemistry or logs, this paper gives you a real reason to prefer bottom-up merging for token efficiency, and permission to stop agonising over the compression-versus-likelihood objective. That is one fewer knob to sweat.
+
+Second, token efficiency is a cost lever whether or not it improves quality. Fewer tokens per document means lower inference cost and more usable context. Even if BLiMP is flat, bits-per-byte translates fairly directly into dollars at scale. That alone can justify a bottom-up choice for a high-volume application.
+
+Third, and this is the one most readers will miss: do not let an intrinsic win talk you into a downstream conclusion. The paper is careful to keep those two evaluations separate, and the separation is the actual lesson. If someone pitches you a tokeniser, an embedding scheme, or a retrieval trick on the strength of a compression or perplexity number alone, ask for the task metric. This paper just showed, on the most fundamental preprocessing step in the whole pipeline, that the two can diverge.
+
+The practical move is small and specific. If you are training or fine-tuning something where you own the vocabulary, run the 2x2 yourself on your corpus: bottom-up versus top-down is the axis to test, and measure both bits-per-byte and whatever task you actually ship against. Bottom-up will probably compress better. Whether it helps your real metric is a question only your eval answers, and the catch is that the cheap number will tempt you to skip that eval entirely.

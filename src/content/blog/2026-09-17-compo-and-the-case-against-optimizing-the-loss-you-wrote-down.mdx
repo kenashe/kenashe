@@ -1,0 +1,64 @@
+---
+title: "ComPO and the Case Against Optimizing the Loss You Wrote Down"
+description: "A new alignment method called ComPO skips the differentiable preference loss entirely and uses comparison oracles instead, aiming to fix a known failure mode where DPO training makes preferred answers less likely. Here is what it does and where the caveats are."
+pubDate: 2026-09-17
+tags: ["post-training", "fine-tuning", "alignment", "ai-research", "language-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-17-compo-and-the-case-against-optimizing-the-loss-you-wrote-down/hero.webp
+  alt: "ComPO and the Case Against Optimizing the Loss You Wrote Down"
+sources:
+  - title: "A Zeroth-Order Paradigm for LLM Preference Alignment"
+    url: "http://arxiv.org/abs/2609.19144v1"
+entities:
+  - name: "Mistral AI"
+    sameAs: "https://www.wikidata.org/wiki/Q119718658"
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: ComPO aligns an LLM to human preferences using comparison oracles instead of a differentiable preference loss, which the authors argue sidesteps "likelihood displacement," the annoying failure where DPO training can actually push down the probability of the answer you preferred.
+
+If you have run direct preference optimization on a real model, you have probably seen something weird in the logs. You feed the model pairs where one response is preferred and one is rejected, you optimize the standard DPO objective, and both response probabilities drop. The margin between them improves, which is what the loss rewards, but the preferred answer got less likely in absolute terms. That is likelihood displacement, and it is the specific itch this paper is scratching.
+
+The primary source is "A Zeroth-Order Paradigm for LLM Preference Alignment," posted to arXiv across cs.AI, cs.CL, and cs.LG. It proposes Comparison-based Preference Optimization, or ComPO. I want to walk through what it actually changes, because the framing matters more than the acronym.
+
+## What is likelihood displacement and why should a builder care?
+
+Standard direct alignment methods like DPO treat preference tuning as a differentiable loss problem. You write down an objective that rewards a bigger gap between preferred and rejected responses, then you follow the gradient. It is cheap, it fits in memory, and it works well enough that most open post-training recipes use some flavor of it.
+
+The catch shows up on pairs where the two responses are close, what the paper calls "small likelihood margins." When the preferred and rejected answers look similar to the model, the gradient can move both in the same direction. You end up widening the margin by suppressing the rejected response harder than you lift the preferred one, or worse, by pushing both down. The model technically satisfies the loss and gets subtly worse at the thing you wanted.
+
+![two nearly parallel paths diverging slightly while both drift downward, versus one path lifting clearly upward](../../assets/blog/2026-09-17-compo-and-the-case-against-optimizing-the-loss-you-wrote-down/inline-1.webp)
+
+This is not a fringe edge case. It is a structural consequence of optimizing a margin rather than the quantity you care about. And it is why the paper's core move is interesting: instead of trying to patch the loss, it questions whether you should be optimizing a differentiable preference loss at all.
+
+## How does ComPO work without a differentiable loss?
+
+ComPO is a zeroth-order method. In plain terms, zeroth-order optimization does not compute gradients of the loss directly. It probes the objective by comparing outcomes and infers a direction to move from those comparisons. Hence "comparison oracles": the method extracts directional information from a preference pair without ever differentiating a preference loss over that pair.
+
+That is the conceptual pivot. DPO says "here is a loss surface, descend it." ComPO says "here are two responses and a judgment about which is better, tell me which way to step." The information comes from the comparison itself, not from the shape of a loss function you designed to stand in for the comparison.
+
+The paper describes two schemes. The offline version runs the comparison mechanism on your existing labeled preference pairs, and the authors establish a convergence guarantee for it under a set of assumptions: smoothness, gradient sparsity, and compatibility between the oracle and what they call a latent objective. Read those assumptions carefully, because they are doing real work. Gradient sparsity in particular is the kind of condition that holds nicely in theory and gets messy on a specific model and dataset.
+
+The online version keeps that offline comparison core but adds unlabeled policy generations for reverse-KL control against a reference policy. If you have used DPO or its cousins, the reverse-KL-to-reference term is familiar: it is the leash that keeps the tuned model from wandering too far from where it started. The authors give a performance guarantee for a basic constrained version of this under "local coverage" and "in-distribution pairwise reward accuracy," which is a fancy way of saying the guarantee holds when your comparisons are reliable on the data the policy actually visits.
+
+![a reference anchor tethered to a moving policy exploring nearby, staying within a bounded region](../../assets/blog/2026-09-17-compo-and-the-case-against-optimizing-the-loss-you-wrote-down/inline-2.webp)
+
+## Does it actually beat DPO in the experiments?
+
+The paper reports improvements over existing direct alignment methods across a real spread of models: Mistral, Llama, Gemma-2, Qwen3, and Gemma-3. That is a good sign, because a method that only works on one model family is usually exploiting something about that family rather than the problem.
+
+They call out length-controlled win rates specifically, which I appreciate. Preference-tuned models love to game evaluators by getting longer, and length-controlled win rate is the standard correction for that. Claiming improvement on the length-controlled number is a stronger claim than raw win rate, and it is the number I would look at first.
+
+They also provide pair-level diagnostics they say are "consistent with mitigating likelihood displacement." Note the hedge in their own words. They are showing evidence that the mechanism does what it claims on the pairs where displacement would occur, not proving it eliminates the problem. That is the honest way to state it, and I am reading it as promising rather than settled.
+
+What the abstract does not give us, and what I would want before betting a training run on this: wall-clock and compute cost versus DPO, how sensitive the method is to the oracle quality, and how the guarantees' assumptions hold up empirically on a model where they clearly do not hold perfectly. Zeroth-order methods have a reputation for needing more function evaluations to make progress, so the efficiency story is the open question. The abstract does not settle it.
+
+## Where does this fit in the post-training toolbox?
+
+The honest framing is that this is a research proposal with theory and benchmark evidence, not a drop-in replacement you should swap into your pipeline tomorrow. DPO and its variants are entrenched because they are simple and cheap. ComPO's pitch is that it targets a specific, real failure mode of those methods, with convergence and performance guarantees attached.
+
+The broader idea worth carrying forward, even if this exact method does not win: the loss function you write down is a proxy, and optimizing the proxy is not the same as optimizing what you want. Likelihood displacement is that gap made concrete. Comparison-based methods are one attempt to close it by working from the comparison directly.
+
+If you tune models, the move is to treat this as a hypothesis to test on your own data rather than a verdict. Pull the paper, check whether its assumptions plausibly hold for your setup, and if you already have DPO logs, go look for displacement on your close pairs first. You may find you have the problem this method is built for, or you may find your pairs are separated enough that it never bites. Either way you learn something about your data. The catch most readers will miss: the theoretical guarantees rest on conditions like gradient sparsity and local coverage that are easy to state and hard to verify on a real model, so treat the guarantees as motivation for the design, not as a promise that transfers to your run.

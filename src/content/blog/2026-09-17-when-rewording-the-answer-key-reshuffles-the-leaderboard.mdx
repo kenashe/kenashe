@@ -1,0 +1,66 @@
+---
+title: "When Rewording the Answer Key Reshuffles the Leaderboard"
+description: "A radiologist-informed study shows that how reference reports are written, not just what they say, can flip the rankings of chest X-ray report generation models, exposing a blind spot in how medical AI gets scored."
+pubDate: 2026-09-17
+tags: ["medical-ai", "evals", "benchmarks", "model-reliability", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-17-when-rewording-the-answer-key-reshuffles-the-leaderboard/hero.webp
+  alt: "When Rewording the Answer Key Reshuffles the Leaderboard"
+sources:
+  - title: "Reporting Practice Matters: The Impact of Reference Choice on Chest X-ray Report Evaluation"
+    url: "http://arxiv.org/abs/2609.19093v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A study called "Reporting Practice Matters: The Impact of Reference Choice on Chest X-ray Report Evaluation" shows that rewriting the reference reports used to score radiology AI, without changing a single clinical finding, can flip which model wins, which means a lot of leaderboard results are measuring writing style as much as diagnostic accuracy.
+
+Here is the uncomfortable part. When you rank AI models for radiology report generation, you compare their output against reports written by real radiologists. If two radiologists describe the same X-ray in different words, the "correct" answer changes. And if the correct answer changes, so does the score. The paper puts numbers on how badly that leaks into the leaderboard.
+
+## What did the study actually find?
+
+The core claim is narrow and sharp: current evaluation metrics for radiology report generation (RRG) are sensitive to how the reference report is worded, not just what it says clinically.
+
+The authors built a radiologist-informed taxonomy of the ways reports vary. Terminology, shorthand, formatting, level of detail. Same findings, different prose. Then they built a method they call ReRef that rewrites reference reports along those axes while preserving the clinical interpretation. Nothing about the diagnosis changes. Only the writing.
+
+Then they re-scored nine RRG models on MIMIC-CXR, the standard chest X-ray dataset, using RadCliQ-v1, a common evaluation metric. The headline example: when they condensed the discussion of normal findings in the reference reports, Libra dropped from first to second, and CheXOne rose from third to first.
+
+Read that again. A model went from third place to first place because someone shortened how the answer key talks about normal findings. No new model. No retraining. No change in what the images show. Just a different way of writing the reference.
+
+![two identical medical scans feeding into two differently shaped text blocks, with a ranking ladder tilting between them](../../assets/blog/2026-09-17-when-rewording-the-answer-key-reshuffles-the-leaderboard/inline-1.webp)
+
+That is the whole problem in one result. The metric is supposed to reward clinical correctness. Instead it is partly rewarding conformity to a particular house style of writing.
+
+## Why does this matter beyond radiology?
+
+Because it is the same failure mode that shows up everywhere reference-based evaluation is used, and that is most of them.
+
+Any time you score a model by comparing its output to a human-written "gold" answer, you inherit the style of whoever wrote the gold answer. Summarization benchmarks, translation, question answering, RAG evaluations, code documentation. If the reference happens to be terse and your model is verbose but correct, you lose points for a stylistic mismatch that has nothing to do with being right.
+
+Radiology just makes the stakes legible. A report either captures the pneumothorax or it does not. The clinical interpretation is checkable. So when the paper shows that scores move on wording alone while interpretation is held constant, you cannot wave it away as subjective preference. The findings were preserved. The ranking still moved.
+
+That is what makes this a model-reliability story, not just a medical-AI story. The authors say many current metrics fail to decouple clinical interpretation from conformity to reporting practices. Swap "clinical interpretation" for "task correctness" and "reporting practices" for "house style" and you have a general warning about how we grade language models.
+
+![a scale weighing a clean core meaning against a swirl of stylistic surface variations, the surface side unexpectedly hea](../../assets/blog/2026-09-17-when-rewording-the-answer-key-reshuffles-the-leaderboard/inline-2.webp)
+
+## How much of the leaderboard should you trust?
+
+Not zero. But not the exact ordering, especially when the gap between models is small.
+
+Here is the operator's version of the finding. If Model A beats Model B by a few points on RadCliQ-v1, that gap may be entirely explained by which model happens to write more like the specific radiologists who wrote your references. Change the reference style and the gap can invert. The study demonstrated exactly this with real models on the standard dataset.
+
+So the ranking is real in the sense that it reflects something. It is just not only reflecting what you think it reflects. Part of that number is "how close is this model to the diagnosis" and part of it is "how close is this model to the phrasing of these particular humans." The metric bundles them, and the paper's contribution is prying them apart.
+
+A caveat worth stating: both source entries here are the same paper cross-listed on arXiv (cs.AI and cs.CL), so this is one result, not two independent confirmations. It is a well-constructed one, with a radiologist-validated dataset behind it, but it is a single study and the specific rank flips are demonstrated on RadCliQ-v1 and MIMIC-CXR. Whether the same magnitude of reshuffling holds across every metric and dataset is not something one paper can settle.
+
+## What can you actually do about it?
+
+The authors did the most useful thing you can do with a finding like this: they released the test set that exposes it. MIMIC-CXR-Ext-ReRef is a radiologist-validated dataset of 120 (original, alternative) reference report pairs derived from MIMIC-CXR. Same clinical content, different reporting practice. That is a stress test.
+
+The move for anyone evaluating a report-generation system is to run it against both the original references and the rewritten ones and watch how much the score moves. If your model's rank is stable across reporting-practice variations, you have some evidence the metric is tracking substance. If it swings, your leaderboard position is partly an artifact of style, and you should stop treating a two-point win as a real win.
+
+The deeper implication, which the paper names directly, is that choosing the "right" references matters. If your hospital or product has a target reporting style, evaluate against references in that style, not whatever style happened to ship with the public dataset. The reference is not neutral ground. It encodes a preference, and you should choose it deliberately.
+
+Practitioner's take: if you are building or buying any system judged by comparison to human-written gold answers, treat the reference set as a variable you control, not a fixed truth. Before you trust a benchmark ranking, do the cheap version of what this paper did: take your references, have someone rewrite a chunk of them in a different but clinically or factually equivalent style, and re-score. If the ranking holds, ship with more confidence. If it flips, you just learned your metric was grading prose, and the model that "lost" might be the one that is actually more correct. The catch most readers miss is that this is not a reason to distrust evaluation altogether. It is a reason to evaluate against references that match the style you actually want in production, because the answer key is part of the specification whether you designed it that way or not.
