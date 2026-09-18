@@ -58,3 +58,11 @@ content before creating a commit and never pushes.
 ### Batch 9 (posts 801 to 837 in migration order)
 
 - Same three files as earlier batches (`phase-b-batch-09-*.tsv`).
+
+## Redirect retention
+
+The 1,043 migration redirects in `vercel.json` (`/_astro/<name>.<hash>.png` to the WebP
+equivalent) exist for cached social previews, search indexes, and any external links to the
+old asset URLs. Keep them for now. Review them in 6 to 12 months (March to September 2027):
+if logs and search tooling show no traffic to the old `.png` asset URLs, they can be removed
+in one commit. Do not remove them piecemeal.

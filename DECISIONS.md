@@ -282,6 +282,21 @@ PNG: Astro serves 20-450 KB WebP derivatives from it.
 - Not chosen: moving images to Blob/R2/LFS. It requires a schema change (D15 cold build) and
   LFS objects still download during the Vercel build.
 
+**Completion record (2026-09-18).** Phase B finished across batches 1 to 9 (PRs #68 to #76),
+each assembled with `docs/migrations/tooling/prepare_batch.sh` and verified on production
+before the next began.
+- 837 migration posts; 2,083 PNGs converted to WebP (quality 80, dimensions unchanged).
+- Original PNG bytes 5,479,873,161; replacement WebP bytes 274,953,648; net current-source-tree
+  reduction 5,204,919,513 bytes (95.0%).
+- 0 PNG files remain under `src/assets/blog/`.
+- 1,043 migration redirects created (308, exact paths) and verified live; `vercel.json` holds
+  1,091 rules of the 2,048 limit.
+- Git history was intentionally not rewritten; the PNG blobs remain in history.
+- Reader-facing delivery already used WebP derivatives, so the principal benefit is source-tree
+  and deployment-payload reduction (Vercel's depth-10 clone), not page weight.
+- The 20 Phase A posts born as WebP were not modified.
+- Inline MDX image `sizes` remains a separate future optimization.
+
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
 Considered for LLM answer-extraction, rejected. Google restricted FAQ rich results to
