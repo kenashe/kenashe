@@ -20,3 +20,9 @@ Records for content migrations that change public URLs. Keep one set per batch.
 - `phase-b-batch-02-post-status.tsv`: published/draft flag, production HTTP status, sitemap presence, and
   og:image for each post before the batch. Drafts (404, not in the sitemap) are expected to stay 404
   after the batch; that is not a regression. Their assets are converted like everyone else's.
+
+### Batch 3 (posts 201 to 300 in migration order, 2026-07-14 to 2026-07-24)
+
+- Same three files as batch 2 (`phase-b-batch-03-*.tsv`). 70 published, 30 drafts. One published
+  post (`2026-07-16-the-one-shot-trap-in-agent-optimization`) has no hero image at all and uses
+  the default social card; that is pre-existing and unchanged.
