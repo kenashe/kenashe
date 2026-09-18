@@ -42,3 +42,7 @@ The scripts that assemble a batch live in `tooling/` (see `tooling/README.md`). 
 non-runtime: nothing under `docs/` is imported by the site or the pipeline. From batch 5 onward
 every batch is assembled with `tooling/prepare_batch.sh`, which validates mapping, redirects, and
 content before creating a commit and never pushes.
+
+### Batch 6 (posts 501 to 600 in migration order)
+
+- Same three files as earlier batches (`phase-b-batch-06-*.tsv`).
