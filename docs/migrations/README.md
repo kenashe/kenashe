@@ -31,3 +31,14 @@ Records for content migrations that change public URLs. Keep one set per batch.
 
 - Same three files as batches 2 and 3 (`phase-b-batch-04-*.tsv`). 91 published, 9 drafts. Every
   published post has a hero; no default-social-image exceptions in this batch.
+
+### Batch 5 (posts 401 to 500 in migration order)
+
+- Same three files as earlier batches (`phase-b-batch-05-*.tsv`).
+
+## Tooling
+
+The scripts that assemble a batch live in `tooling/` (see `tooling/README.md`). They are
+non-runtime: nothing under `docs/` is imported by the site or the pipeline. From batch 5 onward
+every batch is assembled with `tooling/prepare_batch.sh`, which validates mapping, redirects, and
+content before creating a commit and never pushes.
