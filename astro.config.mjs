@@ -10,6 +10,12 @@ import { SITE_URL } from './src/consts';
 export default defineConfig({
   site: SITE_URL,
   integrations: [mdx(), sitemap()],
+  // EXPERIMENT (not for merge as-is): Astro's global responsive-image mode, to measure Vercel
+  // build cost and the srcset/sizes it generates for inline Markdown images in Digest posts.
+  image: {
+    layout: 'constrained',
+    responsiveStyles: true,
+  },
   vite: {
     plugins: [tailwindcss()],
   },
