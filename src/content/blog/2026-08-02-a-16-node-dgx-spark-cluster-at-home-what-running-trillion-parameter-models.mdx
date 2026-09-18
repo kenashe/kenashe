@@ -5,7 +5,7 @@ pubDate: 2026-08-02
 tags: ["local-llm", "hardware", "inference"]
 draft: false
 image:
-  src: ../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/hero.png
+  src: ../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/hero.webp
   alt: "A 16-node DGX Spark cluster at home: what running trillion-parameter models locally actually takes"
 sources:
   - title: "Setting up of a 16xGB10 (DGX Spark) cluster"
@@ -27,7 +27,7 @@ The core unit is the DGX Spark class device (the Asus GX10 is a Grace-Blackwell 
 
 Trillion-parameter open models are almost all mixture-of-experts now. DeepSeek's line, Kimi K2 before K3, GLM, Minimax: these are sparse. A 2T model might only activate 30 to 40 billion parameters per token. That matters enormously, because MoE is what makes this build plausible at all. You need the full weight set resident in memory, but you only compute a fraction of it per forward pass. Memory capacity is the wall you have to clear; raw compute per token is comparatively modest.
 
-![a large dense block of many small cells with only a few lit up, showing how most of a model sits idle while a small slic](../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/inline-1.png)
+![a large dense block of many small cells with only a few lit up, showing how most of a model sits idle while a small slic](../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/inline-1.webp)
 
 So the design goal is coherent: pool enough unified memory across 16 nodes to hold a 2T-parameter sparse model, then route each token to the handful of experts that need to fire. The user even notes the more common plan is running two models on two separate 8-node halves, which is the smarter default. The full 16-node monster is the occasional stunt, not the daily driver.
 
@@ -39,7 +39,7 @@ When you split a model across 16 machines, every token's journey crosses node bo
 
 The build uses 100GbE per node off a Mikrotik switch with 400GbE breakouts. That's serious networking for a home. It is also nowhere near what NVIDIA's own datacenter racks use. NVLink and the switched fabrics inside a real GB200 rack move data at terabytes per second between chips, not 100 gigabits. The gap between 100Gb Ethernet and an NVLink domain is not a rounding error. It's one to two orders of magnitude, and it lands directly on the operation that MoE inference does most.
 
-![sixteen separate boxes connected by thin cables versus a single dense mesh of thick short links, contrasting a loosely w](../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/inline-2.png)
+![sixteen separate boxes connected by thin cables versus a single dense mesh of thick short links, contrasting a loosely w](../../assets/blog/2026-08-02-a-16-node-dgx-spark-cluster-at-home-what-running-trillion-parameter-models/inline-2.webp)
 
 What this means in practice: expect this cluster to run big models, and expect it to run them slowly for interactive use, especially at low batch sizes where you can't hide the communication cost behind parallel work. Batch throughput will look better than single-stream latency. If the goal is "I typed a prompt, how fast do tokens come back," the interconnect tax shows up immediately. If the goal is "grind a large batch of offline jobs overnight," it looks a lot more reasonable.
 

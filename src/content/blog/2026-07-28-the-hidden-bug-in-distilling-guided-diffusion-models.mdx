@@ -5,7 +5,7 @@ pubDate: 2026-07-28
 tags: ["diffusion-models", "model-distillation", "video-generation"]
 draft: false
 image:
-  src: ../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/hero.png
+  src: ../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/hero.webp
   alt: "The Hidden Bug in Distilling Guided Diffusion Models"
 sources:
   - title: "Rethinking Classifier-Free Guidance in On-Policy Diffusion Distillation"
@@ -26,7 +26,7 @@ Classifier-free guidance (CFG) is the near-universal trick in modern diffusion s
 
 The complication is what happens when you combine these. OPD, as usually implemented, matches the student's final CFG-combined output to the teacher's final CFG-combined output. Sounds reasonable. One number in, one number out, match them. The paper's core argument is that this is where things go wrong.
 
-![two separate streams merging into one combined stream, with the merge point hiding whether each stream is correct](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-1.png)
+![two separate streams merging into one combined stream, with the merge point hiding whether each stream is correct](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-1.webp)
 
 ## What is Negative Branch Asymmetry?
 
@@ -44,7 +44,7 @@ The fix follows directly from the diagnosis. If the problem is that one combined
 
 That is what Positive-Direction Matching (PDM) does. Instead of matching the CFG-composed velocity as a single blob, PDM separately constrains the positive prediction and the CFG conditional direction. You give each branch its own target so neither can compensate for the other. The paper describes this as "branch-aware" supervision, which is a clean way to say it: the training signal knows which branch it is talking to.
 
-![a single tangled knot being separated into two clean parallel threads](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-2.png)
+![a single tangled knot being separated into two clean parallel threads](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-2.webp)
 
 The test bed is dense-to-sparse video control. Naive guided matching there was "highly sensitive to inference guidance scales," which is the operator-facing symptom I described above. Branch-aware supervision produced "more robust and effective knowledge transfer." I would love to give you a hard number, but the abstract the authors provide (both the cs.AI and cs.LG postings carry the identical text) does not include benchmark figures, so I am not going to manufacture one. Read the full paper for the quantitative claims. What the abstract does commit to is a qualitative result: the sensitivity to guidance scale drops.
 
@@ -52,7 +52,7 @@ The test bed is dense-to-sparse video control. Naive guided matching there was "
 
 Because you inherit these bugs whether you train or not. Most teams do not distill their own models. They download a distilled checkpoint from someone who did. If that someone used naive guided matching, the model you are serving may carry NBA baked in, which shows up as guidance-scale brittleness you cannot easily diagnose.
 
-![a downstream user holding an object with an invisible crack inside it](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-3.png)
+![a downstream user holding an object with an invisible crack inside it](../../assets/blog/2026-07-28-the-hidden-bug-in-distilling-guided-diffusion-models/inline-3.webp)
 
 Here is the practical read. If you ship a distilled diffusion generator and you notice quality swings hard when you nudge the guidance scale, that is a signal, not a settings problem to tune around. The instinct is to hunt for the one magic guidance value that looks best. This paper suggests that magic value might just be the point where two hidden errors cancel, which is a fragile place to stand. A model distilled with branch-aware supervision should behave more predictably across a range of guidance scales, which is what you actually want in production where prompts vary.
 
