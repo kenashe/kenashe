@@ -5,7 +5,7 @@ pubDate: 2026-07-07
 tags: ["diffusion-models", "ml-theory", "text-generation"]
 draft: false
 image:
-  src: ../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/hero.png
+  src: ../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/hero.webp
   alt: "The Coordinate Problem Hiding Inside Discrete Diffusion Models"
 ---
 
@@ -21,7 +21,7 @@ The core move is to work at the level of jump rates in a continuous-time Markov 
 
 The paper's argument is that the denoiser view (predict the clean token), the score view (predict a ratio of probabilities), and the cavity or bridge plug-in view (predict a conditional given the noisy state) all describe that same reverse jump rate. They give closed-form conversions among the three. So in principle you can train in one coordinate and read out in another.
 
-![a single sculptural form casting three different shadows on three walls, each shadow a distinct recognizable shape](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-1.png)
+![a single sculptural form casting three different shadows on three walls, each shadow a distinct recognizable shape](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-1.webp)
 
 The catch is that "in principle" hides a lot. A coordinate transform that is exact in math can behave very differently in a trained network, especially near initialization when the weights are effectively random. That gap between the clean identity and the messy training run is where most of the paper's practical payoff lives.
 
@@ -41,7 +41,7 @@ Here is the part builders should actually care about. The paper proves that for 
 
 For uniform diffusion, they do not coincide. And this is where the coordinate choice stops being cosmetic. The paper shows that a denoiser parameterization makes the uniform ELBO diverge at initialization, while the bridge plug-in stays finite.
 
-![two paths starting from the same point, one curving smoothly to a target, the other shooting off toward infinity near th](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-2.png)
+![two paths starting from the same point, one curving smoothly to a target, the other shooting off toward infinity near th](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-2.webp)
 
 Think about what that means in practice. You initialize a uniform diffusion model, you compute your loss, and depending purely on how you chose to read the network's output, the number is either finite or blowing up. Not because the model is worse. Because you're reading it in a coordinate where the object is ill-behaved right at the start of training. That's a footgun that would show up as "uniform diffusion is unstable" in someone's engineering notes, when the real story is a parameterization choice.
 
@@ -53,6 +53,6 @@ Now the honest part. Every identity in the paper is verified numerically, but on
 
 There's also a reproducibility wrinkle worth flagging: I'm working from three arXiv postings of what appears to be the same paper across cs.AI, cs.CL, and cs.LG, with identical abstracts. Nothing suspicious there, cross-listing is normal, but it means there's a single source of truth here, not three independent confirmations.
 
-![a tangle of separate threads on the left resolving into a single clean braided rope on the right](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-3.png)
+![a tangle of separate threads on the left resolving into a single clean braided rope on the right](../../assets/blog/2026-07-07-the-coordinate-problem-hiding-inside-discrete-diffusion-models/inline-3.webp)
 
 If you're building or debugging a discrete diffusion model, the practical move is to stop treating denoiser, score, and cavity as interchangeable implementation details and start treating them as coordinate choices with numerical consequences. Before you conclude that uniform diffusion is unstable or that a schedule is bad, check which parameterization your loss lives in and compute it in the bridge plug-in coordinate as a sanity check, especially at initialization. Use the Oracle Distance equality to calibrate: if your negative ELBO at init doesn't match the predicted finite value, your bug is in the coordinate, not the model. The catch most readers will miss is that "same best achievable loss across noising processes" does not mean the processes are equally trainable. The floor is shared. The road to it is not. That's where all the real engineering still lives.
