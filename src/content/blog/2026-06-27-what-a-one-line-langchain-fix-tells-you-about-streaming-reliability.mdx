@@ -5,7 +5,7 @@ pubDate: 2026-06-27
 tags: ["langchain", "streaming", "agents"]
 draft: false
 image:
-  src: ../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/hero.png
+  src: ../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/hero.webp
   alt: "What a one-line LangChain fix tells you about streaming reliability"
 ---
 
@@ -19,7 +19,7 @@ When you stream a response from Anthropic's API, you don't get a finished string
 
 Here's the subtle part. The `content_block_start` event can itself carry an initial chunk of text. It isn't always an empty shell that only announces "text is coming." Sometimes the opening fragment of the response rides along on that first event. If your parsing code assumes the start event is empty and only accumulates text from the `content_block_delta` events that follow, you lose whatever was in the start.
 
-![a stream of small fragments flowing along a line, with the very first fragment falling away through a gap while the rest](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-1.png)
+![a stream of small fragments flowing along a line, with the very first fragment falling away through a gap while the rest](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-1.webp)
 
 That's the bug. The fix title says it plainly: "keep initial text on `content_block_start`." Earlier code was discarding it. The patch keeps it.
 
@@ -35,7 +35,7 @@ Second, the damage is small and structural. Dropping the first character of a pa
 
 Third, the blame lands in the wrong place. When an agent misbehaves, the instinct is to look at the prompt, the model, the temperature. Nobody's first guess is "the SDK adapter dropped a token from an event that's usually empty." So teams spend hours tuning prompts to route around a transport bug.
 
-![a person inspecting a large complex machine at the top while the actual crack sits unnoticed at a tiny joint near the bo](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-2.png)
+![a person inspecting a large complex machine at the top while the actual crack sits unnoticed at a tiny joint near the bo](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-2.webp)
 
 I've watched this pattern enough times to have a rule about it. When an agent fails in a way that feels random and rare, suspect the boundaries before the brain. The model is the loud, expensive, interesting part. The bugs live in the seams between the model and your code.
 
@@ -53,6 +53,6 @@ The habit I'd push: read the patch notes of the libraries directly in your hot p
 
 These notes are a free incident report for failures you haven't diagnosed yet. The trick is that they don't announce themselves as such. "fix(anthropic): keep initial text on `content_block_start`" doesn't say "this was corrupting your tool calls." You have to translate it.
 
-![a magnifying glass over a short list of small plain entries, one of them glowing as if it matters more than the rest](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-3.png)
+![a magnifying glass over a short list of small plain entries, one of them glowing as if it matters more than the rest](../../assets/blog/2026-06-27-what-a-one-line-langchain-fix-tells-you-about-streaming-reliability/inline-3.webp)
 
 Practitioner's take: if you're shipping streaming on Anthropic through LangChain, bump langchain-anthropic to 1.4.8 and move on, that's the easy part. The harder, more durable habit is to stop treating intermittent agent weirdness as a prompt problem. Add a check that reassembles your streamed text and compares it against the non-streamed full response on a sample of requests in staging. If they ever diverge, you've found a transport bug, and you've found it before a user does. The catch most people miss: this isn't a one-time fix. The next adapter, the next SDK, the next provider will have its own version of the dropped-start-event bug, because the seam between two streaming models is where these always live. Watch the seams, read the changelogs, and assume the boring layers are where your reliability actually leaks.
