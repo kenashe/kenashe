@@ -31,3 +31,7 @@ Records for content migrations that change public URLs. Keep one set per batch.
 
 - Same three files as batches 2 and 3 (`phase-b-batch-04-*.tsv`). 91 published, 9 drafts. Every
   published post has a hero; no default-social-image exceptions in this batch.
+
+### Batch 5 (posts 401 to 500 in migration order)
+
+- Same three files as earlier batches (`phase-b-batch-05-*.tsv`).
