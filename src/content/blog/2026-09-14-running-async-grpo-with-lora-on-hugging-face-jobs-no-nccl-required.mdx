@@ -5,7 +5,7 @@ pubDate: 2026-09-14
 tags: ["reinforcement-learning", "post-training", "fine-tuning", "hugging-face", "ai-infrastructure"]
 draft: true
 image:
-  src: ../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/hero.png
+  src: ../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/hero.webp
   alt: "Running Async GRPO With LoRA on Hugging Face Jobs, No NCCL Required"
 sources:
   - title: "Async GRPO with LoRA across HF Jobs: a bucket, a proxy, and no NCCL"
@@ -29,7 +29,7 @@ GRPO is Group Relative Policy Optimization, a reinforcement learning method for 
 
 The catch is that RL post-training is two jobs pretending to be one. There is the generation side, where the model produces candidate completions, and the training side, where you compute the update and push new weights. In a naive setup those two live in the same process and talk over NCCL, the NVIDIA library that handles fast GPU-to-GPU communication. NCCL is great when it works and miserable when it does not. Version mismatches, network topology, firewall rules on rented instances, containers that cannot see each other. Anyone who has debugged a hanging all-reduce at 2am knows the feeling.
 
-![two separate machines exchanging small parcels through a central shared container, versus two machines wired directly to](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-1.png)
+![two separate machines exchanging small parcels through a central shared container, versus two machines wired directly to](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-1.webp)
 
 So the interesting move in Hugging Face's recipe is decoupling. Make generation and training genuinely separate jobs, let them run asynchronously, and coordinate them through infrastructure that already works everywhere: object storage and plain HTTP. No shared low-level GPU fabric required.
 
@@ -49,7 +49,7 @@ Not everyone doing RL post-training. If you run a large lab with a tuned multi-n
 
 The people this helps are in the messier middle. Solo researchers, small teams, anyone renting GPUs across instances that were never designed to talk to each other over a fast interconnect. The async, storage-mediated design turns "get these two machines to do a coordinated all-reduce" into "have both machines read and write the same bucket." That second problem is one almost everyone already knows how to solve.
 
-![a single overloaded worker splitting into two independent workers who hand off to each other at their own pace](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-2.png)
+![a single overloaded worker splitting into two independent workers who hand off to each other at their own pace](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-2.webp)
 
 There is a real efficiency cost baked in. Async RL means the policy generating your rollouts can be slightly stale relative to the policy you are updating, because generation and training are not synchronized. That off-policy gap is a known tension in async RL, and how much it hurts depends on your reward, your update cadence, and how far the two drift apart. Hugging Face's framing is that the portability is worth it. I would want to see the reward curves next to a synchronous baseline before I called that settled for a given task, and the post as I have it is more architecture writeup than benchmark study.
 
@@ -57,7 +57,7 @@ There is a real efficiency cost baked in. Async RL means the policy generating y
 
 The clearest use is as a template. Read Hugging Face's writeup as the reference implementation for "how do I run RL post-training without owning a real cluster," then adapt the two coordination primitives to whatever infrastructure you actually have.
 
-![a reusable blueprint being copied onto three different sized building sites](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-3.png)
+![a reusable blueprint being copied onto three different sized building sites](../../assets/blog/2026-09-14-running-async-grpo-with-lora-on-hugging-face-jobs-no-nccl-required/inline-3.webp)
 
 Start small and cheap. Pick a task where you can define a clean reward, run the async loop with LoRA adapters, and watch two things: whether the reward actually climbs, and how stale your rollouts get relative to the policy. Those two numbers tell you whether the async tradeoff is fine for your case or whether you have drifted into instability. If reward is climbing and the model is not degenerating, the portability you bought is free money. If it is thrashing, tighten the update cadence or move back toward synchronous.
 

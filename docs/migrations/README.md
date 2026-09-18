@@ -54,3 +54,7 @@ content before creating a commit and never pushes.
 ### Batch 8 (posts 701 to 800 in migration order)
 
 - Same three files as earlier batches (`phase-b-batch-08-*.tsv`).
+
+### Batch 9 (posts 801 to 837 in migration order)
+
+- Same three files as earlier batches (`phase-b-batch-09-*.tsv`).
