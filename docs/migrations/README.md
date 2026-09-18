@@ -26,3 +26,8 @@ Records for content migrations that change public URLs. Keep one set per batch.
 - Same three files as batch 2 (`phase-b-batch-03-*.tsv`). 70 published, 30 drafts. One published
   post (`2026-07-16-the-one-shot-trap-in-agent-optimization`) has no hero image at all and uses
   the default social card; that is pre-existing and unchanged.
+
+### Batch 4 (posts 301 to 400 in migration order, 2026-07-24 to 2026-08-03)
+
+- Same three files as batches 2 and 3 (`phase-b-batch-04-*.tsv`). 91 published, 9 drafts. Every
+  published post has a hero; no default-social-image exceptions in this batch.
