@@ -1,0 +1,70 @@
+---
+title: "The Harness Matters as Much as the Model in Coding Agents"
+description: "A new arXiv study breaks a coding agent's scaffolding into planning, action space, and context management, then tests 176 configurations to show which pieces actually move accuracy and cost, and for which models."
+pubDate: 2026-09-18
+tags: ["coding-agents", "ai-agents", "agent-evaluation", "building-with-ai", "long-context"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-18-the-harness-matters-as-much-as-the-model-in-coding-agents/hero.webp
+  alt: "The Harness Matters as Much as the Model in Coding Agents"
+sources:
+  - title: "An Empirical Study of Harness Design for Coding Agents"
+    url: "http://arxiv.org/abs/2609.20804v1"
+  - title: "An Empirical Study of Harness Design for Coding Agents"
+    url: "https://arxiv.org/abs/2609.20804"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The scaffolding around a coding agent (how it plans, what tools it gets, how it manages context) is not a fixed cost but a set of dials you should tune per model and per budget, and pulling the wrong dial wastes money without buying accuracy.
+
+Most people building with coding agents treat the harness as plumbing. You pick a model, wire up a loop, give it some tools, maybe bolt on a summarizer, and move on. The interesting variable, in the common story, is the model. Everything else is glue.
+
+"An Empirical Study of Harness Design for Coding Agents," posted to arXiv across cs.AI, cs.CL, and cs.LG, argues that framing hides most of what matters. The authors hold the execution loop fixed and vary three components independently: planning, action space, and context management. Then they run 176 matched settings across four models on SWE-Bench Verified and Terminal-Bench 2.1. The result is the closest thing I have seen to a controlled experiment on agent scaffolding, and it lands on a few conclusions that should change how you configure your own setup.
+
+## What is a coding harness, and why treat it as separate parts?
+
+A harness is everything wrapping the model call. The model produces tokens. The harness decides what the model sees, what actions it can take, and how the conversation gets compacted when it runs long.
+
+The usual mistake is evaluating harnesses as monolithic systems. You compare Harness A to Harness B, one wins, and you never learn which of the ten differences between them mattered. The study's move is to fix the loop and change one component at a time. That is what turns a product bake-off into something you can actually reason about.
+
+![a single machine core surrounded by three separate adjustable dials, each feeding into it independently](../../assets/blog/2026-09-18-the-harness-matters-as-much-as-the-model-in-coding-agents/inline-1.webp)
+
+Three dials, then. Planning: does the agent write out a plan before acting? Action space: does it get predefined tools, or just a bash shell? Context management: how does it keep the conversation inside the window as a task drags on? Each one gets isolated and tested. The 176 settings span five context-management strategies, four context-window budgets, and targeted ablations of planning and action space.
+
+## Does context management actually help, or is it overhead?
+
+This is the finding I would tape to the wall. Context management earns its keep mostly by preventing context-overflow failures, and its value climbs as the context-window budget tightens. When you have room to spare, the fancy management does less. When you are squeezed, it is the difference between finishing the task and crashing into the window limit.
+
+That reframes context management. It is not a general accuracy booster. It is insurance against a specific failure mode. If you are running a model with a large window on a short task, elaborate summarization is largely wasted effort. If you are on a tight budget or a long-horizon task, it becomes load-bearing.
+
+The strategy comparison is where it gets practical. Staging rule-based elision before LLM-based summarization gave the strongest overall efficiency. In plain terms: cheaply cut the obviously stale stuff first with rules, and only then pay a model to summarize what remains. Doing the expensive step on everything is waste.
+
+The counterintuitive part: making elided content recoverable, so the agent can pull back something it dropped, added machinery the models rarely used and produced no accuracy gain. That is a common instinct when you build these systems. Give the agent an escape hatch to un-forget. The data says the agents do not reach for it, and you paid to build a door nobody opens.
+
+![a funnel where coarse debris is filtered out by a rough sieve first, then a fine mesh handles what remains](../../assets/blog/2026-09-18-the-harness-matters-as-much-as-the-model-in-coding-agents/inline-2.webp)
+
+## When does planning help versus just cost you tokens?
+
+Planning is the one everyone reaches for because it feels like the responsible thing to do. Make the agent think first. The study splits the effect by model strength, and the split is the whole point.
+
+For weaker models, planning is an accuracy scaffold. It holds the agent together, keeps it on track, and lifts the success rate. For stronger models, planning shifts role entirely: it becomes a cost saver, with little change in accuracy. The strong model was going to get there anyway. Planning just gets it there with fewer detours, which means fewer tokens.
+
+So the question "should I add a planning step" has no universal answer. On a weak or small model, yes, for accuracy. On a strong model, maybe, for cost, but do not expect the accuracy number to move. Trajectory analysis backs this up: planning mostly changes where trajectories stop, not how the agent behaves along the way.
+
+## Predefined tools or a bare bash shell?
+
+The action space question is the one with the sharpest cost implication. Predefined tools (structured functions like read_file, edit, run_tests) improved performance for models with weaker bash proficiency. If the model is not fluent at the command line, giving it clean tools compensates.
+
+But bash-capable models operate effectively with a bash-only interface and hit substantially lower cost, especially on command-line-centric tasks. The tools were scaffolding those stronger models did not need, and every predefined tool adds schema and description tokens to every turn. On a model that can just type the command, that overhead buys nothing.
+
+Trajectory-level analysis explains the mechanism: the action space changes the granularity at which code gets written. Predefined tools push toward structured, discrete edits. Bash pushes toward whatever the model wants to type. Neither is universally better. It depends on whether your model is bash-fluent.
+
+## What an operator does with this
+
+The through-line across all four findings is the same: harness design is model- and budget-aware, not one-size-fits-all. The paper even frames itself as a modular framework for evaluating future harness components, which is the right posture. Stop shipping a harness as a fixed bundle.
+
+Here is how I would apply it. Start by classifying your model on two axes: strong or weak, bash-fluent or not. If it is strong and bash-fluent, strip the harness down. Drop the predefined tool layer, lean on bash, use planning only where you want to trim token cost, and skip the recoverable-context machinery entirely. You will likely match accuracy at lower cost. If it is weak, do the opposite: predefined tools for reliability, planning as a real accuracy scaffold, and rule-based elision staged ahead of summarization so you do not blow the window.
+
+The catch most readers will miss: these results come from SWE-Bench Verified and Terminal-Bench 2.1 with four specific models, and the "strong versus weak" and "bash-fluent versus not" lines will move as models change. This is not a settings file to copy. It is a method. The value is running the same component-level ablation on your own stack instead of trusting a vendor's monolithic harness to be tuned for your model and your budget. Fix the loop, change one dial, measure. That discipline is the actual product here.
