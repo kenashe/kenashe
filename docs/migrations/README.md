@@ -46,3 +46,7 @@ content before creating a commit and never pushes.
 ### Batch 6 (posts 501 to 600 in migration order)
 
 - Same three files as earlier batches (`phase-b-batch-06-*.tsv`).
+
+### Batch 7 (posts 601 to 700 in migration order)
+
+- Same three files as earlier batches (`phase-b-batch-07-*.tsv`).

@@ -5,7 +5,7 @@ pubDate: 2026-09-01
 tags: ["reasoning", "inference", "research"]
 draft: false
 image:
-  src: ../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/hero.png
+  src: ../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/hero.webp
   alt: "Reasoning Without Tokens: What Soft Latent Thinking Actually Changes"
 sources:
   - title: "A Model with No Head and Many Thoughts"
@@ -25,7 +25,7 @@ Here is the mechanic. When a language model generates text, every single step en
 
 That projection is expensive. The vocabulary is large, so the head is one of the fattest matrices in the model, and you hit it on every token. It is also lossy in a specific way: it forces the model to collapse a rich continuous hidden state down into a single discrete choice before moving on. During a long chain-of-thought, you pay that toll hundreds of times, and each time you throw away everything about the hidden state except which word came out on top.
 
-![a wide continuous stream being squeezed through a narrow gate into a single dot, repeated in a chain](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-1.png)
+![a wide continuous stream being squeezed through a narrow gate into a single dot, repeated in a chain](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-1.webp)
 
 The authors' framing is that this discretization is not free and maybe not necessary. If the model is going to keep reasoning internally anyway, why round to the nearest word at every step?
 
@@ -37,7 +37,7 @@ This is not the first attempt at reasoning in latent space. There is a small but
 
 The two levers here are worth separating. One is compute: skipping the full vocabulary projection on reasoning steps should be cheaper per step, and the abstract says it reduces per-step compute during chain-of-thought. The other is quality: continuous steps carry more information than discrete ones, so in principle the model preserves nuance a token would have flattened. The paper claims both improved at once, which is the part I want to see the full results on. Cheaper and better usually trade against each other.
 
-![two parallel paths from start to finish, one made of discrete blocks, one a smooth unbroken line](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-2.png)
+![two parallel paths from start to finish, one made of discrete blocks, one a smooth unbroken line](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-2.webp)
 
 ## How strong is the evidence right now?
 
@@ -53,6 +53,6 @@ Nothing in production yet. This is a research signal, not a shipping feature, an
 
 But the idea is worth tracking for a specific reason. The single fattest recurring cost in the decode loop is the vocabulary projection, and reasoning-heavy workloads run that loop a lot. If a method can skip it during the thinking phase without losing answer quality, that is a real efficiency lever for exactly the models that reason the most, which are also the ones burning the most tokens today. The direction of the bet is sound even if this particular paper's evidence is early.
 
-![a large heavy gear at the end of a loop being lifted out, leaving a lighter loop spinning faster](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-3.png)
+![a large heavy gear at the end of a loop being lifted out, leaving a lighter loop spinning faster](../../assets/blog/2026-09-01-reasoning-without-tokens-what-soft-latent-thinking-actually-changes/inline-3.webp)
 
 So here is how I would treat it. Watch for three things before this graduates from clever to useful: a pass@1 number, not just pass@32, so you know it helps reliability and not only lottery odds; results at 7B and up, because small-model wins are notoriously fragile; and an honest accounting of the interpretability tradeoff, because a reasoning trace you cannot read is a debugging and safety cost that shows up later, not sooner. The catch most people will miss is that "reduces per-step compute" and "improves pass@k" are two separate claims that happen to be stapled together in one abstract, and the interesting one, the free-lunch combination of cheaper and better, is precisely the one that most often falls apart when someone reproduces it at scale. If it holds up, latent reasoning becomes a serious efficiency story. If it does not, it becomes another reminder that tokens are annoying but honest.

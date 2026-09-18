@@ -5,7 +5,7 @@ pubDate: 2026-08-31
 tags: ["attention", "long-context", "inference-efficiency"]
 draft: false
 image:
-  src: ../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/hero.png
+  src: ../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/hero.webp
   alt: "Sliding Window Attention vs Linear Attention: What the Baseline Test Actually Shows"
 sources:
   - title: "Sliding-window beats linear attention"
@@ -31,7 +31,7 @@ There are two broad families of fixes. One rewrites the attention math so cost g
 
 The other family just throws away distant tokens. Sliding window attention keeps a fixed window of recent tokens and drops the rest, which caps the KV cache at the window size no matter how long the input gets. Attention sinks are the small patch that makes this actually work: you keep a handful of the earliest tokens permanently, because models lean on those first positions as an anchor, and dropping them wrecks quality. SWA with sinks is old, simple, and requires no retraining.
 
-![two ways of pruning a long chain of connected nodes, one keeping only a recent cluster plus a fixed anchor at the start,](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-1.png)
+![two ways of pruning a long chain of connected nodes, one keeping only a recent cluster plus a fixed anchor at the start,](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-1.webp)
 
 ## What did the paper actually find?
 
@@ -47,7 +47,7 @@ Not yet, and here is where I want to be careful. Everything above comes from the
 
 A few things I would want to check before rewiring anything in production. Which linear-attention methods were in the comparison, and were they strong recent ones or convenient older ones. What window size SWA used, because a large enough window on a "long" benchmark can quietly turn into near-full attention. Whether the tasks favor local retrieval in ways that flatter windowed methods. None of this makes the result wrong. It makes it a claim to verify against your own workload rather than a law.
 
-![a simple bar-style contrast between two approaches on a reasoning task, one clearly taller, drawn as abstract stacked bl](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-2.png)
+![a simple bar-style contrast between two approaches on a reasoning task, one clearly taller, drawn as abstract stacked bl](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-2.webp)
 
 ## What does this change for someone shipping inference today?
 
@@ -55,6 +55,6 @@ If you were about to spend real budget post-training a model into linear attenti
 
 The real lesson is broader than attention. This is a "did anyone check the boring baseline" paper, and those keep landing because the field rewards novel mechanisms over careful comparisons. A method that beats full quadratic attention on cost is not impressive if it loses to the obvious cheaper thing. The value of this work is not that linear attention is dead. It is that the comparison table most people trusted was missing a column.
 
-![a comparison table with one previously empty column now filled in, changing which row looks best, shown abstractly as a ](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-3.png)
+![a comparison table with one previously empty column now filled in, changing which row looks best, shown abstractly as a ](../../assets/blog/2026-08-31-sliding-window-attention-vs-linear-attention-what-the-baseline-test-actually/inline-3.webp)
 
 Practitioner's take: before you commit compute to converting a model to linear attention, benchmark plain sliding window attention with sinks on your own long-context tasks first, because that is the column this paper says everyone skipped. Match the window size to where your relevant tokens actually live, and measure recall on your real documents, not just Needle-in-a-Haystack. The catch most readers will miss is the paper's own concession: this is an argument against the retrofit, not against linear attention trained from scratch. If your plan was always to pretrain the mechanism in, this result does not settle your question, it just tells you the cheap post-hoc shortcut is a bad trade. Run the baseline. Let the numbers on your workload decide.

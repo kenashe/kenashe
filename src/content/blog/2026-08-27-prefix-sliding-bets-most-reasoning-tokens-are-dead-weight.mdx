@@ -5,7 +5,7 @@ pubDate: 2026-08-27
 tags: ["test-time-scaling", "inference-efficiency", "reasoning-models"]
 draft: false
 image:
-  src: ../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/hero.png
+  src: ../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/hero.webp
   alt: "Prefix Sliding bets most reasoning tokens are dead weight"
 sources:
   - title: "Prefix Sliding for efficient test-time scaling"
@@ -25,7 +25,7 @@ That is a bigger deal than it sounds. Test-time scaling, the idea that you get b
 
 The mechanism is simple enough to describe in a sentence. During generation, the model keeps two things in its context: the prefix (the original instructions and the tools it has available) and a sliding window of the last few thousand tokens (the reasoning it is currently working on). Everything in the middle gets dropped from memory.
 
-![a long ribbon where both ends stay solid and bright while the vast middle section fades out and dissolves](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-1.png)
+![a long ribbon where both ends stay solid and bright while the vast middle section fades out and dissolves](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-1.webp)
 
 Compare that to the two obvious alternatives. Vanilla sliding window keeps only recent tokens and lets the original instructions fall out of view, which means the model can forget what it was asked to do. Summarizing intermediate tokens tries to compress the middle into a shorter form, which costs compute and can lose detail. The paper's ablations report that Prefix Sliding beats both. Keeping the prefix pinned is the load-bearing choice: the instructions and tool definitions are what the model needs to stay on task, and those live at the front, not in the middle of a rambling proof.
 
@@ -39,7 +39,7 @@ The authors report two regimes. Without any training, Prefix Sliding makes exist
 
 I read that second result as the more interesting one and also the one to be more careful about. When you train with the constraint, the model learns to work within it: to front-load anything it needs to remember and to not depend on the discarded middle. That is a genuinely different thing from bolting the trick onto a model that was trained expecting full attention. The training version isn't just an efficiency hack, it's a different reasoning shape.
 
-![two paths climbing a slope, one dragging a growing heavy tail behind it, the other moving light and fast with a fixed sm](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-2.png)
+![two paths climbing a slope, one dragging a growing heavy tail behind it, the other moving light and fast with a fixed sm](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-2.webp)
 
 What the abstract does not give us, and what I'd want before trusting this on my own workloads, is the specific benchmark numbers, the model sizes, and how "maintaining performance" was measured. "Maintaining performance" is a phrase that hides a lot. Does it hold on multi-step tool use where the model has to recall a value from earlier? On tasks where the reasoning genuinely branches and needs to backtrack? The abstract asserts the wins; the paper body and the released code are where you'd confirm the edges. Treat the 3x-with-no-loss framing as the authors' reported result, not a settled fact, until someone reproduces it outside their setup.
 
@@ -49,7 +49,7 @@ Long-horizon agents are where this bites hardest. An agent that reasons, calls a
 
 Prefix Sliding maps cleanly onto that shape. The prefix holds your system prompt and tool definitions, which is exactly what an agent needs pinned. The recent window holds whatever it is doing right now. The stale middle, the tool call from 80 steps ago that already resolved, is the part you were probably paying to keep around for no reason.
 
-![a chain of small connected task blocks where only the first block and the last handful stay in focus while the long cent](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-3.png)
+![a chain of small connected task blocks where only the first block and the last handful stay in focus while the long cent](../../assets/blog/2026-08-27-prefix-sliding-bets-most-reasoning-tokens-are-dead-weight/inline-3.webp)
 
 The catch, and it is the same catch as above, is state. Some agent tasks really do need to reference a fact from far back: a value computed early, a constraint set at the start of a plan, a partial result. If that fact lives in the discarded middle rather than the prefix, sliding it out is a correctness bug, not an efficiency win. The honest version of this method for agents probably means being deliberate about what goes in the prefix, or writing durable state to external memory the model can re-read rather than trusting it to stay in the window.
 
