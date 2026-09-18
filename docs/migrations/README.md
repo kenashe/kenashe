@@ -13,3 +13,10 @@ Records for content migrations that change public URLs. Keep one set per batch.
 - `phase-b-batch-01-raw-github-urls.tsv`: `raw.githubusercontent.com` paths of the removed
   PNGs. These 404 at `master` after the batch and stay reachable at the pre-batch commit
   listed in the file. Nothing on the site links them.
+
+### Batch 2 (posts 101 to 200 in migration order, 2026-07-03 to 2026-07-14)
+
+- `phase-b-batch-02-site-image-urls.tsv`, `phase-b-batch-02-raw-github-urls.tsv`: same format as batch 1.
+- `phase-b-batch-02-post-status.tsv`: published/draft flag, production HTTP status, sitemap presence, and
+  og:image for each post before the batch. Drafts (404, not in the sitemap) are expected to stay 404
+  after the batch; that is not a regression. Their assets are converted like everyone else's.
