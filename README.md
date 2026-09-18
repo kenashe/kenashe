@@ -8,9 +8,10 @@ I build agents, automations, and AI-assisted websites using existing models, API
 
 ## Selected work
 
-* **[AI Werewolf](https://github.com/kenashe/ai-werewolf):** Prompts, transcripts, and logs from three iterations of a multi-agent social deduction simulation, including the failure modes that shaped later versions. [Read the write-up](https://kenashe.ai/writing/ai-agents-reasoning-from-events-that-never-happened/).
-* **[KenAshe.ai](https://github.com/kenashe/kenashe):** The Astro site and autonomous AI publishing system behind my public build log.
-* **[Lucky Domains](https://github.com/kenashe/luckydomains):** The website and operating documentation for my domain acquisition, brokerage, and SEO company.
+* **[AI Werewolf](https://github.com/kenashe/ai-werewolf):** Prompts, transcripts, and logs from three iterations of a multi-agent social deduction experiment, including the failure modes that shaped later versions. [Read the write-up](https://kenashe.ai/writing/ai-agents-reasoning-from-events-that-never-happened/).
+* **[Ashe Agent Lab](https://github.com/kenashe/ashe-agent-lab):** A reproducible framework for running AI-agent experiments, preserving prompts, model settings, transcripts, evaluations, costs, and evidence so results can be inspected and rerun.
+* **[KenAshe.ai](https://github.com/kenashe/kenashe):** The Astro site and autonomous AI publishing system behind my public build log, including the infrastructure used to research, generate, review, and publish content.
+* **[Lucky Domains](https://github.com/kenashe/luckydomains):** The production website and operating documentation for my domain acquisition, brokerage, and SEO company.
 
 ## This repository
 
@@ -18,5 +19,5 @@ This repository contains the Astro site and autonomous publishing pipeline behin
 
 ## Elsewhere
 
-[Personal Site](https://kenashe.ai/) · [Lucky Domains](https://luckydomains.io/founder/ken-ashe/) · [LinkedIn](https://www.linkedin.com/in/kenashe/) · [X](https://x.com/kenashe)
+[Personal Site](https://kenashe.ai/) · [Lucky Domains](https://luckydomains.io/founder/ken-ashe/) · [HackerNoon](https://hackernoon.com/about/kenashe) · [LinkedIn](https://www.linkedin.com/in/kenashe/) · [X](https://x.com/kenashe) · [YouTube](https://www.youtube.com/kenashe)
 
