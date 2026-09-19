@@ -20,9 +20,9 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
-    title: 'Rebuilding the Image Pipeline Behind KenAshe.ai',
+    title: 'Rebuilding the Image Pipeline',
     status: 'LIVE',
-    dek: 'Rebuilt the image pipeline behind KenAshe.ai: migrated 2,083 legacy PNGs to WebP, preserved published image URLs, added responsive inline delivery, and changed future AI-generated artwork to 1200×800 WebP. The migration cut the current image source tree by 95%, while responsive delivery reduced sampled inline-image downloads by 55–92%.',
+    dek: 'Rebuilt KenAshe.ai’s image pipeline: migrated 2,083 PNGs to WebP, added responsive inline images, and cut the current image source tree by 95%.',
     stack: ['Astro', 'WebP', 'sharp', 'GPT Image 2', 'Vercel', 'GitHub Actions'],
     shippedAt: 'Sep 2026',
     metric: '95% smaller image source tree',

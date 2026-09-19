@@ -14,7 +14,7 @@ const autonomousBlog: Project = {
 
 // The curated builds surfaced as cards (matches the prior Projects card set).
 const CURATED = [
-  'Rebuilding the Image Pipeline Behind KenAshe.ai',
+  'Rebuilding the Image Pipeline',
   'VetStack',
   'AI werewolf / social deduction lab',
   'Geo-targeted affiliate site',
