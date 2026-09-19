@@ -20,6 +20,15 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'Rebuilding the Image Pipeline Behind KenAshe.ai',
+    status: 'LIVE',
+    dek: 'Rebuilt the image pipeline behind KenAshe.ai: migrated 2,083 legacy PNGs to WebP, preserved published image URLs, added responsive inline delivery, and changed future AI-generated artwork to 1200×800 WebP. The migration cut the current image source tree by 95%, while responsive delivery reduced sampled inline-image downloads by 55–92%.',
+    stack: ['Astro', 'WebP', 'sharp', 'GPT Image 2', 'Vercel', 'GitHub Actions'],
+    shippedAt: 'Sep 2026',
+    metric: '95% smaller image source tree',
+    link: '/building/rebuilding-the-image-pipeline/',
+  },
+  {
     title: 'VetStack',
     status: 'LIVE',
     dek: 'First Grok Bot I published. A military and veteran savings desk that finds current discounts and benefits that actually apply, without collecting IDs or running a 20-question intake.',
