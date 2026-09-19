@@ -30,6 +30,13 @@ export const IMAGE_SIZE = `${IMAGE_WIDTH}x${IMAGE_HEIGHT}`;
 export const IMAGE_FORMAT = 'webp' as const;
 /** Images API `output_compression` (0-100, jpeg/webp only). 80 keeps illustration detail at ~100-250 KB. */
 export const IMAGE_COMPRESSION = 80;
+/**
+ * Images API `quality`. Pinned to `low` on purpose (D18): the API resolved the omitted default
+ * to `low` in the 2026-09-19 three-image pilot, those images passed visual review against the
+ * site's series look, and pinning it keeps cost and latency predictable instead of tracking
+ * whatever the API's default becomes.
+ */
+export const IMAGE_QUALITY = 'low' as const;
 /** No blog asset may be wider than this, exempt or not; the templates never request a larger derivative. */
 export const MAX_IMAGE_WIDTH = 1200;
 
@@ -51,6 +58,7 @@ export function imageRequestBody(prompt: string, size: string = IMAGE_SIZE) {
     prompt,
     size,
     n: 1,
+    quality: IMAGE_QUALITY,
     output_format: IMAGE_FORMAT,
     output_compression: IMAGE_COMPRESSION,
   };

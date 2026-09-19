@@ -347,8 +347,15 @@ serves more than 1200px: the hero asks for `widths=[480, 768, 1200, 1600]` and A
 bytes and build-time transforms and were never delivered.
 
 **Decision.** For new posts only, `image-output.ts` asks **`gpt-image-2`** (arbitrary output
-sizes) for exactly **`1200x800`, `output_format: webp`, `output_compression: 80`**, and
-`images.ts` writes the response as-is to the existing `hero.webp` / `inline-N.webp` path.
+sizes) for exactly **`1200x800`, `quality: low`, `output_format: webp`,
+`output_compression: 80`**, and `images.ts` writes the response as-is to the existing
+`hero.webp` / `inline-N.webp` path. `quality` is pinned to `low` deliberately: the request had
+omitted it and the API resolved the default to `low` in the 2026-09-19 three-image pilot
+(editorial hero, chain-vs-tree diagram, stopwatch-vs-documents concept; all 1200×800 WebP,
+160-174 KB, 14-17 s, 131-285 output image tokens), those images passed visual review against
+the site's series look, and pinning it keeps per-image cost and latency predictable instead of
+tracking whatever the API's default becomes. Raising it is a reviewed one-line change plus a
+re-pilot.
 There is no resize or re-encode in the normal path and no intermediate file. Before the
 write, `validateGeneratedImage` (`sharp` metadata, now an explicit pipeline dependency)
 requires the bytes to decode as WebP at exactly 1200×800 and **fails closed** otherwise: the

@@ -11,6 +11,7 @@ import {
   IMAGE_MODEL,
   IMAGE_FORMAT,
   IMAGE_COMPRESSION,
+  IMAGE_QUALITY,
   IMAGE_SIZE,
   IMAGE_WIDTH,
   IMAGE_HEIGHT,
@@ -26,6 +27,8 @@ test('the Images API request asks gpt-image-2 for 1200x800 compressed WebP, neve
   assert.equal(body.size, '1200x800');
   assert.equal(body.size, IMAGE_SIZE);
   assert.equal(body.n, 1);
+  assert.equal(body.quality, 'low', 'pinned explicitly (D18); the omitted default resolved to low in the pilot');
+  assert.equal(body.quality, IMAGE_QUALITY);
   assert.equal(body.output_format, 'webp');
   assert.equal(IMAGE_FORMAT, 'webp');
   assert.ok(body.output_compression >= 60 && body.output_compression <= 90, 'compression in a sane range');
