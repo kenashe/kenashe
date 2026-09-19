@@ -186,10 +186,10 @@ async function main(): Promise<void> {
   console.log(`[related] ${rel.withLinks}/${rel.posts} posts have related links`);
 
   if (!shadow && (report.published.length || report.drafted.length)) {
-    // Size guard (D16): throws before anything is committed if today's new images are
-    // PNG-sized rather than the compressed WebP we ask for. Loud failure beats a silent
-    // return to 60 MB/day of repo growth.
-    assertImageBudget(repoRoot);
+    // Size guard (D16) and format/dimension guard (D18): throws before anything is committed
+    // if today's new images are PNG-sized, not WebP, or not the 1200x800 standard. Loud
+    // failure beats a silent return to 60 MB/day of repo growth.
+    await assertImageBudget(repoRoot);
     commitAndPush(repoRoot, `pipeline: ${report.published.length} posts, ${report.drafted.length} drafts (${report.startedAt.slice(0, 10)})`);
     await triggerDeploy();
   } else if (shadow && report.drafted.length) {

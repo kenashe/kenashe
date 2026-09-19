@@ -7,7 +7,7 @@ import path from 'node:path';
 import { chat } from './llm.ts';
 import { MODELS } from './config.ts';
 import { heroImagePrompt, inlineImagePrompt, altTextUser } from './prompts.ts';
-import { imageRequestBody, imageFileName, IMAGE_SIZE } from './image-output.ts';
+import { imageRequestBody, imageFileName, normalizeImage, IMAGE_SIZE } from './image-output.ts';
 import type { DraftPost, ImageAsset } from './types.ts';
 
 const PLACEHOLDER = /\{\{IMAGE:inline:([^}]*)\}\}/g;
@@ -24,7 +24,10 @@ async function genImage(prompt: string, size: string): Promise<Buffer | null> {
   if (!res.ok) { console.warn(`[images] ${res.status}: ${await res.text()}`); return null; }
   const j = (await res.json()) as any;
   const b64 = j.data?.[0]?.b64_json;
-  return b64 ? Buffer.from(b64, 'base64') : null;
+  if (!b64) return null;
+  // The API only offers 1536x1024; store the 1200x800 standard instead (D18). In memory,
+  // WebP in and WebP out: nothing but the final file is written.
+  return normalizeImage(Buffer.from(b64, 'base64'));
 }
 
 async function altText(role: string, intent: string): Promise<string> {
