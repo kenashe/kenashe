@@ -6,7 +6,9 @@ import {
   imageFileName,
   checkImageBudget,
   checkImageAssets,
-  normalizeImage,
+  validateGeneratedImage,
+  probeImage,
+  IMAGE_MODEL,
   IMAGE_FORMAT,
   IMAGE_COMPRESSION,
   IMAGE_SIZE,
@@ -17,11 +19,12 @@ import {
   MAX_SINGLE_IMAGE_BYTES,
 } from '../src/image-output.ts';
 
-test('the Images API request asks for compressed WebP, never the default lossless PNG', () => {
+test('the Images API request asks gpt-image-2 for 1200x800 compressed WebP, never the default lossless PNG', () => {
   const body = imageRequestBody('a hero illustration');
-  assert.equal(body.model, 'gpt-image-1');
+  assert.equal(body.model, 'gpt-image-2');
+  assert.equal(IMAGE_MODEL, 'gpt-image-2');
+  assert.equal(body.size, '1200x800');
   assert.equal(body.size, IMAGE_SIZE);
-  assert.equal(body.size, '1536x1024', 'the only landscape size gpt-image-1 offers; the file is resized afterwards');
   assert.equal(body.n, 1);
   assert.equal(body.output_format, 'webp');
   assert.equal(IMAGE_FORMAT, 'webp');
@@ -38,46 +41,42 @@ test('file names follow the output format', () => {
   assert.doesNotMatch(imageFileName('hero'), /\.png$/);
 });
 
-// --- D18: stored standard is 1200x800 WebP -------------------------------------------
+// --- D18: stored standard is 1200x800 WebP, requested directly ------------------------
 
-test('the stored standard is 1200x800, 3:2 like the API size, and never wider than the widest derivative', () => {
+test('the stored standard is 1200x800 (3:2), the request size derives from it, and nothing may be wider', () => {
   assert.equal(IMAGE_WIDTH, 1200);
   assert.equal(IMAGE_HEIGHT, 800);
-  assert.equal(IMAGE_WIDTH / IMAGE_HEIGHT, 1536 / 1024);
-  assert.equal(MAX_IMAGE_WIDTH, 1200);
+  assert.equal(IMAGE_WIDTH / IMAGE_HEIGHT, 3 / 2);
+  assert.equal(IMAGE_SIZE, `${IMAGE_WIDTH}x${IMAGE_HEIGHT}`);
+  assert.equal(MAX_IMAGE_WIDTH, IMAGE_WIDTH);
 });
 
-/** A synthetic stand-in for the API response: a 1536x1024 image with a flat background and a hard-edged band. */
-async function fakeApiImage(format: 'webp' | 'png' = 'webp'): Promise<Buffer> {
-  const img = sharp({
-    create: { width: 1536, height: 1024, channels: 3, background: { r: 30, g: 120, b: 90 } },
-  }).composite([
-    { input: { create: { width: 400, height: 1024, channels: 3, background: { r: 230, g: 90, b: 40 } } }, left: 568, top: 0 },
-  ]);
-  return format === 'webp' ? img.webp({ quality: 80 }).toBuffer() : img.png().toBuffer();
+/** Synthetic stand-ins for API responses. */
+async function synth(width: number, height: number, format: 'webp' | 'png' | 'jpeg' = 'webp'): Promise<Buffer> {
+  const img = sharp({ create: { width, height, channels: 3, background: { r: 30, g: 120, b: 90 } } });
+  if (format === 'png') return img.png().toBuffer();
+  if (format === 'jpeg') return img.jpeg().toBuffer();
+  return img.webp({ quality: 80 }).toBuffer();
 }
 
-test('normalizeImage turns the 1536x1024 API response into 1200x800 WebP without touching disk', async () => {
-  const src = await fakeApiImage();
-  const out = await normalizeImage(src);
-  const m = await sharp(out).metadata();
-  assert.equal(m.format, 'webp');
-  assert.equal(m.width, 1200);
-  assert.equal(m.height, 800);
-  assert.ok(out.length < src.length, `resized file (${out.length} B) should be smaller than the source (${src.length} B)`);
-  // Content survives: the orange band still sits in the middle after scaling (no crop, no letterbox).
-  const { data, info } = await sharp(out).raw().toBuffer({ resolveWithObject: true });
-  const red = (x: number, y: number) => data[(y * info.width + x) * info.channels];
-  assert.ok(red(600, 400) > 180, 'centre pixel is the orange band');
-  assert.ok(red(100, 400) < 100, 'left pixel is the green background');
-  assert.ok(red(1100, 400) < 100, 'right pixel is the green background');
+test('validateGeneratedImage passes a 1200x800 WebP through untouched (same bytes, no re-encode)', async () => {
+  const src = await synth(1200, 800);
+  const out = await validateGeneratedImage(src, 'test');
+  assert.ok(out.equals(src), 'buffer must be returned byte-for-byte');
+  assert.deepEqual(await probeImage(out), { format: 'webp', width: 1200, height: 800 });
 });
 
-test('normalizeImage also converts a PNG response, so a format regression upstream cannot reach disk', async () => {
-  const m = await sharp(await normalizeImage(await fakeApiImage('png'))).metadata();
-  assert.equal(m.format, 'webp');
-  assert.equal(m.width, 1200);
-  assert.equal(m.height, 800);
+test('validateGeneratedImage fails closed on the old 1536x1024 size instead of resizing it', async () => {
+  await assert.rejects(validateGeneratedImage(await synth(1536, 1024), 'hero'), /hero: API returned webp 1536x1024, expected webp 1200x800/);
+});
+
+test('validateGeneratedImage fails closed on PNG or JPEG bytes even at the right size', async () => {
+  await assert.rejects(validateGeneratedImage(await synth(1200, 800, 'png')), /returned png 1200x800/);
+  await assert.rejects(validateGeneratedImage(await synth(1200, 800, 'jpeg')), /returned jpeg 1200x800/);
+});
+
+test('validateGeneratedImage fails closed on bytes that are not an image at all', async () => {
+  await assert.rejects(validateGeneratedImage(Buffer.from('not an image')), /returned unreadable \?x\?/);
 });
 
 test('checkImageAssets accepts a normal day of 1200x800 WebP files', () => {
@@ -125,20 +124,39 @@ test('checkImageAssets flags the old 1536 standard, anything wider than 1200, an
   );
 });
 
-test('an explicit exemption with a reason skips the format/dimension rules for that path only', () => {
-  const files = [
-    { path: 'src/assets/blog/c/inline-1.webp', bytes: 200_000, format: 'webp', width: 800, height: 1400 },
-    { path: 'src/assets/blog/c/inline-2.webp', bytes: 200_000, format: 'webp', width: 800, height: 1400 },
-  ];
-  const exemptions = { 'src/assets/blog/c/inline-1.webp': 'portrait flowchart; cropping to 3:2 would cut the legend' };
-  const r = checkImageAssets(files, exemptions);
+test('an exemption waives only the exact 1200x800 rule, for that path only', () => {
+  const tall = { path: 'src/assets/blog/c/inline-1.webp', bytes: 200_000, format: 'webp', width: 800, height: 1400 };
+  const twin = { ...tall, path: 'src/assets/blog/c/inline-2.webp' };
+  const exemptions = { [tall.path]: 'portrait flowchart; 3:2 would cut the legend' };
+  const r = checkImageAssets([tall, twin], exemptions);
   assert.equal(r.ok, false, 'the un-exempted twin still fails');
-  assert.equal(r.problems.length, 1);
-  assert.match(r.problems[0], /inline-2\.webp/);
+  assert.deepEqual(r.problems.map((p) => p.split(':')[0]), [twin.path]);
   assert.equal(r.exempted.length, 1);
-  assert.match(r.exempted[0], /portrait flowchart/);
-  assert.equal(checkImageAssets([files[0]], exemptions).ok, true);
-  assert.match(checkImageAssets([files[0]], exemptions).message, /1 exempted/);
+  assert.match(r.exempted[0], /800x1400 \(portrait flowchart/);
+  const alone = checkImageAssets([tall], exemptions);
+  assert.equal(alone.ok, true);
+  assert.match(alone.message, /1 exempted from the exact size/);
+});
+
+test('an exemption never waives the WebP format or the 1200px maximum width', () => {
+  const png = { path: 'src/assets/blog/d/inline-1.png', bytes: 900_000, format: 'png', width: 800, height: 1400 };
+  const renamed = { path: 'src/assets/blog/d/inline-2.webp', bytes: 300_000, format: 'jpeg', width: 1200, height: 800 };
+  const wide = { path: 'src/assets/blog/d/inline-3.webp', bytes: 300_000, format: 'webp', width: 1536, height: 1024 };
+  const exemptions = Object.fromEntries([png, renamed, wide].map((f) => [f.path, 'trying to sneak past']));
+  const r = checkImageAssets([png, renamed, wide], exemptions);
+  assert.equal(r.ok, false);
+  assert.equal(r.problems.length, 3);
+  assert.equal(r.exempted.length, 0);
+  assert.match(r.problems[0], /not webp/);
+  assert.match(r.problems[1], /not webp .*content jpeg/);
+  assert.match(r.problems[2], /wider than 1200px/);
+  assert.match(r.message, /never the webp format or the 1200px maximum width/);
+});
+
+test('the byte budget is enforced independently of exemptions', () => {
+  const exempt = { path: 'src/assets/blog/e/inline-1.webp', bytes: MAX_SINGLE_IMAGE_BYTES + 1, format: 'webp', width: 800, height: 1400 };
+  assert.equal(checkImageAssets([exempt], { [exempt.path]: 'tall' }).ok, true, 'size rule waived');
+  assert.equal(checkImageBudget([exempt]).ok, false, 'budget still fails');
 });
 
 test('checkImageAssets passes trivially on an image-less day', () => {

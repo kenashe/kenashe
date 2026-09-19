@@ -7,13 +7,14 @@ import path from 'node:path';
 import { chat } from './llm.ts';
 import { MODELS } from './config.ts';
 import { heroImagePrompt, inlineImagePrompt, altTextUser } from './prompts.ts';
-import { imageRequestBody, imageFileName, normalizeImage, IMAGE_SIZE } from './image-output.ts';
+import { imageRequestBody, imageFileName, validateGeneratedImage, IMAGE_MODEL, IMAGE_SIZE } from './image-output.ts';
 import type { DraftPost, ImageAsset } from './types.ts';
 
 const PLACEHOLDER = /\{\{IMAGE:inline:([^}]*)\}\}/g;
 
-// Output is compressed WebP, not the API's default lossless PNG: see image-output.ts and
-// DECISIONS.md D16 (the PNGs grew the repo to 5.5 GB and broke Vercel's clone).
+// Output is compressed 1200x800 WebP from gpt-image-2, not the API's default lossless PNG:
+// see image-output.ts, DECISIONS.md D16 (the PNGs grew the repo to 5.5 GB and broke
+// Vercel's clone) and D18 (stored size and the fail-closed check).
 async function genImage(prompt: string, size: string): Promise<Buffer | null> {
   if (process.env.IMAGES_ENABLED !== '1' || !process.env.OPENAI_API_KEY) return null;
   const res = await fetch('https://api.openai.com/v1/images/generations', {
@@ -25,9 +26,10 @@ async function genImage(prompt: string, size: string): Promise<Buffer | null> {
   const j = (await res.json()) as any;
   const b64 = j.data?.[0]?.b64_json;
   if (!b64) return null;
-  // The API only offers 1536x1024; store the 1200x800 standard instead (D18). In memory,
-  // WebP in and WebP out: nothing but the final file is written.
-  return normalizeImage(Buffer.from(b64, 'base64'));
+  // Fail closed (D18): the bytes must already be 1200x800 WebP as requested. An off-standard
+  // response throws (the story is recorded as an error and not published) rather than being
+  // resized into place, which would hide an API regression.
+  return validateGeneratedImage(Buffer.from(b64, 'base64'), `${IMAGE_MODEL} response`);
 }
 
 async function altText(role: string, intent: string): Promise<string> {

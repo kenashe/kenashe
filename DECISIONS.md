@@ -338,32 +338,39 @@ deploy 4m54s (the rejected global config took 17m13s on the same day).
 
 ## <a id="d18"></a>D18 — New Digest artwork is stored at 1200×800, not the API's 1536×1024
 
-**Context (2026-09-19).** The 1536×1024 source size was never a design choice: it is simply
-the only landscape size `gpt-image-1` offers (`1024x1024`, `1536x1024`, `1024x1536`), and
-`images.ts` wrote the API response to disk unchanged. No template ever serves more than
-1200px: the hero asks for `widths=[480, 768, 1200, 1600]` and Astro drops 1600 rather than
-upscale; `InlineFigure` (D17) asks for up to 1536 but the browser selects 1200w at most on
-the 592px column; cards top out at 1000. The pixels above 1200 cost source bytes and
-build-time transforms and were never delivered.
+**Context (2026-09-19).** The 1536×1024 source size was never a design choice: it was the
+only landscape size the now-deprecated `gpt-image-1` offered (`1024x1024`, `1536x1024`,
+`1024x1536`), and `images.ts` wrote the API response to disk unchanged. No template ever
+serves more than 1200px: the hero asks for `widths=[480, 768, 1200, 1600]` and Astro drops
+1600 rather than upscale; `InlineFigure` (D17) asks for up to 1536 but the browser selects
+1200w at most on the 592px column; cards top out at 1000. The pixels above 1200 cost source
+bytes and build-time transforms and were never delivered.
 
-**Decision.** For new posts only, `image-output.ts` still requests `1536x1024` WebP from the
-API (there is no smaller 3:2 option) and `normalizeImage` resizes the response in memory to
-**1200×800 WebP, quality 80** (`sharp`, now an explicit pipeline dependency) before the only
-write. No PNG or other intermediate touches disk. File names (`hero.webp`, `inline-N.webp`),
-MDX paths, the content schema, and every template are unchanged.
+**Decision.** For new posts only, `image-output.ts` asks **`gpt-image-2`** (arbitrary output
+sizes) for exactly **`1200x800`, `output_format: webp`, `output_compression: 80`**, and
+`images.ts` writes the response as-is to the existing `hero.webp` / `inline-N.webp` path.
+There is no resize or re-encode in the normal path and no intermediate file. Before the
+write, `validateGeneratedImage` (`sharp` metadata, now an explicit pipeline dependency)
+requires the bytes to decode as WebP at exactly 1200×800 and **fails closed** otherwise: the
+story is recorded as an error and not published, rather than an off-standard response being
+silently normalized into place. File names, MDX paths, the content schema, and every template
+are unchanged.
 
-**Guard.** `assertImageBudget` (run before the pipeline commits) now also runs
-`checkImageAssets`: every new file under `src/assets/blog/` must be WebP by extension and by
-content, no wider than 1200px, and exactly 1200×800; anything else fails the run before
-commit. The escape hatch is `IMAGE_ASSET_EXEMPTIONS` in `image-output.ts`: a repo path with a
-one-line reason skips the dimension/format rules (the byte budget still applies). It is a
-reviewed code change on purpose; there is no environment-variable bypass.
+**Guard.** `assertImageBudget` (run before the pipeline commits) also runs
+`checkImageAssets` over every new file under `src/assets/blog/`. Always enforced: WebP by
+extension and by content, readable dimensions, width ≤ 1200px, and D16's byte budget.
+Enforced unless the path is listed in `IMAGE_ASSET_EXEMPTIONS` (`image-output.ts`, path →
+one-line reason): exactly 1200×800. An exemption can therefore admit a genuinely
+non-standard shape (a tall flowchart) but never a PNG/JPEG, never anything wider than 1200px,
+and never an over-budget file. Adding one is a reviewed code change; there is no
+environment-variable bypass.
 
 **Not changed.** The 2,083 migrated images and the Phase A posts stay at 1536×1024; nothing
 resizes or recompresses existing assets, and D16's redirects and records are untouched.
-Expected effect per new image: roughly 40% fewer source bytes (pixel count 1.23 MP vs 1.57 MP)
-and one fewer transform for inline images (the 1536 candidate is not generated for a 1200px
-source).
+Expected effect per new image: fewer source bytes (pixel count 0.96 MP vs 1.57 MP, −39%
+before any codec difference) and one fewer transform for inline images (the 1536 candidate
+is not generated for a 1200px source). `MODELS.image` in `config.ts` remains dead config
+(ARCHITECTURE "Known wart"); `images.ts` calls `IMAGE_MODEL` directly.
 
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
