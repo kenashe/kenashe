@@ -1,0 +1,46 @@
+---
+// Inline images inside Digest posts (Markdown `![alt](../../assets/blog/<slug>/inline-N.webp)`).
+//
+// @astrojs/mdx rewrites every local Markdown image into an `astro-image` element whose `src`
+// is the imported ImageMetadata, and resolves that element to `components.img` when the page
+// passes one to <Content /> (see @astrojs/mdx rehype-images-to-component + postprocess).
+// Without this component the default <Image> emits a single full-size (1536w) candidate with
+// no srcset/sizes, so every viewport downloads the 1536px file for a 327-592px slot.
+//
+// This is the only place inline-image responsiveness is decided. It deliberately does NOT set
+// `layout`, `fit`, or `position`: the rendered element must stay a plain <img> that .prose img
+// { width: 100% } sizes exactly as before (no object-fit, no cropping, same aspect ratio).
+//
+// Geometry (measured 2026-09-18): .post is max-width 40rem with 1.5rem padding each side, so
+// the image renders at calc(100vw - 48px) below ~690px and at 592px above.
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+
+interface Props {
+  src: ImageMetadata | string;
+  alt?: string;
+  [key: string]: unknown;
+}
+
+const { src, alt = '', ...rest } = Astro.props;
+
+const INLINE_WIDTHS = [480, 768, 1200, 1536];
+const INLINE_SIZES = '(min-width: 690px) 592px, calc(100vw - 48px)';
+---
+
+{
+  typeof src === 'string' ? (
+    // Remote or unresolved image: leave it exactly as Markdown would have rendered it.
+    <img src={src} alt={alt} loading="lazy" decoding="async" {...rest} />
+  ) : (
+    <Image
+      src={src}
+      alt={alt}
+      widths={INLINE_WIDTHS}
+      sizes={INLINE_SIZES}
+      loading="lazy"
+      decoding="async"
+      {...rest}
+    />
+  )
+}

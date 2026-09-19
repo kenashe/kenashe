@@ -295,7 +295,36 @@ before the next began.
 - Reader-facing delivery already used WebP derivatives, so the principal benefit is source-tree
   and deployment-payload reduction (Vercel's depth-10 clone), not page weight.
 - The 20 Phase A posts born as WebP were not modified.
-- Inline MDX image `sizes` remains a separate future optimization.
+- Inline MDX image `sizes` remains a separate future optimization (now D17).
+
+## <a id="d17"></a>D17 — Inline Digest images get srcset/sizes through the renderer, not global config
+
+**Finding (2026-09-18).** Every inline Markdown image in a Digest post shipped as one 1536px
+WebP with no `srcset` and no `sizes`, for a slot that renders at ~327px on a 390px viewport
+and ~582-592px on anything wider. Heroes, `/blog/` cards, Writing thumbnails, and
+`EssayFigure` were already responsive because they call `<Image>` with explicit `widths` and
+`sizes`. The cause was not a missing `sizes` attribute: `@astrojs/mdx` renders Markdown
+images through Astro's `<Image>` with no `widths`, which emits a single candidate.
+
+**Rejected: global `image.layout: 'constrained'` + `responsiveStyles`** (experiment branch
+`experiment/global-responsive-images`, PR #77, closed unmerged). Measured on the same commit:
+- Vercel deploy 17m13s wall (under the 45-minute limit, over our comfort line for a config
+  change that re-optimizes every image).
+- Transforms 4,362 to 9,816; `dist/_astro` image bytes 456 MB to 641 MB (+41%); each inline
+  image gained six variants (640/750/828/1080/1280/1536).
+- Astro derived `sizes="(min-width: 1536px) 1536px, 100vw"` from the intrinsic width, so
+  Chromium at DPR 2 on any viewport of 768px or wider still selected the 1536px file (zero
+  saving for most laptops); DPR 1 desktops got 1280w for a 592px slot.
+- Blast radius: every existing `<Image>` gained `data-astro-image` attributes, `object-fit:
+  cover`, and a rehashed URL for every transform variant (749 of 1,490 pages changed).
+
+**Decision.** `src/pages/blog/[...slug].astro` passes `components={{ img: InlineFigure }}` to
+`<Content />`. `src/components/InlineFigure.astro` renders `<Image widths={[480, 768, 1200,
+1536]} sizes="(min-width: 690px) 592px, calc(100vw - 48px)">` with lazy loading, async
+decoding, and no `layout`/`fit`, so the element stays a plain `<img>` sized by `.prose img`.
+Article files, image assets, global image config, and every other `<Image>` call are
+untouched. Inline transform-variant URLs change (they are referenced only inside their
+article HTML and are not redirected, consistent with the Phase B policy for variants).
 
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
