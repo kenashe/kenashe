@@ -326,6 +326,16 @@ Article files, image assets, global image config, and every other `<Image>` call
 untouched. Inline transform-variant URLs change (they are referenced only inside their
 article HTML and are not redirected, consistent with the Phase B policy for variants).
 
+**Completion record (2026-09-19).** Shipped in PR #78, merge commit b96165b; Vercel production
+deploy 4m54s (the rejected global config took 17m13s on the same day).
+- Contrary to the sentence above, no existing inline URL changed: the fallback `src` and the
+  1536px transform kept their hashes (0 of 1,067 current inline URLs), so only the 480/768/1200
+  variants were new (+3,295 transforms, +96 MB of build output vs +185 MB for the global config).
+- Verified on production in Chromium: 390px selects 480w at DPR 1 and 768w at DPR 2; the
+  592px column selects 768w at DPR 1 and 1200w at DPR 2. Ten sample inline images went from
+  1,485 KB to 113 / 316 / 316 / 663 KB respectively. Heroes, `/blog/` cards, Writing
+  thumbnails, `EssayFigure`, og:image, schema images, and all 1,043 Phase B redirects unchanged.
+
 ## <a id="d13"></a>D13 — Skipped: FAQPage schema
 
 Considered for LLM answer-extraction, rejected. Google restricted FAQ rich results to
