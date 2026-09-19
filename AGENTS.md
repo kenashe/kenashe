@@ -127,7 +127,7 @@ not add homepage/contact/about links from kenashe.ai copy. Details: ARCHITECTURE
 ## Things that look like bugs but aren't
 
 - `MODELS.image` (`gemini-3-pro-image`) and `config.IMAGES` are **unused**; images.ts calls
-  OpenAI `gpt-image-1` and counts placeholders. Dead config, documented in ARCHITECTURE.
+  OpenAI `gpt-image-2` (`IMAGE_MODEL`, D18) and counts placeholders. Dead config, documented in ARCHITECTURE.
 - Digest images are **WebP** (`hero.webp`, `inline-N.webp`) since 2026-09-16; the 2,000+
   `.png` files from June to September are the old format and will be re-encoded in batches
   ([D16](DECISIONS.md#d16)). Never switch the request back to PNG: `assertImageBudget` fails
