@@ -1,0 +1,68 @@
+---
+title: "Decontamination reports are a promise, not a proof: the case for evaluation-side benchmarks"
+description: "A builder argues that training-side decontamination reports can't be verified by anyone but the lab claiming the score, and lays out an evaluation-side alternative where the grader controls the test, the labels, and the network."
+pubDate: 2026-09-20
+tags: ["benchmarks", "evals", "model-reliability", "agent-evaluation", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-20-decontamination-reports-are-a-promise-not-a-proof-the-case-for-evaluation-side/hero.webp
+  alt: "Decontamination reports are a promise, not a proof: the case for evaluation-side benchmarks"
+sources:
+  - title: "Reproduce it, or it doesn't count: why training-side decontamination can't be verified, and what an evaluation-side rule looks like [D]"
+    url: "https://www.reddit.com/r/MachineLearning/comments/1wks8db/reproduce_it_or_it_doesnt_count_why_trainingside/"
+  - title: "Why decontamination reports can't fix benchmark contamination, and what an evaluator has to do instead [D]"
+    url: "https://www.reddit.com/r/MachineLearning/comments/1wlimaj/why_decontamination_reports_cant_fix_benchmark/"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+  - name: "GitHub"
+    sameAs: "https://www.wikidata.org/wiki/Q364"
+---
+
+TL;DR: You cannot verify that a model wasn't trained on a benchmark by trusting the lab's own search of its own data, so if you care whether a score is real, you have to control the evaluation instead of auditing the training.
+
+The write-up driving this is "Reproduce it, or it doesn't count," posted by Noah Persaud (u/NoahPersaud) at holdoutlabs-ai.github.io/reproduce-it-or-it-doesnt-count/ and discussed across two r/MachineLearning threads. It centers on a specific event: in February, OpenAI stopped reporting SWE-bench Verified and, per Persaud's account, recommended other labs stop too. The reason he cites is damning in a quiet way. Every frontier model OpenAI tested could reproduce the human-written reference fix, or verbatim details of the problem statement, for at least some tasks. Progress had slowed to six points in six months, and it wasn't clear how much of what remained was capability versus memory.
+
+I want to take that seriously, because it points at a hole in how the whole field reports numbers.
+
+## Why can't a decontamination report prove a clean score?
+
+The standard defense against contamination is the decontamination report: the lab searched its training data for the benchmark and found nothing, or scrubbed what it found. Persaud's argument is that this has a hard floor no amount of better search can lift. Three reasons, and they compound.
+
+First, the lab checks itself. Nobody outside the lab holds the corpus, so nobody else can rerun the search. The party whose score depends on the answer is the only party who can produce the answer. That is not a conspiracy claim. It is just the structure. Any result that can only be confirmed by the beneficiary is a promise, not a proof.
+
+Second, the corpus can't be disclosed even if the lab wanted to. A full training set is, among other things, a list of every copyrighted work inside it. Publishing that is litigation exposure. So the one thing that would make the search checkable is the one thing legal will never sign off on.
+
+Third, matching misses most of it. Exact-match and n-gram checks catch verbatim copies of the benchmark. They do not catch paraphrases, forum walkthroughs, GitHub solutions, or synthetic data generated from the benchmark. A model can learn the answers from any of those without ever sharing an n-gram with the test set. So even a perfect, honest, fully disclosed search can come back clean while the model has effectively seen the answers through a side door.
+
+![a sealed box being inspected only by the person holding it, while multiple hidden channels feed into it from outside the](../../assets/blog/2026-09-20-decontamination-reports-are-a-promise-not-a-proof-the-case-for-evaluation-side/inline-1.webp)
+
+## Don't cryptographic commitments fix this?
+
+This is where the post gets sharper than the usual hand-wringing. There are real proposals meant to make training claims verifiable: corpus commitments, private set intersection (PSI), proof-of-training schemes. Persaud's read is that they help less than they look.
+
+Commitments and PSI prove things about the corpus the lab declared. They do not prove the model was trained on that corpus and nothing else. The gap between "here is a corpus I committed to" and "this is what the weights actually saw" is exactly the gap that matters, and the cryptography doesn't close it. As for proof-of-training, he says the schemes proposed so far have been shown to be spoofable. I haven't independently verified those spoofing results, and the post is a builder's synthesis rather than a formal survey, so treat that as his claim rather than settled literature. But the logic holds even if you're generous: proving properties of a declared dataset is not the same as binding a specific model to a specific training history.
+
+The honest version of the current state, in his framing, is that a decontamination report is an audit receipt, not a portable proof. It tells you what the lab says it did. It does not let a third party reconstruct the result.
+
+## What does an evaluation-side rule actually look like?
+
+The move is to flip the burden. Stop trying to prove the negative on the training side. Rule out prior exposure on the evaluation side, by construction.
+
+Concretely, per the post, that means: the submission never receives the labels, evaluation runs with no network access, the evaluator builds the code itself from a named commit and reproduces the score, and where the problem allows it, the test data is forward-dated, generated after submissions freeze so it cannot have been in any training set. A result counts only when the evaluator reproduces it. The record becomes something a grader made, not something a solver reported.
+
+Persaud says he's built a small version of this for tabular models, with private test sets where a funder posts a problem and a bar to clear. He's careful to separate what's implemented from what's design, which is more discipline than most benchmark hype gets.
+
+![a referee holding the answer key and building the test environment, with the contestant handing over only a sealed submi](../../assets/blog/2026-09-20-decontamination-reports-are-a-promise-not-a-proof-the-case-for-evaluation-side/inline-2.webp)
+
+## Where does this still fall short?
+
+The reason I trust the argument more, not less, is that it lists what it does not prove. Four things.
+
+It does not prove the benchmark is any good. Reproducing a score says nothing about whether the task measures the capability you care about. It does not prove a hidden test set can't be squeezed through repeated submissions. That's adaptive overfitting: enough tries against a private leaderboard and you back into the answers without ever seeing them. Persaud flags this as the open gap, the one he'd close first, and notes there's no per-solver submission budget in his implementation yet. It does not prove the funder didn't leak labels. And it does not prove a third party can re-run the whole thing without the data, which is the difference between an audit receipt and a truly portable proof.
+
+He's explicit that a complete zero-knowledge proof of a result would have to bind all of it together: the model, the inputs, the scoring, all to one evaluation. Proof-of-inference alone isn't that. So the honest ceiling today is "reproduced by a trusted evaluator," not "provable to a stranger."
+
+## Practitioner's take
+
+If you buy models or agents on published benchmark numbers, treat any score on a public, static, pre-existing benchmark as a soft upper bound, not a measurement. The SWE-bench Verified retirement is the tell: the lab that built it and had every reason to keep it is the one that pulled it. For your own evals, adopt the cheap 80 percent of Persaud's rule even without the cryptography. Hold out a private test set the vendor never sees, generate or collect tasks dated after the model's training cutoff, run graded inference yourself with no network egress, and reproduce the number before you believe it. The catch most readers miss is the adaptive-overfitting hole: a private test set stops being private the moment you let a vendor iterate against it, so cap submissions per solver and rotate tasks, or you'll rebuild the exact contamination you were trying to escape, one query at a time.
