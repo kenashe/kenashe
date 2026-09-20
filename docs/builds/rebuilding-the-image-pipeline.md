@@ -256,7 +256,7 @@ Unexpected generated output fails validation rather than silently entering the r
 
 A three-image pilot using the site's real prompts produced valid 1200×800 WebPs between roughly 160 and 174 KB and passed visual review before the configuration was merged. The API reported low quality for those generations; I then pinned that setting explicitly rather than leave it to the default.
 
-The new generation configuration is now merged into production. The first scheduled pipeline run that creates new images will serve as the final live acceptance test for the generation path. The historical migration and responsive-delivery work described above have already been validated in production.
+The new generation configuration is in production. Its first scheduled live run, on September 19, 2026, generated 25 images for 10 posts: all 25 were 1200×800 WebP, 54 to 293 KB each, 2.7 MB in total, and the pre-commit check passed with no per-story errors. The published pages give the browser 480, 768, and 1200-pixel candidates and nothing larger, and the social image reports 1200×800. The historical migration and responsive-delivery work described above had already been validated in production.
 
 ## What I learned
 
@@ -298,6 +298,6 @@ The 1,043 mapped original-image URLs remain preserved through redirects.
 
 Inline images now offer responsive candidates matched to the article layout, with measured sample download reductions of 55–92%.
 
-The future-generation pipeline has been updated and pilot-tested, with its first scheduled live acceptance run still pending.
+The future-generation pipeline has been updated, pilot-tested, and validated on its first scheduled live run.
 
 The system now includes validation designed to keep off-standard generated images from quietly returning.
