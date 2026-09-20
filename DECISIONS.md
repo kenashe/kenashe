@@ -372,6 +372,8 @@ non-standard shape (a tall flowchart) but never a PNG/JPEG, never anything wider
 and never an over-budget file. Adding one is a reviewed code change; there is no
 environment-variable bypass.
 
+**Completion record (2026-09-20).** Shipped in PR #80 (merge b96165b → 12cdeb0; quality pinned in a906d3d). First live run after the merge: Content Pipeline run 35454546019 on 2026-09-19 (16:18–16:38 UTC, head 75faa50) published 9 posts and 1 draft with 25 new images. Log: `[images] 25 new image(s), 2.7 MB total, within budget` and `[images] 25 new image(s) are 1200x800 webp`; `errors: []`. All 25 files verified on `master` as WebP 1200×800, 54,174–292,912 bytes; 0 PNG/JPEG and 0 1536-wide assets under `src/assets/blog/`. Production deploy of the pipeline commit (367580d) completed in about 2 minutes. Rendered: hero srcset 480/768/1200w, inline srcset 480/768/1200w with the D17 `sizes`, `width="1200" height="800"`, og:image 1200×800; Chromium selected 480w (390px, 1×), 768w (390px 2× inline; 592px column 1×) and 1200w (2× column), never a candidate smaller than the device pixels needed. Older 1536×1024 posts, the 1,043 Phase B redirects, and the spot pages were unchanged.
+
 **Not changed.** The 2,083 migrated images and the Phase A posts stay at 1536×1024; nothing
 resizes or recompresses existing assets, and D16's redirects and records are untouched.
 Expected effect per new image: fewer source bytes (pixel count 0.96 MP vs 1.57 MP, −39%
