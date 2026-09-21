@@ -1,0 +1,60 @@
+---
+title: "Mini-AGI makes local training the interesting part"
+description: "volotat’s Mini-AGI project is not evidence of AGI, but it is a useful experiment in training language models from scratch on consumer hardware using dynamic experts and a single continuous data stream."
+pubDate: 2026-09-21
+tags: ["local-ai", "model-training", "small-models", "open-source-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-21-mini-agi-makes-local-training-the-interesting-part/hero.webp
+  alt: "Mini-AGI makes local training the interesting part"
+sources:
+  - title: "Show HN: Mini-AGI – Dynamic continual learning model trained on 8GB VRAM"
+    url: "https://github.com/volotat/mini-AGI/"
+  - title: "mini-AGI - dynamically grown (530M params currently and growing) continual learning model trained from scratch on 8GB VRAM laptop from batch-1 stream of data."
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1wm1gab/miniagi_dynamically_grown_530m_params_currently/"
+entities:
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: Mini-AGI is not an AGI breakthrough, but it is a practical local-AI experiment worth watching because it attacks the part hobbyists usually cannot touch: training a model from scratch on limited VRAM.
+
+## What is Mini-AGI actually claiming?
+
+The primary source here is volotat’s project post, “Show HN: Mini-AGI – Dynamic continual learning model trained on 8GB VRAM,” mirrored in a longer r/LocalLLaMA submission titled “mini-AGI - dynamically grown (530M params currently and growing) continual learning model trained from scratch on 8GB VRAM laptop from batch-1 stream of data.”
+
+The name is doing too much. The idea is more interesting than the label.
+
+volotat says the model is being trained from scratch on an 8GB VRAM laptop, is currently around 530M parameters and growing, and reads a single continuous stream of interleaved passages from a selected 7.8B-character corpus. The training chunks are described as 32K characters each. The weights are not available yet because the run is still ongoing.
+
+The two core tricks are simple to describe and hard to validate. First, a mixture-of-experts setup where experts can be added and pruned during training, with only a small subset active at any moment. Second, batch-1 training over a continuous stream, rather than standard shuffled mini-batches.
+
+That combination aims at a real pain point. Local AI users can run models. They can fine-tune models. But training even a modest 1B-parameter model from scratch is usually outside consumer hardware. Mini-AGI asks whether the constraint can be shifted from VRAM to disk, data order, and time.
+
+![small laptop sending a flowing ribbon of documents into a cluster of modular blocks, with only a few blocks glowing at o](../../assets/blog/2026-09-21-mini-agi-makes-local-training-the-interesting-part/inline-1.webp)
+
+## Why does batch-1 continual training matter?
+
+Most local model work starts after the expensive part is done. You download a base model, adapt it with LoRA or fine-tuning, maybe build a RAG layer, then call it personal.
+
+That is useful, but it is not the same as controlling what the model sees during its whole training life. volotat’s stated motivation is exactly that: full control over the training run, not just a patch on top of corporate pretraining.
+
+Batch-1 continual learning is the provocative part. If a model can learn acceptably from one long stream, the memory requirements change. You do not need to hold large randomized batches and their gradient state in the same way. In theory, that makes training friendlier to small machines.
+
+The catch is that “in theory” is doing a lot of work. Streaming data in order can make models sensitive to sequence effects. Continual learning can forget. Dynamic experts can become messy without clear routing behavior, pruning criteria, and evals. A scaling graph and sample text are not enough to prove the method works beyond a cool run.
+
+The project is still useful because it is testable. The setup is presented as cloneable, the samples are public, and the claim is narrow enough to inspect: can a consumer laptop train a growing language model in this style without collapsing?
+
+## What would make this more than a clever demo?
+
+I would want three things before treating Mini-AGI as more than an experiment.
+
+First, released weights from multiple checkpoints. Not just the final model. Checkpoints would show whether capability improves, plateaus, or degrades as new experts enter and old ones are pruned.
+
+Second, boring evals. Perplexity on held-out text. Simple benchmark comparisons against fixed-size baselines trained on the same data budget. Ablations with and without dynamic experts. The current claim that the scaling graph looks promising is interesting, but not enough.
+
+Third, reproducibility on other laptops and other corpora. A single run can hide lucky data order, implementation quirks, or unreported instability. If several people can train similar models under similar memory limits, then this becomes a pattern.
+
+The Claude detail is also telling. volotat says brainstorming with Claude helped make the project possible. That is not a weakness. It is a preview of how small research projects now get built: one person, a consumer GPU, public code, and an AI coding partner pushing them through unfamiliar implementation territory.
+
+Practitioner’s take: if you build with local models, do not treat Mini-AGI as something to deploy yet. Treat it as a recipe to study. Clone it, watch the memory behavior, inspect the expert routing, and compare its outputs against a tiny conventional baseline trained on the same slice of data. The catch most readers will miss is that the win may not be a better model today. It may be a cheaper experimental loop for people who want to own the training process, not just the prompt.
