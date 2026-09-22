@@ -1,0 +1,102 @@
+---
+title: "Where Harness Self-Improvement Actually Stands in Late 2026"
+description: "Three new arXiv papers map the state of agent harness optimization: regularizing recursive self-improvement, process-level computer-use evaluation, and distilling harness gains into weights. What is settled, what is contested, and what a builder should do now."
+pubDate: 2026-09-22
+tags: ["ai-agents", "agent-evaluation", "benchmarks", "reinforcement-learning", "model-training", "deep-dive"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-22-where-harness-self-improvement-actually-stands-in-late-2026/hero.webp
+  alt: "Where Harness Self-Improvement Actually Stands in Late 2026"
+sources:
+  - title: "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses"
+    url: "http://arxiv.org/abs/2609.24972v1"
+  - title: "OSWorld-Pro: Process-based Evaluation for Computer Use Agents"
+    url: "http://arxiv.org/abs/2609.24890v1"
+  - title: "Harness-Zero: Harness Distillation via Agent-as-Harness"
+    url: "http://arxiv.org/abs/2609.24974v1"
+entities:
+  - name: "Google"
+    sameAs: "https://www.wikidata.org/wiki/Q95"
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: The harness (prompts, tools, control flow, memory) is now treated as a first-class optimization target, and the newest research is less about squeezing bigger in-distribution gains and more about making those gains generalize, survive deployment, and get measured honestly.
+
+For most of 2026 the story around agents has been the same one told louder each month: the model is frozen, so the leverage is in the scaffolding around it. I have written about this enough times that it feels settled ([Prime Agent treats the harness as part of the model](/blog/2026-08-25-prime-agent-treats-the-harness-as-part-of-the-model/), [The Harness Is the Product](/blog/2026-08-07-the-harness-is-the-product-what-harnessopt-bench-actually-measures/)). What is not settled, and what three recent arXiv papers attack from three different angles, is the hard part: getting harness improvements to hold up outside the tasks they were tuned on, proving they happened at all, and keeping the gains when the scaffolding comes off.
+
+This is a good moment to map the whole thing, because these three papers do not compete. They stack.
+
+## What is a harness, and why is everyone optimizing it?
+
+A harness is everything wrapped around the model that is not the model. Prompts, tool definitions, control flow, memory, retrieval, context management, the loop that decides what happens next. The frozen backbone predicts tokens. The harness decides what tokens it sees, what actions those tokens trigger, and what comes back.
+
+The reason this matters commercially: you usually cannot retrain the backbone. You are renting Claude or Gemini or a hosted open model. The one surface you fully control is the harness. So the last year of agent research has converged on automating harness design, iteratively proposing edits (change this prompt, add this tool, restructure this loop), running them against a benchmark, keeping what scores higher. That loop is a form of recursive self-improvement at the system level, which I have tracked through [AI4AI-Bench](/blog/2026-08-21-what-ai4ai-bench-says-about-recursive-self-improvement-right-now/) and the broader [RSI roadmap](/blog/2026-09-11-recursive-self-improvement-has-a-roadmap-now-and-most-of-it-isnt-built/).
+
+The problem with any optimization loop that keeps what scores higher is the oldest problem in machine learning: it will happily overfit. It will memorize the training tasks. And a harness that memorizes a benchmark looks brilliant on that benchmark and mediocre everywhere else.
+
+![a frozen central core surrounded by a shifting, adjustable outer shell that keeps being reshaped](../../assets/blog/2026-09-22-where-harness-self-improvement-actually-stands-in-late-2026/inline-1.webp)
+
+## How do you keep harness self-improvement from overfitting?
+
+This is the question the first paper answers directly. "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses" (Google Research, arXiv cs.AI, code at github.com/google-research/rrsi) makes the overfitting problem explicit and then does something about it.
+
+The authors are blunt about the failure mode: recursive harness evolution "may overfit by memorizing the training tasks, showing large in-distribution gains that shrink or even vanish on out-of-distribution benchmarks." That sentence should be printed on the wall of every team building an agent optimizer, because it describes exactly what a naive eval-driven loop produces. You optimize against a split, the number goes up, you ship, and the number does not follow you into production.
+
+RRSI borrows the oldest idea in statistics, regularization, and applies it to the evolution loop itself. Two constraints. First, the proposer (the part suggesting edits) gets a "temporally annealed budget" that limits how many edits it can bundle into one candidate, and it is nudged toward unexplored trajectories rather than re-mining the same few. Second, the selector gets a critic and a pruner. The critic screens out proposals that are too benchmark-specific. The pruner removes changes that are "too small, too expensive, or no longer useful." Together, the paper argues, these favor "reusable agent mechanisms over benchmark-specific ones or even noises."
+
+The numbers, reported by the authors across eight benchmarks spanning coding, agentic workspace, and engineering design: up to 14.1 points on the split it evolves against, and up to 4.7 points on the five out-of-distribution benchmarks. Two different scales, and that gap is the whole point. In-distribution gains are cheap. The 4.7 points that transfer are the ones you can bank. As a bonus, the regularized harness runs on 30% fewer policy tokens than the unregularized version, because pruning expensive-but-useless edits is also a cost story.
+
+I want to be precise about what this does and does not prove. It shows that regularization narrows the in-distribution-to-out-of-distribution gap. It does not show the gap closes. A 14.1-point in-distribution gain and a 4.7-point out-of-distribution gain still means most of what the loop found does not travel. That is progress on a real problem, not a solved problem. If your team runs a harness optimizer today and reports only the split it trained on, you are reporting the 14.1, not the 4.7, and those are very different products.
+
+## How do you even know why an agent failed?
+
+The second paper attacks a problem you hit before you can optimize anything: measurement. "OSWorld-Pro: Process-based Evaluation for Computer Use Agents" (arXiv cs.AI) points out that most computer-use evaluation only checks the final deliverable after hundreds of steps, scored by a functional verifier. Pass or fail on the end state. No visibility into how or why the agent got there.
+
+The authors give a concrete example of why that is not good enough: an agent that fails on keyboard input needs a different fix from one that fails on click precision on the GUI. End-state scoring collapses both into "failed" and tells you nothing about which one to fix. If you have ever debugged an agent from a red benchmark cell, you know this pain intimately.
+
+OSWorld-Pro is their answer: over 300 tasks broken into over 2,800 subgoals, grounded in over 67,000 human annotations, with what the authors call "robust human-aligned LLM-Judges" scoring whether each subgoal in a sequentially dependent chain got fulfilled. Instead of one bit per task, you get a trace of progress through the task.
+
+The headline result is a useful gut-check on how hard real computer use still is. The authors report that top performers, naming Claude Opus 5, reach only 75.7% on OSWorld-Pro versus 83.4% on OSWorld. The process-based framing is harder because it demands the agent actually complete the intermediate steps, not just stumble into a passing end state. And the paper surfaces specific failure modes, "subgoal-irrelevant actions and click-based mistakes," that a final-state verifier would have hidden entirely.
+
+![a long chain of connected checkpoints, some lit and some dark, versus a single lit endpoint](../../assets/blog/2026-09-22-where-harness-self-improvement-actually-stands-in-late-2026/inline-2.webp)
+
+I flag two things. First, the Claude Opus 5 number comes from the OSWorld-Pro authors' own evaluation, so treat it as their reported result on their benchmark, not an independent audit. Second, the judging is done by LLM judges the authors describe as human-aligned. That is a reasonable choice at this scale, but it means the scores inherit whatever bias the judge has. "Human-aligned" is a claim, not a guarantee, and the 67,000 annotations are how they back it up. The direction is right: process-level evaluation is what harness optimization has needed all along. You cannot regularize toward reusable mechanisms if your eval only sees the last step. This is the same gap I hit writing about [the one-shot trap in agent optimization](/blog/2026-07-16-the-one-shot-trap-in-agent-optimization/), where a single end-state score hides everything that actually determines whether a harness generalizes.
+
+## Can you keep the harness gains without the harness?
+
+The third paper asks the most economically interesting question of the three. If a specialized harness makes your agent better, you now have to ship and maintain that harness forever, or route between a growing zoo of specialized ones. "Harness-Zero: Harness Distillation via Agent-as-Harness" (arXiv cs.AI) proposes cutting that dependency by moving the harness-induced behavior into the model weights.
+
+The framing is clean. The best harness varies across domains, instances, and models, so a general-purpose agent either settles for a suboptimal shared harness or maintains a pile of specialized ones. Harness distillation is the escape: use an optimized harness as training-time guidance, transfer the behaviors it induces into weights, and then remove the specialized harness at deployment behind a single fixed target harness.
+
+The technical obstacle they name is real: the optimized harness and the target harness differ in action space and available information, so you cannot use guidance from one directly as supervision for the other. Their fix is "agent-as-harness," where a harnessing agent corrects student responses before execution in the target harness's action space, turning guidance into usable training demonstrations. Fine-tune on those trajectories, internalize the behavior, drop the scaffolding.
+
+The results, as the authors report them, are the part that made me sit up. Across knowledge work, tool use, and science domains: with the specialized harness removed at deployment, Harness-Zero improves the base model's macro-average task success from 23.3% to 44.3%, and that 44.3% exceeds the 41.7% the model reaches with the specialized harness still attached. Read that again. The distilled model with no special harness beat the same model running with the special harness. They also report 82.3% average recovery across 28 behavior patterns the base model did not exhibit on its own.
+
+If that holds up under replication, it inverts a year of "the harness is the product" thinking, or rather completes it. The harness is the product during training. At deployment, the product is the weights that absorbed it. That is the same throughline I chased in [ScienceBuddy and the case for training the harness before the model](/blog/2026-09-16-sciencebuddy-and-the-case-for-training-the-harness-before-the-model/): the harness is a teacher, and once the student has learned the lesson, the teacher can leave the room.
+
+The caveat is who gets to do this. Distilling into weights requires fine-tuning the backbone. If you are renting a frontier model through an API, you cannot run Harness-Zero on it. This is a technique for people who own or can fine-tune their model, which is a much smaller set of operators than the set who can tune a harness. So the three papers split cleanly by who they serve: RRSI and OSWorld-Pro help anyone with a harness and an API key; Harness-Zero helps whoever controls the weights.
+
+## Where do these three papers agree, and where do they diverge?
+
+They agree on the premise completely. The harness is a real capability multiplier, harness optimization is a form of recursive self-improvement, and the naive version of that loop overfits and hides its failures. All three treat the harness as a serious engineering surface rather than prompt-tweaking, which is the shift the field has made over the past year.
+
+They diverge on where the fix lives. RRSI keeps the harness and disciplines the search that produces it, betting that better regularization yields harnesses that travel. OSWorld-Pro says the search is only as good as the signal feeding it and rebuilds the measurement layer so the signal is process-level, not end-state. Harness-Zero says the harness itself is a deployment liability and moves the gains into weights so the scaffolding can be discarded.
+
+Put them in sequence and they form a pipeline nobody has assembled end-to-end yet. Measure at the process level (OSWorld-Pro-style), so your optimizer sees why things fail. Optimize with regularization (RRSI-style), so what it finds generalizes instead of memorizing. Then, if you own the model, distill the winning harness into weights (Harness-Zero-style), so you ship a clean deployment. That is a coherent stack, and the fact that three independent groups filled three adjacent gaps in the same window tells you the field has stopped arguing about whether the harness matters and started arguing about how to do it responsibly.
+
+![three separate tools converging into a single assembly line from measurement to search to a finished sealed unit](../../assets/blog/2026-09-22-where-harness-self-improvement-actually-stands-in-late-2026/inline-3.webp)
+
+Where they leave real uncertainty: none of them proves a harness that fully generalizes. RRSI narrows the gap but the out-of-distribution gains are a fraction of the in-distribution ones. OSWorld-Pro's LLM judges are human-aligned by claim and annotation, not by construction. Harness-Zero's headline inversion is one paper's result on its own domains and needs replication before anyone treats "distilled beats attached" as a law. This connects to the broader question of whether agents can run their own research loops at all, which a recent interpretability benchmark answered with a flat [not yet](/blog/2026-09-09-can-ai-agents-do-their-own-interpretability-research-a-new-benchmark-says-not/). The tooling is maturing faster than the autonomy.
+
+## What should a builder do with this right now?
+
+If you run an agent in production, the immediate lesson is a discipline change, not a new dependency. Stop trusting a single end-state score from the tasks you optimized against. That number is the 14.1, the flattering in-distribution figure. Hold out a set of tasks your harness never saw and report the gain there. If you can, score at the subgoal level so you know whether your failures are keyboard-style or click-style or reasoning-style, because those need different fixes and an aggregate pass rate hides all three.
+
+If you run a harness optimizer, add the RRSI constraints even in a crude form. Cap how many edits a candidate bundles. Prune changes that are expensive or barely move the needle. Screen out edits that only help one benchmark. You do not need Google's exact implementation to get the intuition: reward reusable mechanisms, punish memorization, and the 30%-fewer-tokens side effect is a genuine cost win on its own.
+
+If you own or can fine-tune your model, Harness-Zero is the one to watch and pilot, because it is the only path here that removes a permanent deployment dependency instead of managing one. The catch most readers will miss is the ordering. Distillation only pays off if the harness you distill actually generalizes, which means you have to solve the RRSI problem and the OSWorld-Pro measurement problem first. Distilling an overfit harness into your weights just bakes the overfitting in permanently, which is strictly worse than a harness you can swap out. Memory that adapts, like [Recuris rewriting itself](/blog/2026-08-26-recuris-and-the-case-for-memory-that-rewrites-itself/), and distillation that freezes behavior are opposite bets, and you want the frozen one only for the parts you are confident travel.
+
+The forward judgment no single paper gives you: the next twelve months of agent work will be won on generalization and measurement, not on raw benchmark peaks. The teams that quietly build process-level evals and regularized optimizers will ship agents that actually hold up in production, while the teams chasing the biggest in-distribution number will keep shipping demos that crater on contact with real tasks. The harness era is not ending. It is growing up.

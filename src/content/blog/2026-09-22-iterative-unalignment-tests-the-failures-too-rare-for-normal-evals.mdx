@@ -1,0 +1,58 @@
+---
+title: "Iterative unalignment tests the failures too rare for normal evals"
+description: "Namkoong Lab’s arXiv paper reframes agent safety evals around probability estimation, not anecdote hunting, with an importance sampling method that makes extremely rare model trajectories cheaper to measure."
+pubDate: 2026-09-22
+tags: ["agent-evaluation", "model-reliability", "ai-safety", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-22-iterative-unalignment-tests-the-failures-too-rare-for-normal-evals/hero.webp
+  alt: "Iterative unalignment tests the failures too rare for normal evals"
+sources:
+  - title: "Rare Event Estimation via Iterative Unalignment"
+    url: "http://arxiv.org/abs/2609.24969v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Rare agent failures need probability estimates, not just red-team examples, and iterative unalignment is a promising way to measure risks that normal sampling will almost never find.
+
+## What problem is iterative unalignment trying to solve?
+
+The primary source here is Namkoong Lab’s arXiv paper, “Rare Event Estimation via Iterative Unalignment,” with implementation available at `https://github.com/namkoong-lab/iterative-unalignment`.
+
+The paper starts from a practical safety problem: autonomous agents do not fail only because a prompt is malicious or a tool is misconfigured. They can fail because stochastic generation takes a weird path. One token nudges the next. A harmless-looking decision changes the context. A later step compounds it. Eventually the agent does the bad thing.
+
+That matters because “can it happen?” is the wrong question for deployment. Almost anything can happen if you sample long enough. The better question is “how often does it happen under the model’s own randomness?”
+
+Naive Monte Carlo is the obvious baseline. Run the agent a huge number of times, count failures, estimate the rate. But for events at probabilities like 10^-7 or 10^-9, that becomes silly fast. You may need enormous compute just to see the event once, much less estimate its probability with useful confidence.
+
+Namkoong Lab frames the search space as a combinatorial mess of possible trajectories. The hard part is not just finding one bad trajectory. It is estimating the probability mass of a whole rare-event region without distorting the measurement beyond recognition.
+
+## Why perturb the model instead of just sampling more?
+
+The method is an importance sampling approach. Instead of sampling from the original model and waiting forever, iterative unalignment builds a proposal model that makes the rare event more likely. Then it corrects for that distortion so the final estimate still refers back to the original model.
+
+The interesting move is how the proposal is built. Namkoong Lab perturbs the original model’s weights, turning the proposal itself into a differentiably parameterized language model. That allows gradient-based search over weight space. The paper combines a differentiable surrogate that amplifies the event with adaptive regularization that tries to keep the estimator stable.
+
+In plain English: make a nearby version of the model that is more likely to walk into the failure, but do not let it drift so far away that the math stops telling you anything about the original model.
+
+![one model branching into many faint paths, with a nearby shadow model guiding more paths toward a small dangerous region](../../assets/blog/2026-09-22-iterative-unalignment-tests-the-failures-too-rare-for-normal-evals/inline-1.webp)
+
+That is the part I like. A lot of AI safety eval work still acts like failure discovery is enough. It is not. A red-team transcript proves existence. It does not tell an operator whether the failure is one-in-a-thousand, one-in-a-billion, or only reachable under a contrived harness.
+
+The paper reports evaluations on roughly 120M and 2.6B parameter models, across three event families covering more than 300 rare events, including probabilities as low as 10^-9. In the most verifiable settings, Namkoong Lab reports over 800x compute-weighted efficiency gains over naive Monte Carlo for events below 10^-7, with reference probabilities computed under 10% relative standard error.
+
+That is a meaningful receipt. It is also not a blanket claim that this solves rare catastrophic behavior in frontier agents. The evaluated models are small by current production standards, and the event families are controlled enough to verify. That is the right place to start, but it is still a gap from messy tool-using agents in production.
+
+## What does this change for agent evals?
+
+It points evals toward measurement, not theater.
+
+A good agent eval stack should have at least three layers. First, ordinary regression tests: does the agent complete expected tasks? Second, adversarial tests: can we elicit bad behavior? Third, probability estimation: how likely are rare failures under realistic stochastic runs?
+
+Most teams barely have the first two. The third is usually waved away because it is too expensive. Iterative unalignment is useful because it attacks that cost problem directly.
+
+The catch is that importance sampling is not magic. If the proposal distribution is poorly chosen, you can get unstable estimates or false confidence. The paper’s adaptive regularization is aimed at that problem, but builders should still treat the method as an estimation tool that needs calibration, reference checks, and domain-specific event definitions.
+
+For a builder, the practical move is simple: define the rare event you actually care about before you ship. Not “bad output.” Something concrete, like an agent sending an external message without required approval, calling a destructive tool after ambiguous instructions, or persisting sensitive data into memory. Then run normal sampling until it becomes wasteful, and use methods like iterative unalignment to estimate the tail. The catch most readers miss: the hard work is not the estimator. It is writing a failure condition precise enough that the estimator has something real to measure.

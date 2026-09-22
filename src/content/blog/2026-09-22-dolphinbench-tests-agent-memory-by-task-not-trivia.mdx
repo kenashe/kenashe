@@ -1,0 +1,64 @@
+---
+title: "DolphinBench Tests Agent Memory by Task, Not Trivia"
+description: "A new benchmark grades agent memory on whether the agent finishes real knowledge-work tasks, and forces every score to report cost and latency alongside accuracy, which changes how you should read memory claims."
+pubDate: 2026-09-22
+tags: ["agent-memory", "benchmarks", "ai-agents", "agent-evaluation", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-22-dolphinbench-tests-agent-memory-by-task-not-trivia/hero.webp
+  alt: "DolphinBench Tests Agent Memory by Task, Not Trivia"
+sources:
+  - title: "DolphinBench: Mapping the Pareto Frontier of Agent Memory"
+    url: "http://arxiv.org/abs/2609.24971v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: DolphinBench grades agent memory by whether the agent actually completes a task that depends on buried history, and it requires cost and latency reported next to accuracy, which exposes the memory systems that buy their scores with brute force.
+
+Most memory benchmarks have a tell. The question announces that a fact needs retrieving, and often hints which fact. That is not how memory works in real use. When you ask your assistant to "draft the follow-up email," you do not add "and recall that the client mentioned a Q3 budget freeze in message 214." The agent has to know that the freeze matters without being told to look for it. DolphinBench, published on arXiv under the title "DolphinBench: Mapping the Pareto Frontier of Agent Memory," is built around exactly that gap.
+
+## What does DolphinBench actually measure?
+
+Three things at once, which is the point.
+
+First, it measures memory through task completion, not through direct recall questions. The benchmark builds three knowledge-work personas, each with roughly 500k tokens of user messages as history. Then it runs the agent on tasks that depend on information buried in that history. Success means finishing the task correctly. There is no "what did the user say about X" prompt that flags the retrieval for you.
+
+Second, it verifies that each task genuinely depends on memory. The authors ran every task twice: once with the relevant history available, once without. A task only counts if the agent succeeds with the history and fails without it. That is a clean control. It rules out tasks the model could guess from priors or general knowledge, which quietly inflate a lot of retrieval benchmarks. Two hundred tasks per persona survive that filter.
+
+Third, and this is the part I care about most, it requires every submission to report total cost and latency alongside accuracy. No existing memory benchmark, the authors say, combines all three.
+
+![a single spotlit fact hidden inside a dense stream of many messages, one thread traced through to a completed piece of w](../../assets/blog/2026-09-22-dolphinbench-tests-agent-memory-by-task-not-trivia/inline-1.webp)
+
+## Why does the cost-and-latency requirement matter so much?
+
+Because accuracy alone is a rigged game for memory systems.
+
+If your only score is accuracy, the winning move is obvious: stuff more context, run more retrieval passes, re-rank with a bigger model, summarize and re-summarize. You can push accuracy up almost arbitrarily if you are allowed to spend arbitrary money and time. That produces leaderboard numbers that fall apart the moment someone tries to run the system in production at scale.
+
+The "Pareto frontier" in the title is the honest framing. There is no single best memory system. There is a curve. Some systems are cheap and fast but forget things. Some are accurate but slow and expensive. The useful question is not "which system is most accurate" but "at the cost and latency I can afford, which system is best." A benchmark that forces all three metrics into the open lets you actually see that curve instead of one cherry-picked point on it.
+
+I have watched this pattern play out in retrieval-augmented setups over and over. A demo hits impressive recall, then the bill arrives and the p95 latency makes the feature unusable in a live chat. DolphinBench is designed to make that tradeoff visible before you build on it.
+
+![a curved frontier where each point trades speed and expense against reliability, with clearly better and clearly worse r](../../assets/blog/2026-09-22-dolphinbench-tests-agent-memory-by-task-not-trivia/inline-2.webp)
+
+## How is this different from long-context and RAG evals?
+
+The obvious objection: we already have needle-in-a-haystack tests and long-context benchmarks. Why another one?
+
+Needle tests plant a distinctive fact in a wall of filler and ask you to find it. The fact is designed to stand out, and the question points right at it. That measures raw retrieval capacity under ideal conditions. It does not measure whether an agent, mid-task, decides on its own that some old message is relevant and pulls it in correctly.
+
+DolphinBench is closer to how memory fails in real agents. The relevant information is not a distinctive needle, it is one of many plausible-looking user messages across 500k tokens. The agent is not told to retrieve. It has to complete a task and, in doing so, surface the right context without prompting. That tests the whole loop: deciding what matters, retrieving it, and using it correctly, all judged by the end result.
+
+It is also a memory-system benchmark, not just a model benchmark. You can plug in different memory architectures behind the same model, external stores, summarization pipelines, vector retrieval, full context windows, and compare them on the same tasks with the same three metrics. That is what the field has been missing. We have plenty of ways to compare models and very few clean ways to compare the memory scaffolding around them.
+
+One honest caveat: the abstract is what the sources give us. It describes the design, the three personas, the 200 verified tasks each, and the three-metric requirement. It does not, in the material I have, publish a leaderboard of which memory systems land where on the frontier. The dataset and evaluation code are posted at dolphinbench.ai, so the results will follow from whoever runs it. Treat the framework as the contribution here, and check the actual numbers yourself before quoting any system as the winner.
+
+## Practitioner's take
+
+If you are building an agent with memory, stop reporting accuracy in isolation. That is the single habit DolphinBench should change. Start logging cost per task and p95 latency next to your success rate, and plot all three. You will almost certainly find your "best" retrieval config is sitting somewhere expensive on the frontier that you would never actually ship.
+
+Concrete first move: take the verification trick and use it on your own eval set. For every task you think depends on memory, run it once with the relevant history and once without. If the agent passes both, that task is not testing memory, it is testing priors, and it is inflating your score. That check costs you a second run and it will clean up your evals immediately.
+
+The catch most readers will miss is that a memory system's right answer depends on your budget, not on some universal best. A support bot answering thousands of queries an hour needs a different point on the curve than an internal research agent that runs a few times a day and can afford to think. DolphinBench does not pick for you. It just makes sure you are picking with all three numbers in front of you, which is more than most teams do today.
