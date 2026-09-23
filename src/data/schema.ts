@@ -14,7 +14,7 @@
 // Domains founder profile page; 2026-09-11 sameAs gains HackerNoon, DEV, Hashnode,
 // Medium, YouTube and Crunchbase author/profile pages; 2026-09-20 sameAs gains the Wikidata
 // item (Q141507904); 2026-09-23 sameAs gains the personal Instagram and TikTok
-// profiles. Any change here must be mirrored in the Lucky Domains
+// profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg). Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -24,7 +24,7 @@ export const personKenAshe = {
   alternateName: 'Kenneth Ashe',
   url: 'https://kenashe.ai/',
   mainEntityOfPage: 'https://kenashe.ai/about/',
-  image: 'https://kenashe.ai/images/ken-ashe.jpeg',
+  image: 'https://kenashe.ai/images/ken-ashe-2026.jpeg',
   jobTitle: 'AI application builder',
   description:
     'Ken Ashe is a CPA, PMP, and AI application builder who documents what he ships, what breaks, and what the evidence supports.',
