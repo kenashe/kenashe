@@ -1,0 +1,52 @@
+---
+title: "CliffCompaction makes long coding runs cheaper by refusing to summarize"
+description: "CliffCompaction points to a useful pattern for coding agents: preserve original context by trimming and dropping, not rewriting, so long-running agents can scale test-time work without compounding summary drift."
+pubDate: 2026-09-23
+tags: ["coding-agents", "agent-memory", "benchmarks", "inference", "ai-workflows", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-23-cliffcompaction-makes-long-coding-runs-cheaper-by-refusing-to-summarize/hero.webp
+  alt: "CliffCompaction makes long coding runs cheaper by refusing to summarize"
+sources:
+  - title: "CliffCompaction: Cost-Efficient Compaction for Long-Horizon Coding Agents"
+    url: "http://arxiv.org/abs/2609.26779v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: CliffCompaction’s useful idea is simple: for long coding-agent runs, faithful deletion can beat clever summarization because it cuts cost without adding another layer of model-invented drift.
+
+## What problem is CliffCompaction actually solving?
+
+The primary source here is the arXiv paper titled “CliffCompaction: Cost-Efficient Compaction for Long-Horizon Coding Agents.” It targets a very real pain point in coding agents: long tasks blow through context.
+
+That is not just a “bigger context window will fix it” issue. Serious agent runs produce logs, plans, tool outputs, tests, stack traces, edits, failed attempts, and partial discoveries. Over many sessions, that history can reach millions of tokens. If the agent has to keep paying to reread the whole thing, test-time scaling gets expensive fast. If the agent summarizes aggressively, it may save money while quietly corrupting the state it needs to solve the task.
+
+CliffCompaction sits in that tradeoff. The reported trick is not a smarter summary. It is stricter than that: compacted context is created only by truncating or dropping original content, never rephrasing or rewriting it. The paper also reports that it never compacts a prior compaction. Each pass returns to original content, and previous compacted output is discarded.
+
+That sounds boring. It is not. It is a design stance: memory for agents should often be lossy by omission, not lossy by reinterpretation.
+
+![a long messy trail of coding artifacts being narrowed through selective pruning into a smaller clean path, with a separa](../../assets/blog/2026-09-23-cliffcompaction-makes-long-coding-runs-cheaper-by-refusing-to-summarize/inline-1.webp)
+
+## Why does refusing to rewrite matter?
+
+Summaries are seductive because they feel like compression with intelligence. But agent summaries are also a place where errors become infrastructure. A slightly wrong summary of a failing test, a misremembered API constraint, or a softened warning from a previous tool call can steer the next 50 actions.
+
+CliffCompaction’s claim is that deletion is safer. If something survives compaction, it remains exact. If something is removed, the agent loses it, but it does not inherit a paraphrased version that looks authoritative and is wrong.
+
+The paper reports up to 50% lower cost under a bounded context while maintaining or improving performance on Terminal-Bench. It also reports more than 10 percentage points added on Terminal-Bench for less than the cost of two full-context runs when used for test-time scaling. On KernelBench, CliffCompaction reportedly reaches CUDA kernel speedups of 2.23x after 200 steps and 3.58x after 400 steps.
+
+Those are strong numbers. They are still benchmark numbers. Terminal-Bench and KernelBench are useful because they punish weak agent loops, but they are not your production repo, your flaky CI, your private framework, or your company’s messy migration branch. I would treat the headline as directional: context management can be a first-order performance and cost variable, not just plumbing.
+
+## Where does this fit in the coding-agent stack?
+
+The most interesting implementation detail is that CliffCompaction is described as scaffold-agnostic API-proxy infrastructure usable with Claude Code, Codex, and other harnesses. That matters because many teams do not want a new agent. They want their existing agent to stop wasting money rereading junk.
+
+This is also where the comparison claims get interesting. The paper reports that under parallel test-time scaling, CliffCompaction lets Kimi K2.6 match Opus 4.7, and exceed Opus 4.6 and GPT-5.3 Codex at lower cost. I would not turn that into a model-ranking bumper sticker. The practical point is narrower: cheaper rollouts change the math. If compaction cuts the cost per attempt, you can afford more attempts, more branches, and more verification before selecting a final answer.
+
+That is the operator angle. Better context hygiene can make weaker or cheaper models more competitive in a specific harness. It can also make premium models less wasteful. Either way, the gain comes from the system around the model, not magic inside the model.
+
+Practically, I would test CliffCompaction-style behavior on one painful coding workflow: long bug hunts, benchmark optimization, migration work, or agentic refactors with repeated test runs. Log full context cost, pass rate, number of rollouts, and failure causes with and without compaction. The catch most readers will miss: do not evaluate only whether the final answer passes. Inspect what got dropped. Faithful compaction is still lossy, and the win depends on whether your agent can lose the right things.
