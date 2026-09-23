@@ -13,7 +13,8 @@
 // contact, sameAs incl. PMI; Substack dropped); 2026-09-10 sameAs gains the Lucky
 // Domains founder profile page; 2026-09-11 sameAs gains HackerNoon, DEV, Hashnode,
 // Medium, YouTube and Crunchbase author/profile pages; 2026-09-20 sameAs gains the Wikidata
-// item (Q141507904). Any change here must be mirrored in the Lucky Domains
+// item (Q141507904); 2026-09-23 sameAs gains the personal Facebook, Instagram and TikTok
+// profiles. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -75,6 +76,9 @@ export const personKenAshe = {
     'https://www.crunchbase.com/person/ken-ashe-42ad',
     'https://luckydomains.io/founder/ken-ashe/',
     'https://www.wikidata.org/wiki/Q141507904',
+    'https://www.facebook.com/kenashe',
+    'https://www.instagram.com/ken.ashe/',
+    'https://www.tiktok.com/@ken.ashe',
   ],
   affiliation: {
     '@type': 'Organization',
