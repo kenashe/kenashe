@@ -1,0 +1,58 @@
+---
+title: "Translation Fine-Tuning Breaks the Controls General Evals Miss"
+description: "An arXiv translation fine-tuning paper shows a practical trap for builders: preserving general benchmark scores does not mean a tuned model still follows domain-specific instructions like formality, gender, or length control."
+pubDate: 2026-09-24
+tags: ["fine-tuning", "evals", "model-reliability", "language-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-24-translation-fine-tuning-breaks-the-controls-general-evals-miss/hero.webp
+  alt: "Translation Fine-Tuning Breaks the Controls General Evals Miss"
+sources:
+  - title: "Fine-Tuning LLMs for Translation: General Forgetting Mitigation Does Not Preserve MT-Specific Instruction Following"
+    url: "http://arxiv.org/abs/2609.28395v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you fine-tune an LLM for translation, general capability retention is not enough, you need evals for the exact translation controls your product depends on.
+
+## What actually breaks when you tune for translation?
+
+The primary source here is the arXiv cs.CL/cs.LG paper titled “Fine-Tuning LLMs for Translation: General Forgetting Mitigation Does Not Preserve MT-Specific Instruction Following.” The title is doing a lot of useful work. The paper is not just asking whether translation quality improves after fine-tuning. It asks whether the model still obeys translation-specific instructions after that tuning.
+
+That distinction matters.
+
+Machine translation is not one task in production. A user might ask for Spanish in a formal register. Or Arabic with a specific grammatical gender. Or a shorter translation that keeps the meaning but fits a UI slot. The paper calls these MT-specific instruction-following tasks, or MT-IF: formality, grammatical gender, and length control.
+
+A normal fine-tune on parallel data can improve translation quality while damaging other behavior. That part is familiar catastrophic forgetting. The less obvious finding is sharper: the methods that protect general benchmarks do not necessarily protect the translation controls.
+
+The paper reports a two-stage setup. First, a screening study using Llama 3.2 1B Instruct. Then experiments on Llama 3.1 8B Instruct fine-tuned on bidirectional Arabic-English or Spanish-English data. The mitigation methods fall into three buckets: anchored to auxiliary data, anchored to model outputs, and anchored to base model parameters.
+
+Elastic Weight Consolidation, or EWC, did the best job preserving general capabilities in both stages. On the 8B Spanish model, the average score on general benchmarks dropped 1.7 points with EWC, versus 11.0 points for standard fine-tuning. That looks like a win if your dashboard is mostly general retention.
+
+But the paper reports that EWC’s formality and grammatical gender control scores stayed close to standard fine-tuning. In other words, protecting broad capabilities did not solve the product-specific instruction problem.
+
+![two diverging paths from one tuned model, one preserving broad ability and one losing fine-grained control](../../assets/blog/2026-09-24-translation-fine-tuning-breaks-the-controls-general-evals-miss/inline-1.webp)
+
+## Why don’t general forgetting fixes solve this?
+
+General benchmarks are useful, but they are blunt instruments. They tell you whether the model still has broad language, reasoning, or instruction-following ability. They do not tell you whether it can obey a narrow constraint inside a domain workflow.
+
+Translation controls are especially easy to under-test because the output can look fine at a glance. A fluent translation may still fail the user’s instruction. The formality may be wrong. The gender agreement may not match the prompt. The answer may be too long for the interface. These failures are not always obvious unless the eval is built to catch them.
+
+The paper’s most practical result is that data mixing with control-task examples was the only method that preserved these controls. That sounds like the fix: add examples of the behavior you care about.
+
+Then comes the catch. The gains did not transfer to unseen prompts for the same task.
+
+That is the part I would circle for any team fine-tuning a model. You can train on examples of “make this formal” and improve on similar prompts, but that does not mean the model has learned the broader control concept in a reliable way. It may have learned the surface pattern of your control data.
+
+## What should builders change in their fine-tuning workflow?
+
+The lesson is not “don’t fine-tune.” Translation fine-tuning still has a clear place, especially for language pairs, terminology, tone, and domain text. The lesson is that retention evals need to match the job.
+
+If the product depends on controllable translation, the eval suite should include the controls directly. Not as a side experiment. As release-blocking checks. Test formality. Test gender. Test length. Test terminology. Test target locale. Test prompt variations that were not in the fine-tuning data. Use native reviewers or automated checks where they are valid, but do not pretend BLEU-style or general benchmark movement answers the whole question.
+
+I also would not treat EWC as a product-level answer by itself. The paper reports that it preserves general capability better than standard fine-tuning in this setup, which is useful. But if your customer-facing promise is “translate this into formal Spanish under 120 characters,” general retention is only table stakes.
+
+Practitioner’s take: build two eval lanes before the fine-tune starts. One lane checks general regression, the other checks the domain controls users actually ask for. Add control-task examples to training, but hold out paraphrased instructions and new content so you can see whether the model learned the control or memorized the pattern. The catch most teams miss is that a model can look “not forgotten” on broad tests while quietly losing the exact behavior that made the fine-tune worth shipping.
