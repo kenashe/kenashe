@@ -1,0 +1,58 @@
+---
+title: "Conspiracy Detection Needs Context, Not Just Better Keywords"
+description: "An arXiv paper on Hebrew tweets argues that conspiracy detection is an intent problem: the same sentence can endorse, mock, question, or debunk a claim, and agentic context gathering beats text-only classification."
+pubDate: 2026-09-25
+tags: ["ai-agents", "agent-evaluation", "model-reliability", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-25-conspiracy-detection-needs-context-not-just-better-keywords/hero.webp
+  alt: "Conspiracy Detection Needs Context, Not Just Better Keywords"
+sources:
+  - title: "Agentic Detection of Online Conspiracies"
+    url: "http://arxiv.org/abs/2609.30250v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The useful lesson from agentic conspiracy detection is not “use agents everywhere,” it is “use agents when the model must decide which context matters before it can judge the text.”
+
+## Why is conspiracy detection harder than keyword spotting?
+
+The primary source here is the arXiv paper titled “Agentic Detection of Online Conspiracies,” posted under cs.CL and cs.LG. The supplied arXiv material does not include author names or an arXiv ID, so I will not invent either.
+
+The paper’s core point is simple and important: conspiracy talk online is often not visible in the sentence alone.
+
+A post can repeat a conspiracy claim to endorse it. Or to ridicule it. Or to warn others about it. Or to ask a sincere question. Or to quote someone else. Same surface text, different force. The paper uses the linguistic idea of “illocutionary force,” meaning what the speaker is doing with the utterance, not just what words appear in it.
+
+That matters because many detection systems still behave like upgraded keyword filters. They classify the post as a standalone object. Maybe with a larger model. Maybe with embeddings. Maybe with a longer prompt. But the real question is social: who is speaking, in what thread, in response to whom, with what prior pattern?
+
+The arXiv paper tests this on Hebrew tweets, using a dataset that covers 80% to 90% of public Hebrew tweets from late 2018 through early 2023. That window includes election cycles, COVID, and vaccination campaigns, which are exactly the kinds of moments where conspiracy language gets messy. The researchers evaluate on a manually annotated adversarial dataset, which is the right instinct. Easy examples make classifiers look smarter than they are.
+
+## What did the agent actually add?
+
+The interesting result is not just that context helped. The paper reports that context-aware workflows consistently beat text-only classification. Fine. Expected.
+
+The sharper claim is that the agentic framework performed significantly better than a non-agentic model that had access to the same contexts. That is the part worth paying attention to.
+
+The difference is not “more data.” It is adaptive retrieval. The agent has tools for social queries and decides, per case, what evidence to ask for next. It does not blindly stuff every possible context into the prompt. It asks for context relevant to its current uncertainty.
+
+That is a practical pattern.
+
+If a post looks ambiguous, check the thread. If the thread is still ambiguous, check the author’s history. If the author history suggests satire, look for interaction patterns. If the account regularly promotes the claim, treat the same text differently. The agent is not magical. It is doing casework.
+
+![an ambiguous social post in the center with branching paths to surrounding context signals that converge into one carefu](../../assets/blog/2026-09-25-conspiracy-detection-needs-context-not-just-better-keywords/inline-1.webp)
+
+This also explains the token economy angle. Context is not free. Long prompts cost money, add latency, and can confuse the model. A system that asks targeted questions can beat a system that shovels everything into the context window. That is the useful version of agentic AI: not autonomy cosplay, but selective evidence gathering.
+
+## Where does this break in the real world?
+
+I like the framing, but I would be careful applying it outside the tested setting.
+
+The paper’s supplied summary does not give effect sizes, error rates, or operational thresholds. “Significantly better” is meaningful in research terms, but a trust and safety team still needs to know false positive rates, appeals workflows, and what happens across languages, slang shifts, and coordinated campaigns.
+
+There is also a policy problem. Detecting conspiratorial endorsement is not the same as deciding what to do about it. A classifier can help rank, review, cluster, or study discourse. It should not become a silent punishment machine. Intent labels are sensitive. Satire, criticism, and reporting are exactly where automated systems tend to overreach.
+
+The privacy angle is real too. Social context improves judgment because it uses more of a person’s surrounding behavior. That may be justified for public platform analysis, but builders should still minimize collection, log tool calls, and keep the evidence trail inspectable. If the model says “this is endorsement,” a human reviewer should be able to see why.
+
+For builders, the takeaway is to design the agent around uncertainty. Start with a text-only classifier, then add tool calls only when confidence is low or the label has high consequence. Give the agent narrow tools: fetch parent thread, fetch prior posts, fetch linked content, fetch nearby replies. Evaluate against adversarial examples, not clean demos. The catch most teams miss: the hard part is not building the agent loop. It is defining which context is legitimate evidence, and proving that the extra context improves decisions without turning every ambiguous post into a surveillance project.

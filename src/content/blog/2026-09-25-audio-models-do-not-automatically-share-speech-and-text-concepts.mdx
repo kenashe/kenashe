@@ -1,0 +1,62 @@
+---
+title: "Audio models do not automatically share speech and text concepts"
+description: "A paper on audio language models finds that a shared decoder does not mean speech and text use the same internal directions for phonetic features, which matters for builders shipping voice systems."
+pubDate: 2026-09-25
+tags: ["multimodal-ai", "interpretability", "model-reliability", "language-models", "qwen"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-25-audio-models-do-not-automatically-share-speech-and-text-concepts/hero.webp
+  alt: "Audio models do not automatically share speech and text concepts"
+sources:
+  - title: "Do Audio Language Models Hear and Read Distinctive Features Alike?"
+    url: "http://arxiv.org/abs/2609.30167v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A shared decoder is not proof that an audio language model represents speech and text the same way, so voice builders should test audio and text behavior as separate systems until shown otherwise.
+
+## Do audio language models hear and read the same features?
+
+The primary source here is the arXiv cs.CL and cs.LG paper titled “Do Audio Language Models Hear and Read Distinctive Features Alike?” It asks a clean question with practical stakes: when a model can process both spoken audio and written text through one decoder, does that decoder represent the same phonetic feature in the same internal direction?
+
+That sounds abstract. It is not.
+
+If a model treats a sound distinction similarly across audio and text, then developers get a better case for unified behavior. You might expect text prompts, transcript-based tests, and audio interactions to line up. If not, a voice assistant can look fine in text evals and still behave differently when the same content arrives as speech.
+
+The paper looks at distinctive phonetic features, using minimal phoneme pairs that differ by one feature. For each pair, it measures the offset between mean representations, averages those offsets into a feature direction for audio and text, then compares the directions using cosine similarity.
+
+The important methodological move: the comparison is not against zero. The researchers build a reference from random pairings, because the two streams already agree about arbitrary phoneme pairs to some degree. That matters. Without that reference, it would be easy to overread weak alignment as meaningful alignment.
+
+Across 6 models, 7 features, and 15 languages from 11 language families, the result is narrow. Only voicing in the two Qwen2.5-Omni models exceeds the reference after correction for multiple testing.
+
+Not “audio and text mostly share phonetics.” Not “multimodal decoders learn a universal sound-text space.” Just one feature, in one model family, surviving a stricter test.
+
+![two separate streams entering one shared chamber, with only one narrow bridge clearly connecting matching internal shape](../../assets/blog/2026-09-25-audio-models-do-not-automatically-share-speech-and-text-concepts/inline-1.webp)
+
+## Why does the baseline change the story?
+
+The paper’s baseline is the part I keep coming back to.
+
+The reference varies by a factor of seven between models. That means raw cosine similarity is a shaky headline number here. One model may look more aligned than another because its general audio-text representations have a higher background similarity, not because it has actually learned the same phonetic feature in both streams.
+
+This is a familiar pattern in AI evals. A model can score well for the wrong reason. A metric can look intuitive and still hide the real comparison. The paper’s random-pair reference is a reminder to ask, “Better than what?”
+
+There is also a useful split between speech-only structure and speech-text alignment. In three of the six models, voicing has one direction in audio across the 14 languages with enough minimal pairs to measure it. In two of those models, every language pair agrees. So some models do learn a consistent audio representation for voicing across languages.
+
+But that does not automatically transfer to text.
+
+That distinction is easy to miss. A model can have a coherent speech representation and still not map it onto the same direction as written phonemes. For voice products, that means transcript evals are not a full substitute for audio evals. They may test the language brain while skipping the hearing brain.
+
+## What should builders take from this?
+
+The paper reports that model family, not model size, predicts which stream represents a feature. That is probably the most useful operational point.
+
+Bigger is not the whole answer. Architecture, training mix, modality adapters, and family-level design choices may matter more than parameter count for whether speech and text line up internally. If you are choosing a model for a voice workflow, “larger” is not the same as “more consistent across modalities.”
+
+This also cuts against a common product assumption: once speech and text share a decoder, the problem is basically unified. The evidence here says no. A shared decoder can still carry different internal geometry for heard and read language.
+
+For applied teams, the next step is boring and valuable. Build paired evals. Test the same intent as audio and as text. Include minimal contrast cases where pronunciation, accents, phoneme-level ambiguity, or language family differences matter. Track failures separately instead of rolling them into one “voice assistant accuracy” number.
+
+A builder shipping voice agents should treat this as a design constraint, not trivia. Try the model family you plan to use on your actual audio inputs, then compare it with transcript-only runs. The catch most readers miss: if the transcript path works, that proves your language workflow works. It does not prove the model heard the thing the same way.
