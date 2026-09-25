@@ -29,6 +29,17 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'ai-editor-trusted-least',
+    title: 'I Used AI to Make My First Video. The AI Editor Was the Part I Trusted Least.',
+    date: 'September 25, 2026',
+    published: '2026-09-25',
+    dek: 'My first talking-head video was made with an iPhone, a script, and more AI tools than I needed. AI was excellent at scripting, captions, and audio cleanup, and least trustworthy when it made editorial decisions for me.',
+    image: {
+      file: 'ai-editor-trusted-least.jpg',
+      alt: 'Illustration contrasting AI-assisted audio and captions with human judgment in video editing.',
+    },
+  },
+  {
     slug: 'my-automated-blog-got-cited',
     title: 'My automated blog got cited. Am I helping kill the internet?',
     date: 'September 15, 2026',
