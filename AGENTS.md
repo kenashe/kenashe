@@ -104,8 +104,9 @@ a publishing defect to fix, not a state to leave. Rules are unit-tested:
   the Person schema `image`; `ken-ashe-2026-square.jpeg` is its circle-safe square crop for
   profile avatars. `public/images/ken-ashe.jpeg` (hoodie, 2026-05 to 2026-09) is no longer
   offered in the media kit but the file stays: the site-launch release byline links it and
-  its URL must keep working. `ken-ashe-office-portrait.jpg` (seated, blue polo, 1122×1402) is the alternate
-  portrait. The Newsroom media kit offers the current headshot, its square crop, the
+  its URL must keep working. `ken-ashe-office-square.jpg` (seated, blue polo, 1408×1408) is the alternate
+  portrait; `ken-ashe-office-portrait.jpg` (its earlier 1122×1402 version) stays in place so
+  shared links keep working. The Newsroom media kit offers the current headshot, its square crop, the
   alternate portrait, the SVG logo, and `og-default.png`; nothing else. Portrait files are not Digest artwork: the 1200×800 rule
   (D18) does not apply to them.
 - `public/images/archive/` holds older images kept for career-history use only (currently
