@@ -1,0 +1,58 @@
+---
+title: "What LLMs Miss About Haitian Creole, and Why Low-Resource Culture Breaks Evals"
+description: "A new benchmark measures cultural awareness in LLMs for Haitian Creole across four dimensions, exposing a gap with French and a habit of casting Haitian characters through hardship even when the story means well."
+pubDate: 2026-09-28
+tags: ["evals", "benchmarks", "language-models", "ai-research", "alignment"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-28-what-llms-miss-about-haitian-creole-and-why-low-resource-culture-breaks-evals/hero.webp
+  alt: "What LLMs Miss About Haitian Creole, and Why Low-Resource Culture Breaks Evals"
+sources:
+  - title: "Evaluating Cultural Awareness of LLMs for Haitian Creole"
+    url: "http://arxiv.org/abs/2609.31506v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A new benchmark shows LLMs handle Haitian Creole worse than French not just on raw accuracy but on culture, leaking French assumptions into Creole and defaulting to hardship-and-resilience stereotypes even when they try to be positive.
+
+Most of the low-resource language conversation stops at "the model scores lower on translation." That framing misses the harder problem. A model can produce grammatical Creole and still get the culture wrong: wrong norms, wrong references, a narrow story of who Haitians are. The paper "Evaluating Cultural Awareness of LLMs for Haitian Creole" (arXiv, cs.CL and cs.AI) goes after that second failure directly, and it's the first systematic attempt to measure it for this language.
+
+## What does the benchmark actually measure?
+
+The authors evaluate cultural awareness along four dimensions: specificity, bias, diversity, and variation. That's the useful move here. "Cultural awareness" is the kind of phrase that dies in vagueness, so breaking it into four measurable axes is what makes the work more than a vibe check.
+
+The setup is a text infilling task. Prompts are culturally salient and, importantly, curated by native speakers rather than scraped or machine-translated. That detail matters more than it sounds. Most low-resource benchmarks are built by translating an English or French test set, which bakes the source culture into the questions before you even ask the model anything. Native-authored prompts are the only way to test whether a model knows Haitian references, not whether it can round-trip a French one.
+
+![one broad well-lit path splitting off many narrow shadowed side paths, the wide path far more developed than the rest](../../assets/blog/2026-09-28-what-llms-miss-about-haitian-creole-and-why-low-resource-culture-breaks-evals/inline-1.webp)
+
+The four-axis structure is worth stealing even if you never touch Creole. Specificity asks whether the model produces culturally precise content or generic filler. Bias asks what skew shows up. Diversity asks whether it can represent a range of people and situations or collapses to one template. Variation asks about consistency across domains and phrasings. Any team building an eval for a market outside the US English default could copy this frame directly.
+
+## Why do models do worse in Creole than in French?
+
+The headline finding: a clear gap between cultural awareness in Haitian Creole and higher-resource French. Haitian performance is more uneven across domains and, the authors report, more affected by French linguistic interference.
+
+That interference point is the interesting one. Haiti's colonial and linguistic history ties Creole and French together, and the training data reflects it. So when a model reaches for Creole, it tends to pull French assumptions along with it. You get output that is technically in Creole but culturally French-flavored, which is a specific and sneaky failure mode. It's not that the model knows nothing. It's that it substitutes the higher-resource neighbor's worldview and presents it in the lower-resource language's words.
+
+This is the part I'd flag for anyone shipping multilingual products. Fluency is not the same as fidelity. A model that sounds fluent in Creole while quietly importing French norms will read as competent to an outsider and wrong to a native speaker. Standard accuracy metrics won't catch it. You need native reviewers and a benchmark like this one to surface it.
+
+## Can a "positive" portrayal still be a stereotype?
+
+The most quotable result comes from story generation. The authors found recurring portrayals of Haitian characters through hardship and resilience, and their point is sharp: even positive characterizations can encode stereotypical narratives.
+
+![a single figure repeatedly framed against storm clouds, standing firm, the same pose echoed over and over](../../assets/blog/2026-09-28-what-llms-miss-about-haitian-creole-and-why-low-resource-culture-breaks-evals/inline-2.webp)
+
+"Resilient in the face of hardship" sounds like a compliment. That's what makes it slippery. If every generated Haitian character is defined by struggle and endurance, the model has learned one story and only one, no matter how flattering the adjectives are. Diversity of representation isn't about avoiding negative traits. It's about whether the full range of ordinary human life shows up: comedy, boredom, ambition, romance, pettiness, joy that isn't hard-won. A model that can only write inspiration-porn about a group has failed the diversity axis even while passing a naive bias filter.
+
+This is where the four-axis design pays off. A bias-only test might give the hardship narratives a pass because they aren't hostile. The diversity axis catches them. That separation is the paper's real contribution to how the rest of us should think about representation evals.
+
+## What should builders take from this?
+
+The obvious lesson is that low-resource does not mean low-stakes. Millions speak Haitian Creole. If your product touches translation, education, healthcare intake, government services, or customer support in any underrepresented language, the interference and stereotype failures documented here are your failures too, and they won't appear in a BLEU score or a generic safety filter.
+
+The less obvious lesson is methodological. The reason this study can say something concrete is that native speakers wrote the prompts and the evaluation was split into axes that isolate different failures. That's a template, not a one-off.
+
+The honest caveat: this is one language, one benchmark, in a text infilling and story-generation setting. The authors don't claim it generalizes to every low-resource language or every task, and I won't either. French interference is specific to Haiti's history; another language will have its own dominant neighbor and its own distortions. What generalizes is the method, not the numbers. The code, benchmark, and evaluation framework are public, which is the right call and makes replication and extension realistic.
+
+Practitioner's take: if you deploy an LLM in any language that isn't in the top handful, don't trust translated benchmarks. Recruit two or three native speakers, have them write twenty to thirty culturally loaded prompts (references, norms, everyday situations, not just facts), and score outputs on the four axes from this paper: is it specific, is it skewed, is it diverse, is it consistent. Run it against your current model before you ship, not after a complaint. The catch most people miss is the diversity axis: your model can pass every "no offensive content" check and still flatten an entire culture into a single flattering cliché, and only a native reader asking "is this the only kind of person you can imagine here?" will catch it.
