@@ -1,0 +1,57 @@
+---
+title: "Foil's Recipe for Looped MoE: Flatten the Experts, Untie the Attention"
+description: "A new arXiv paper called Foil shows how to run a mixture-of-experts model in a loop without wasting parameters, and the design guidance it produces matters more than the headline loss numbers for anyone thinking about model efficiency."
+pubDate: 2026-09-29
+tags: ["model-training", "ai-research", "inference", "ai-infrastructure"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-29-foils-recipe-for-looped-moe-flatten-the-experts-untie-the-attention/hero.webp
+  alt: "Foil's Recipe for Looped MoE: Flatten the Experts, Untie the Attention"
+sources:
+  - title: "How to Loop MoE: Flatten the Experts, Untie the Attention"
+    url: "http://arxiv.org/abs/2609.35751v1"
+---
+
+TL;DR: A paper titled "How to Loop MoE: Flatten the Experts, Untie the Attention" shows that if you want to reuse a mixture-of-experts block several times, you should widen the expert layers, run more passes, and give each pass its own attention weights, which beats the naive looped baseline at equal parameters and equal compute.
+
+Two efficiency tricks that usually live in separate papers get combined here. One is the looped Transformer: take a block of layers and run the same weights through it multiple times, spending more compute to squeeze more out of a fixed parameter count. The other is sparse mixture-of-experts, where each token only activates a handful of many available experts, so you get a big parameter pool at a small per-token cost. Both are about using parameters harder. The obvious question is whether you can do both at once, and if so, how. The paper's answer is a method called Foil, with code posted at github.com/SR-A-W/how-to-loop-moe.
+
+## What is Foil actually doing?
+
+Foil holds two things constant: the total expert parameters and the expert compute spent per token. That constraint is the whole point. Without it, any "improvement" could just be more compute in disguise. Inside that budget, Foil makes two moves.
+
+First, it flattens the experts. Take the expert layers and halve them, then double the number of experts per layer, then double the number of passes through the loop. Same parameters, same per-token compute, but now every routing decision picks from a larger pool of experts. The routing gets more choices without the model getting bigger.
+
+Second, it unties the attention. In a plain looped model, every pass reuses the exact same weights, attention included. Foil breaks that for attention only: each pass gets its own attention parameters, while the experts and the routers stay shared across passes. So the thing that decides which tokens attend to which changes per loop, but the heavy expert machinery is reused.
+
+![a single stack of layers being folded to become wider and shorter, then run through a loop several times](../../assets/blog/2026-09-29-foils-recipe-for-looped-moe-flatten-the-experts-untie-the-attention/inline-1.webp)
+
+That second move is the more interesting one to me. Sharing weights across loop iterations is what makes looping cheap, but it also forces every pass to behave the same way, which is a strange thing to ask when the input to pass three is very different from the input to pass one. Untying attention is a small crack in that rigidity: keep the expensive parts shared, let the cheap steering layer specialize per pass.
+
+## Do the numbers actually hold up?
+
+The headline result is modest and honest, which I appreciate. At 20 billion training tokens, every Foil configuration lands at lower pretraining loss than the unflattened looped baseline. At 100 billion tokens, the loss improves monotonically with how much you flatten, and the most flattened version ends 0.012 nat below the baseline at equal parameters and equal compute. Downstream accuracy comes in on par or better.
+
+A 0.012 nat gap is not a revolution. It is a real, consistent edge at matched budget, which is a different and more useful claim than a big jump you can't attribute. The monotonic part matters more than the size: more flattening reliably means lower loss, so this is a knob, not a lucky configuration. Knobs that behave predictably are what let you plan a training run instead of gambling on one.
+
+The routing behavior is the part I'd flag for anyone who has actually trained an MoE. Untying attention produced more balanced and more confident routing at equal shape. Balance and confidence are the two chronic headaches of sparse models. When routing collapses, a few experts do all the work and the rest are dead parameters, which quietly kills the efficiency argument that justified going sparse in the first place.
+
+## Why does routing confidence beat load balance?
+
+The ablation buried in the paper is the line I'd actually keep. The authors argue that routing confidence tracks healthy expert use better than load balance does. That is a shot at conventional practice. Most MoE training leans on an auxiliary load-balancing loss to force tokens to spread evenly across experts, on the theory that even usage equals healthy usage.
+
+![tokens flowing toward experts, one path showing forced even spreading, another showing confident committed choices](../../assets/blog/2026-09-29-foils-recipe-for-looped-moe-flatten-the-experts-untie-the-attention/inline-2.webp)
+
+Foil's finding says even usage and healthy usage are not the same thing. A model can be perfectly balanced and still be routing badly, sending tokens to experts out of obligation rather than fit. Confidence, meaning the router committing hard to its picks, is the better signal that experts have actually specialized. If that generalizes beyond this setup, it changes what you optimize for and what you watch during a run. I'd want to see it reproduced outside this one paper before I rewired my training loss around it, but as a hypothesis it's sharp and testable, and the code is public.
+
+The other ablation is a clean design rule: looping and widening the expert layers amplify each other. The returns aren't additive, they compound. So a sparse looped MoE should use more experts per layer and more passes, not fewer of one to afford more of the other. That is a concrete recommendation, not a vibe.
+
+## Who should care about this right now?
+
+Not most people, and I'll say that plainly. If you are fine-tuning open models or wiring up agents, this changes nothing about your day. This is architecture research for people who train models from scratch or design them, and its immediate audience is small.
+
+![a wide field of many experts with a few brightly active and the rest dim, contrasted against a field where activity is s](../../assets/blog/2026-09-29-foils-recipe-for-looped-moe-flatten-the-experts-untie-the-attention/inline-3.webp)
+
+But the reason it's worth reading if you're anywhere near model efficiency is the shape of the question. The frontier keeps splitting into "more parameters" and "more compute per token," and Foil is a careful attempt to get both benefits inside a single fixed budget. That budget discipline is what makes the result trustworthy. Too many efficiency papers move three variables at once and then claim the win. Holding expert parameters and per-token compute fixed is the hard, boring version, and it's why the modest gap means something.
+
+Practitioner's take: if you don't train foundation models, the takeaway to steal is the routing-confidence idea, not the loop. Next time you're evaluating or debugging an MoE, whether one you're training or one you're just profiling, stop treating even expert load as the goal and start looking at how confidently the router commits to its choices. A balanced model with mushy, low-confidence routing may be quietly wasting the parameters you paid for. The catch most readers will miss: a 0.012 nat improvement is a single-paper result at up to 100B tokens, which is small by frontier standards, so treat the design rules (wider expert layers plus more passes, untied attention, confidence over balance) as hypotheses to test against your own setup rather than settled facts. The code being public means you can actually check, which is the part that earns this paper attention.
