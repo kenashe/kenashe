@@ -1,0 +1,66 @@
+---
+title: "Not All Quantization Errors Are Equal: STEPQuant and the Memory Cost of Linear Attention"
+description: "A new post-training quantization method targets the recurrent states of linear-attention models, cutting serving memory by up to 68.7% while holding accuracy near full precision. Here is what changed and why the where-and-when framing matters for anyone serving these models."
+pubDate: 2026-09-30
+tags: ["inference", "ai-infrastructure", "post-training", "language-models", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-09-30-not-all-quantization-errors-are-equal-stepquant-and-the-memory-cost-of-linear/hero.webp
+  alt: "Not All Quantization Errors Are Equal: STEPQuant and the Memory Cost of Linear Attention"
+sources:
+  - title: "STEPQuant: When and Where Errors Matter in Delta-Rule Recurrent State Quantization"
+    url: "http://arxiv.org/abs/2609.38169v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: STEPQuant shows that recurrent-state quantization in linear-attention models fails when you compress every value equally, and that spending bits where errors persist longest and hurt outputs most gets you near-FP32 accuracy at roughly 6 bits with over 5x state compression.
+
+The paper is "STEPQuant: When and Where Errors Matter in Delta-Rule Recurrent State Quantization," posted across arXiv cs.AI, cs.CL, and cs.LG, with code at github.com/Dreamer-Toby/STEPQuant. It tackles a problem that only becomes obvious once you actually try to serve linear-attention models at scale: the thing that was supposed to save memory becomes the memory bottleneck.
+
+## Why does linear attention need quantization at all?
+
+Standard transformers store a KV cache that grows with sequence length. Longer context, bigger cache, more memory. That is the well-known tax on long-context serving.
+
+Linear attention was pitched as the fix. Instead of a cache that grows, you carry a fixed-size recurrent state that gets updated at each step. The size does not balloon with sequence length. Great in theory.
+
+The catch the STEPQuant authors point at: under concurrent serving, where you are running many requests at once, those persistent states stack up. Each active sequence carries its own state. Fixed-size per sequence still means a lot of memory when you multiply by hundreds of concurrent users. So the "fixed" part solved the growth problem but not the aggregate problem.
+
+The obvious move is to quantize those states to low precision, the same way people quantize weights and KV caches. And here the delta-rule recurrence bites back. Because the state is updated over and over, a quantization error introduced early does not just sit there. It feeds into the next update, and the next, compounding across decoding steps. The authors report that naive low-precision quantization causes severe accuracy degradation for exactly this reason.
+
+![a small error introduced early in a chain of updates growing larger as it passes through each successive step](../../assets/blog/2026-09-30-not-all-quantization-errors-are-equal-stepquant-and-the-memory-cost-of-linear/inline-1.webp)
+
+## What is actually new in STEPQuant?
+
+The core insight is that quantization error is not uniform in its consequences, and it varies along two axes the authors call temporal and spatial.
+
+Temporally: errors in long-lived memory persist across many decoding steps, so they cause more damage than errors in state that gets overwritten soon. An error you carry for 200 steps matters more than one you carry for 5.
+
+Spatially: errors in different key rows affect model outputs differently, and the raw magnitudes of the state vary a lot across both rows and columns. Some parts of the state are just more consequential and more spread out in scale than others.
+
+Uniform quantization ignores all of this. It spends the same number of bits on the value that will decay in two steps and the value that will steer output for the rest of the generation. STEPQuant instead allocates precision according to error magnitude and memory lifetime, and it jointly fits key-row and value-column scales based on the state distributions and how much each key row contributes to output error.
+
+Put plainly: it spends bits where and when errors actually matter, and starves the parts that do not. This is a post-training method, so you are not retraining the model. You are fitting a smarter quantization scheme on top of an existing one.
+
+![a grid where some cells are rendered in fine detail and others in coarse blocks, showing uneven allocation of resolution](../../assets/blog/2026-09-30-not-all-quantization-errors-are-equal-stepquant-and-the-memory-cost-of-linear/inline-2.webp)
+
+## Do the numbers hold up?
+
+The authors test on Qwen3.8-27B and Kimi-Linear-48B-A3B-Instruct, across both long-generation and short-generation benchmarks. Two claims stand out.
+
+At a nominal 6-bit budget, STEPQuant closely matches FP32-state accuracy. At 4-bit, it outperforms uniform INT8, which is the more striking result because a good 4-bit scheme beating a naive 8-bit one means the allocation strategy is doing real work, not just riding lower precision.
+
+On the systems side, they integrated it into SGLang with optimized GPU kernels and report over 5x recurrent-state compression at 6-bit and up to a 68.7% reduction in total serving memory. That last figure is the one operators will care about, because it is total memory, not just the state component. Cutting serving memory by two thirds changes how many concurrent requests you can fit on a box.
+
+Two honest caveats. First, all three arXiv listings are the same paper cross-posted, so this is one result, not three independent confirmations. Treat it as a single strong claim awaiting outside replication. Second, "closely matches" and "up to 68.7%" are the authors' own framing on their own benchmarks. The code is public, which is the right move and makes verification possible, but nobody outside the group has reproduced the numbers yet as of this writing. The gap between "matches FP32 on our benchmarks" and "matches FP32 on your workload" is where these methods usually lose a little shine.
+
+## Who should care about this right now?
+
+If you serve dense transformers and never touch linear-attention models, this is background reading. It does not touch your KV cache.
+
+If you are running or evaluating linear-attention or hybrid models like the Kimi-Linear family, or Qwen variants using delta-rule recurrence, this is directly relevant. The whole promise of linear attention is cheaper serving, and recurrent-state memory under concurrency is the part of that promise that was quietly not being kept. A method that recovers most of it without retraining is exactly the kind of unglamorous infrastructure win that decides whether an architecture is practical or just a paper.
+
+The broader signal is what I find more interesting. We are watching quantization research move past "compress everything to N bits" toward "figure out which values earn their bits." Weight quantization went through this. KV-cache quantization went through this. Now recurrent states are getting the same treatment, and the framing here, that error impact depends on how long a value lives and how much it steers output, is a lens that will transfer to other stateful architectures.
+
+Practitioner's take: if you serve delta-rule linear-attention models under real concurrency, clone the repo and run STEPQuant against your own traffic before you trust the 68.7%, because the headline memory number is total serving memory on their benchmark mix and your prompt-length distribution will move it. Start at the 6-bit config, since that is where they claim near-FP32 parity, and only drop to 4-bit if your eval loss stays flat on the specific tasks you ship. The catch most readers will miss: this is post-training quantization on the state, so it composes with, and can interact with, whatever quantization you already run on weights. Measure them together, not in isolation, or you will attribute a regression to the wrong layer.
