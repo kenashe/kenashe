@@ -20,6 +20,13 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'HARO Fit Watch',
+    status: 'LIVE',
+    dek: 'An AI media-opportunity system that screens journalist requests, applies a reusable scoring skill, tracks state in Google Sheets, and monitors submitted pitches for published outcomes.',
+    stack: ['ChatGPT Skills', 'Agents', 'Gmail', 'Google Sheets', 'Automation'],
+    shippedAt: 'Oct 2026',
+  },
+  {
     title: 'Rebuilding the Image Pipeline',
     status: 'LIVE',
     dek: 'Rebuilt KenAshe.ai’s image pipeline: migrated 2,083 PNGs to WebP, added responsive inline images, and cut the current image source tree by 95%.',
