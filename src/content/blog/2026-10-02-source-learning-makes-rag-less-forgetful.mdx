@@ -1,0 +1,56 @@
+---
+title: "Source learning makes RAG less forgetful"
+description: "The arXiv paper “From Knowledge Access to Source Learning: Developing Source-Specific Competence” argues that agents should build persistent competence over trusted sources, not just retrieve chunks from them on demand."
+pubDate: 2026-10-02
+tags: ["rag", "agent-memory", "ai-agents", "model-reliability", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-02-source-learning-makes-rag-less-forgetful/hero.webp
+  alt: "Source learning makes RAG less forgetful"
+sources:
+  - title: "From Knowledge Access to Source Learning: Developing Source-Specific Competence"
+    url: "http://arxiv.org/abs/2610.02150v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: SourceLearn points to a better pattern for knowledge-heavy agents: treat important documents as things the system learns over time, not just files it searches again and again.
+
+## What changes when an agent learns a source instead of querying it?
+
+The primary source here is the arXiv cs.AI/cs.CL paper “From Knowledge Access to Source Learning: Developing Source-Specific Competence.” The paper’s core claim is simple and useful: repeated use of the same authoritative source should improve the agent’s understanding of that source.
+
+That sounds obvious. It is not how most RAG systems work.
+
+In a standard RAG setup, the system retrieves relevant chunks, stuffs them into context, and asks the model to answer. Better indexing helps. Better chunking helps. Rerankers help. But the system usually does not build a durable understanding of the source’s structure, assumptions, edge cases, or recurring patterns.
+
+Agent memory goes in a different direction. It stores useful lessons from prior interactions. That can help, but it can also drift away from the authoritative material. A memory entry may reflect what worked once, not what the document actually says.
+
+SourceLearn splits the difference. It creates a persistent “source model,” meaning a reusable representation of how a specific source is organized, interpreted, and applied. The important detail: updates are reconstructed from the authoritative source, not just copied from task history. That keeps the system anchored.
+
+![an agent repeatedly studying the same structured knowledge base, gradually forming a compact internal map, then using th](../../assets/blog/2026-10-02-source-learning-makes-rag-less-forgetful/inline-1.webp)
+
+## Why is this more than better RAG?
+
+The paper describes two learning loops.
+
+Self-Directed Source Learning has the system identify what it still does not understand, then revisit the source. Task-Guided Source Learning uses downstream failures or recurring task needs to expose gaps in the source model. One loop asks, “What am I missing?” The other asks, “What did real work reveal that I need to represent better?”
+
+That is the shift I care about. Retrieval is reactive. Source learning is cumulative.
+
+The reported results are strong, with the paper saying SourceLearn performs best in 13 of 15 settings across five benchmarks and three LLM backends, with gains of up to 22.6 points over Hybrid RAG. Good number. Still, the abstract does not give enough detail to judge benchmark difficulty, cost, latency, or how painful the source-model maintenance becomes in production.
+
+That last part matters. Persistent competence is not free. You now have another artifact to inspect, version, refresh, and evaluate. If the underlying source changes often, stale source models could become a new failure mode. If the source contains contradictions, the system needs a policy for handling them. If multiple sources disagree, source-specific competence may help the agent understand each source better, but not automatically decide which one to trust.
+
+## Where would this actually be useful?
+
+The obvious use case is any agent that works against a stable, high-value corpus: legal policy, internal engineering docs, medical protocols, product manuals, compliance rules, scientific literature collections, enterprise support knowledge, or a large codebase’s architecture docs.
+
+I would not bother with this for disposable web search. If the source is broad, shifting, and low authority, better retrieval and citation discipline may be enough. Source learning gets interesting when the same trusted material is used repeatedly and mistakes are expensive.
+
+The pattern also fits how human operators work. A good support lead does not search the policy handbook from scratch every time. They learn where the tricky clauses live. A good engineer learns the shape of a codebase, not just individual files. A good analyst learns how a dataset is defined, where the exceptions are, and which fields are misleading.
+
+SourceLearn is trying to give agents that kind of source-specific familiarity.
+
+Practitioner’s take: if you are building a RAG agent today, pick one corpus that matters and add a thin source-learning layer before chasing a bigger model. Track repeated retrieval misses, confused answers, and places where users keep asking the same kind of question. Then regenerate a small, inspectable source model from the authoritative docs. The catch most teams miss: memory from usage is not enough. The durable artifact has to stay tied to the actual source, or you have built a confident notes app, not a reliable agent.
