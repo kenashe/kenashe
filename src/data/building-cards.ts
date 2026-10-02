@@ -14,9 +14,9 @@ const autonomousBlog: Project = {
 
 // The curated builds surfaced as cards (matches the prior Projects card set).
 const CURATED = [
-  'AI UGC Video Lab',
+  'AI UGC video lab',
   'HARO Fit Watch',
-  'Rebuilding the Image Pipeline',
+  'Rebuilding the image pipeline',
   'VetStack',
   'AI werewolf / social deduction lab',
   'Geo-targeted affiliate site',
