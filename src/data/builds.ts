@@ -33,7 +33,7 @@ export const projects: Project[] = [
     status: 'LIVE',
     dek: 'An AI media-opportunity system that screens journalist requests, applies a reusable scoring skill, tracks state in Google Sheets, and monitors submitted pitches for published outcomes.',
     stack: ['ChatGPT Skills', 'Agents', 'Gmail', 'Google Sheets', 'Automation'],
-    shippedAt: 'Oct 2026',
+    shippedAt: 'Sep 2026',
   },
   {
     title: 'Rebuilding the image pipeline',
