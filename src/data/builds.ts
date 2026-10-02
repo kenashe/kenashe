@@ -20,6 +20,15 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'AI UGC Video Lab',
+    status: 'SHIPPED',
+    dek: 'Ported an open-source UGC skill into Hyperagent, generated 50 locked-identity ad concepts, then rendered and QA’d a fake raccoon-security campaign across 31 video generations.',
+    stack: ['HyperAgent', 'AI Video', 'Agents', 'Gemini', 'ffmpeg'],
+    shippedAt: 'Oct 2026',
+    metric: '5 finished ads',
+    link: '/building/ai-ugc-video-lab/',
+  },
+  {
     title: 'HARO Fit Watch',
     status: 'LIVE',
     dek: 'An AI media-opportunity system that screens journalist requests, applies a reusable scoring skill, tracks state in Google Sheets, and monitors submitted pitches for published outcomes.',
