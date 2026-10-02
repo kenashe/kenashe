@@ -14,7 +14,9 @@
 // Domains founder profile page; 2026-09-11 sameAs gains HackerNoon, DEV, Hashnode,
 // Medium, YouTube and Crunchbase author/profile pages; 2026-09-20 sameAs gains the Wikidata
 // item (Q141507904); 2026-09-23 sameAs gains the personal Instagram and TikTok
-// profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg). Any change here must be mirrored in the Lucky Domains
+// profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg); 2026-10-02 image
+// becomes the 1:1 / 4:3 / 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
+// per Wikidata P69) and the about.me and Linktree profiles are added. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -24,7 +26,13 @@ export const personKenAshe = {
   alternateName: 'Kenneth Ashe',
   url: 'https://kenashe.ai/',
   mainEntityOfPage: 'https://kenashe.ai/about/',
-  image: 'https://kenashe.ai/images/ken-ashe-2026.jpeg',
+  // The canonical portrait in the three aspect ratios Google asks for, all cropped from the
+  // same dark-polo source (public/images/ken-ashe-2026.jpeg); stable, unhashed URLs.
+  image: [
+    'https://kenashe.ai/images/ken-ashe-headshot-1x1.webp',
+    'https://kenashe.ai/images/ken-ashe-headshot-4x3.webp',
+    'https://kenashe.ai/images/ken-ashe-headshot-16x9.webp',
+  ],
   jobTitle: 'AI application builder',
   description:
     'Ken Ashe is a CPA, PMP, and AI application builder who documents what he ships, what breaks, and what the evidence supports.',
@@ -33,6 +41,11 @@ export const personKenAshe = {
     '@type': 'PostalAddress',
     addressRegion: 'NJ',
     addressCountry: 'US',
+  },
+  alumniOf: {
+    '@type': 'CollegeOrUniversity',
+    name: 'Case Western Reserve University',
+    sameAs: 'https://www.wikidata.org/wiki/Q1047060',
   },
   hasCredential: [
     {
@@ -78,6 +91,8 @@ export const personKenAshe = {
     'https://www.wikidata.org/wiki/Q141507904',
     'https://www.instagram.com/ken.ashe/',
     'https://www.tiktok.com/@ken.ashe',
+    'https://about.me/kenashe',
+    'https://linktr.ee/kenashe',
   ],
   affiliation: {
     '@type': 'Organization',
