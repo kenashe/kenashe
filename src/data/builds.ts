@@ -20,7 +20,7 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
-    title: 'AI UGC Video Lab',
+    title: 'AI UGC video lab',
     status: 'SHIPPED',
     dek: 'Ported an open-source UGC skill into Hyperagent, generated 50 locked-identity ad concepts, then rendered and QA’d a fake raccoon-security campaign across 31 video generations.',
     stack: ['HyperAgent', 'AI Video', 'Agents', 'Gemini', 'ffmpeg'],
@@ -36,7 +36,7 @@ export const projects: Project[] = [
     shippedAt: 'Oct 2026',
   },
   {
-    title: 'Rebuilding the Image Pipeline',
+    title: 'Rebuilding the image pipeline',
     status: 'LIVE',
     dek: 'Rebuilt KenAshe.ai’s image pipeline: migrated 2,083 PNGs to WebP, added responsive inline images, and cut the current image source tree by 95%.',
     stack: ['Astro', 'WebP', 'sharp', 'GPT Image 2', 'Vercel', 'GitHub Actions'],
