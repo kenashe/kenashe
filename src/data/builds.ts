@@ -29,7 +29,7 @@ export const projects: Project[] = [
     link: '/building/ai-ugc-video-lab/',
   },
   {
-    title: 'HARO Fit Watch',
+    title: 'Media pitch triage',
     status: 'LIVE',
     dek: 'An AI media-opportunity system that screens journalist requests, applies a reusable scoring skill, tracks state in Google Sheets, and monitors submitted pitches for published outcomes.',
     stack: ['ChatGPT Skills', 'Agents', 'Gmail', 'Google Sheets', 'Automation'],
