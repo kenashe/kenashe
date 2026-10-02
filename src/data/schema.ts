@@ -15,7 +15,8 @@
 // Medium, YouTube and Crunchbase author/profile pages; 2026-09-20 sameAs gains the Wikidata
 // item (Q141507904); 2026-09-23 sameAs gains the personal Instagram and TikTok
 // profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg); 2026-10-02 image
-// becomes the 1:1 / 4:3 / 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
+// becomes the 4:3 JPEG (1200x900; also the homepage og:image and primaryImageOfPage) plus 1:1 and
+// 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
 // per Wikidata P69) and the about.me and Linktree profiles are added. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
@@ -29,8 +30,8 @@ export const personKenAshe = {
   // The canonical portrait in the three aspect ratios Google asks for, all cropped from the
   // same dark-polo source (public/images/ken-ashe-2026.jpeg); stable, unhashed URLs.
   image: [
+    'https://kenashe.ai/images/ken-ashe-headshot.jpg',
     'https://kenashe.ai/images/ken-ashe-headshot-1x1.webp',
-    'https://kenashe.ai/images/ken-ashe-headshot-4x3.webp',
     'https://kenashe.ai/images/ken-ashe-headshot-16x9.webp',
   ],
   jobTitle: 'AI application builder',
