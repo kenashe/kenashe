@@ -11,6 +11,7 @@ import { LexicalEmbedder, cluster, isCovered } from './core.ts';
 import { embedMany } from './llm.ts';
 import { synthesize } from './synthesize.ts';
 import { gate } from './gate.ts';
+import { enforcePublisherVoice, thirdPersonPublisherRefs } from './voice.ts';
 import { addImages } from './images.ts';
 import { assertImageBudget } from './image-output.ts';
 import { writePost, commitAndPush, commitToBranch, triggerDeploy } from './publish.ts';
@@ -166,7 +167,15 @@ async function main(): Promise<void> {
       draft.tags = withCanonicalTags(draft.tags);
       // Lucky Domains links: allow-listed deep links only, max one, only on qualifying tags.
       draft.body = governLuckyDomainsLinks(draft.body, draft.tags);
+      // Voice guard (D19): the Digest speaks as Ken; rewrite "Ashe runs ..." to "I run ...".
+      draft.body = enforcePublisherVoice(draft.body);
+      const thirdPerson = thirdPersonPublisherRefs(draft.body);
       const g = await gate(draft); // sets draft.draft based on tier threshold
+      if (thirdPerson.length) {
+        // Anything still naming the publisher in the third person is a critical fail: draft it.
+        g.critical_fails.push(`third_person_publisher: ${thirdPerson[0].slice(0, 120)}`);
+        draft.draft = true;
+      }
       if (!draft.draft) gatePass += 1; // gate verdict, before the shadow override
       const why = `${g.verdict} ${g.total}/40${g.critical_fails.length ? ` fails=[${g.critical_fails.join('; ')}]` : ''}${g.ai_tells_found.length ? ` tells=${g.ai_tells_found.length}` : ''} :: ${g.reason}`;
       await addImages(draft, repoRoot, shadow);
