@@ -21,7 +21,7 @@ export const daysSince = (iso: string) =>
 export const projects: Project[] = [
   {
     title: 'X article toolkit',
-    status: 'SHIPPED',
+    status: 'LIVE',
     dek: 'A model-neutral toolkit that lets any AI agent use the same research-backed workflow for X Article headlines, hooks and covers.',
     stack: ['GitHub', 'Markdown', 'Python', 'JSON Schema', 'GitHub Actions', 'Agents'],
     shippedAt: 'Oct 2026',
