@@ -168,8 +168,9 @@ Ken Ashe owns Lucky Domains (luckydomains.io), so Digest posts about domain name
 builds, or SEO may carry one disclosed mention linking to the most specific Lucky Domains
 page. Two layers:
 
-1. **Prompt** (`prompts.ts`, "Publisher context"): the model may write ONE natural sentence
-   stating the relationship as a fact about the publisher and link it to one of five deep
+1. **Prompt** (`prompts.ts`, "Publisher context"): the model may write ONE natural
+   first-person sentence disclosing the relationship ("I run Lucky Domains, which ...";
+   never "Ashe runs ...", see D19) and link it to one of five deep
    links: `how-we-buy-domains.html`, `services.html#domains`, `#selling`, `#websites`, `#seo`.
    Never a pitch, never pricing, never on unrelated stories.
 2. **Guardrail** (`partner-links.ts`, applied in `run.ts` after tags are final): only those
@@ -182,6 +183,13 @@ The 2026-09-12 retroactive pass added one closing "Related:" line to 32 existing
 four fixed sentences (buy process, domains, SEO, websites); those are static text in the
 posts and are not touched by the guardrail. `contact.html`, `about.html`, and the founder page
 are deliberately not link targets from kenashe.ai.
+
+3. **Voice guard** (`voice.ts`, applied right after the link guardrail, D19): the Digest is
+   written in Ken's first person, so `enforcePublisherVoice()` rewrites third-person
+   publisher references ("Ashe runs", "Ken's take", "Ashe's day job") into the first person
+   and collapses a doubled "I run Lucky Domains ... through [Lucky Domains](...)" sentence.
+   `thirdPersonPublisherRefs()` then reports anything left; `run.ts` records it as a
+   critical fail so the post is drafted, not published. Tests: `test/voice.test.ts`.
 
 ### Topics vs tags (tag governance, since 2026-09-09)
 

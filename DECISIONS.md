@@ -387,3 +387,28 @@ Considered for LLM answer-extraction, rejected. Google restricted FAQ rich resul
 government/health sites in 2023, so there is no search upside, and mismatched markup risks
 a structured-data manual action. The question-shaped `##` headings already give LLMs clean
 Q&A structure in the HTML. Do not add it without a new reason.
+
+## <a id="d19"></a>D19 — The Digest speaks in the first person, including the Lucky Domains disclosure
+
+**Decision (2026-10-03).** Digest posts are written in Ken Ashe's voice ("I", "my"), so the
+publisher may never be referred to in the third person inside a post body. The Lucky Domains
+disclosure sentence (ARCHITECTURE "Lucky Domains links") is "I run Lucky Domains, which ...",
+not "Ashe runs Lucky Domains, which ...".
+
+**Why.** An audit on 2026-10-03 found 64 published posts mixing voices: 45 ended with a
+back-filled "Related: Ashe runs the SEO practice at Lucky Domains ..." trailer (plus 14
+"Related on this site: Ashe ran into ..." variants), and from 2026-09-13 the synthesis prompt
+itself gave the model a third-person example for the disclosure, which produced sentences
+like "Ashe runs Lucky Domains, which works on SEO ... and this is where I see the real shift."
+It reads as a template artifact.
+
+**What changed.** All 64 bodies were rewritten to the first person in one pass with the same
+function the pipeline now runs (`pipeline/src/voice.ts`, `enforcePublisherVoice`); frontmatter,
+links and everything else untouched. The prompt's example and the voice rules were corrected,
+and `run.ts` now applies the guard after the Lucky Domains link guardrail and drafts any post
+that still names the publisher in the third person (a critical fail). A quoted phrase such as
+"reads like Ken wrote it" is not a publisher reference and is left alone.
+
+**Not changed.** Essays, Building pages and the Newsroom are hand-written and may use either
+voice; this decision covers the automated Digest only.
+
