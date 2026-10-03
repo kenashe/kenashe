@@ -1,6 +1,6 @@
 # X article toolkit
 
-**Status**: SHIPPED  
+**Status**: LIVE  
 **Date**: October 2026  
 **Stack**: GitHub, Markdown, Python, JSON Schema, GitHub Actions, Agents
 
