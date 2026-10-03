@@ -20,6 +20,15 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'X article toolkit',
+    status: 'SHIPPED',
+    dek: 'A model-neutral toolkit that lets any AI agent use the same research-backed workflow for X Article headlines, hooks and covers.',
+    stack: ['GitHub', 'Markdown', 'Python', 'JSON Schema', 'GitHub Actions', 'Agents'],
+    shippedAt: 'Oct 2026',
+    metric: 'public repo',
+    link: '/building/x-article-toolkit/',
+  },
+  {
     title: 'AI UGC video lab',
     status: 'SHIPPED',
     dek: 'Ported an open-source UGC skill into Hyperagent, generated 50 locked-identity ad concepts, then rendered and QA’d a fake raccoon-security campaign across 31 video generations.',

@@ -1,0 +1,480 @@
+---
+// Canonical copy: docs/builds/x-article-toolkit.md (edit there, then regenerate this body).
+// Static page on purpose — see the note in src/content.config.ts (a content collection
+// here busted the build cache and blew Vercel's 45-minute Hobby build timeout).
+// The architecture figure is HTML/CSS built from the repository's real file names; no image.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const title = 'X article toolkit';
+const status = 'SHIPPED';
+const date = 'October 2026';
+const summary =
+  'I turned research-backed X Article skills into a model-neutral toolkit that any AI agent can load and follow. The repository owns the method. The model is replaceable.';
+const stack = ['GitHub', 'Markdown', 'Python', 'JSON Schema', 'GitHub Actions', 'Agents'];
+const repoLink = 'https://github.com/kenashe/x-article-toolkit';
+const sourceLink = 'https://x.com/fuckgrowth/status/2104482656532464095';
+---
+
+<BaseLayout
+  title={title}
+  description={summary}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Building', path: '/building/' },
+    { name: title, path: '/building/x-article-toolkit/' },
+  ]}
+>
+  <article class="build">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/building/"><span aria-hidden="true">&larr;</span> Building</a>
+    </nav>
+
+    <header class="build-header">
+      <p class="page-mark" aria-hidden="true">// build</p>
+      <div class="title-row">
+        <h1>{title}</h1>
+        <span class={`badge badge-${status.toLowerCase()}`}>
+          <span class="badge-dot" aria-hidden="true"></span>
+          {status}
+        </span>
+      </div>
+      <p class="summary">{summary}</p>
+      <p class="meta">
+        <span class="meta-key">{status === 'LIVE' ? 'Live since' : 'Shipped'}</span>
+        {date}
+      </p>
+      <ul class="stack" aria-label="Stack">
+        {stack.map((s) => <li>{s}</li>)}
+      </ul>
+    </header>
+
+    <nav class="build-links" aria-label="Related">
+      <a href={repoLink} target="_blank" rel="noopener">View on GitHub <span aria-hidden="true">→</span></a>
+      <a href={sourceLink} target="_blank" rel="noopener">Read the original research by @fuckgrowth <span aria-hidden="true">→</span></a>
+    </nav>
+
+    <div class="prose">
+      <figure class="arch" aria-label="Architecture: one repository is the source of truth; AGENTS.md, llms.txt and toolkit.json are three doors into it; any agent then runs headline, hook and cover, with a lock after each stage.">
+        <div class="arch-node arch-root">
+          <span class="arch-k">source of truth</span>
+          <span class="arch-v">GitHub · kenashe/x-article-toolkit</span>
+        </div>
+        <div class="arch-line" aria-hidden="true"></div>
+        <ul class="arch-doors">
+          <li><span class="arch-k">agents that read repos</span><span class="arch-v">AGENTS.md</span></li>
+          <li><span class="arch-k">agents that fetch URLs</span><span class="arch-v">llms.txt</span></li>
+          <li><span class="arch-k">agent stacks</span><span class="arch-v">toolkit.json</span></li>
+        </ul>
+        <div class="arch-line" aria-hidden="true"></div>
+        <div class="arch-node">
+          <span class="arch-k">consumer</span>
+          <span class="arch-v">any agent</span>
+        </div>
+        <div class="arch-line" aria-hidden="true"></div>
+        <ol class="arch-stages">
+          <li><span class="arch-v">headline</span><span class="arch-lock">lock</span></li>
+          <li><span class="arch-v">hook</span><span class="arch-lock">lock</span></li>
+          <li><span class="arch-v">cover</span><span class="arch-lock">lock</span></li>
+          <li class="arch-out"><span class="arch-v">X Article package</span></li>
+        </ol>
+        <figcaption>One methodology in GitHub, three doors into it, any agent as the consumer, and a human lock after every stage.</figcaption>
+      </figure>
+
+      <p>The research, the dataset and the original skills in this build are by <strong>@fuckgrowth</strong>. My part was the architecture around them: the model-neutral port, the agent interfaces, the workflow, the state interface, the tests and the documentation.</p>
+
+      <h2>The Goal</h2>
+      <p>In September 2026 @fuckgrowth published an X Article on how to write better headlines, built on 40,478 X Articles posted between January 1 and September 26, 2026: 6,835 that passed 100,000 views and 33,643 that did not. Alongside it came the research document, the dataset of winners, and three Claude skills (headline-writer, hook-writer, cover-writer) with the words “feed this to your agent.”</p>
+      <p>I wanted to use the methodology. I did not want to use it only inside the one environment the skills were written for.</p>
+      <p>My first instinct was to port the skills to whichever AI products I happened to be using. That would have worked, and it would have left the same method living in several places, each drifting a little every time one of them was edited.</p>
+      <p>So I changed the layer. Instead of making an AI product the home of the workflow, I made a GitHub repository the source of truth, and the agents became consumers of it.</p>
+
+      <h2>What I Built</h2>
+      <p>A public, MIT-licensed repository, <a href={repoLink} target="_blank" rel="noopener">kenashe/x-article-toolkit</a>, that prepares an X Article for publication in three canonical stages: <strong>headline</strong>, <strong>hook</strong> (the first lines X shows on the card) and <strong>cover</strong> (whether to use one, and the brief if so). An article can go through the whole workflow or each stage can be used on its own.</p>
+      <p>Give it a draft and it returns a compact publishing package: the selected headline, the selected hook, a cover or no-cover decision, the cover concept, cover text and image prompt where a cover applies, the original article, and a reference to the methodology version used.</p>
+      <p>The article body is not rewritten. The approved hook can become the opening two lines; everything after that stays the user’s own text unless editing is asked for separately. The system is not meant to make every publishing decision on its own.</p>
+
+      <h2>How It Works</h2>
+      <p>Each stage ends in an explicit approval lock before the next one starts. The locks are plain text (<code>Locked headline:</code>, <code>Locked hook:</code>, <code>Locked cover:</code>), so any runtime can carry them between stages without a shared memory or a database.</p>
+      <p><strong>headline-writer</strong> takes a draft or structured notes, generates ten candidates, scores them against the source methodology’s seven measured move families, four failure marks and five levels, runs a ten-point check, presents the strongest five, recommends one, and stops for the user to lock a headline. The point is that it applies a documented, measured procedure rather than asking a model to “write a catchy headline.”</p>
+      <p><strong>hook-writer</strong> runs against the locked headline and the draft. It writes eight two-line openings, renders them the way the X card would cut them, scores them, presents the best four and stops for approval. The source research is explicit that the hook moves the odds far less than the headline, and that most of the hook rules are craft observed in winning articles rather than measured effects. The skill says so every time it runs.</p>
+      <p><strong>cover-writer</strong> receives the locked headline, the locked hook and the draft, and can answer <strong>Use cover</strong> or <strong>No cover</strong>. No cover is a normal, complete output. When a cover is right, it picks from ten documented briefs and produces a cover concept, a cover sentence, an image prompt, the 1200 × 480 specification and a structured evaluation of the plan. The no-cover path matters: the toolkit follows the methodology instead of generating an image because an image model happens to be available.</p>
+
+      <h2>One Methodology, Different Agents</h2>
+      <p>This is the part I care most about. The repository gives any agent, or any agent stack, several doors into the same methodology.</p>
+      <p><strong>AGENTS.md</strong> is the primary entry point. It tells an agent what to load, in what order, how the workflow runs, what to do when code execution is or is not available, which rules are fixed and what must never be invented or changed. An agent that understands repositories can start there.</p>
+      <p><strong>llms.txt</strong> is an ordered list of the files an AI system needs, with raw GitHub URLs and token estimates (about 16,000 tokens for everything). Agents that consume URLs can load the toolkit without knowing the repository layout first.</p>
+      <p><strong>toolkit.json</strong> exposes the same structure in machine-readable form: the skills, the read order, the scripts, the lock labels, the token estimates and where the dataset lives. A custom agent stack can build its context from it programmatically.</p>
+      <p>A <strong>generic adapter</strong> gives a copy-paste instruction block for anything without a dedicated integration.</p>
+      <p>Dedicated adapters exist for Grok Bot, ChatGPT and Claude Code. They are conveniences layered on top of the generic path, not the identity of the project. The ChatGPT packages are generated from the canonical skills so they cannot drift; the Claude adapter just links the canonical skills into place. Generic first, specific runtimes second.</p>
+
+      <h2>Optional by Design</h2>
+      <p>Several useful capabilities are deliberately optional, because portability mattered more than assuming every agent has the same tools.</p>
+      <p><strong>Scripts.</strong> Each skill ships a Python scoring script (standard library only, <code>--json</code> output available). The model does the writing; the scripts provide deterministic checks. An agent without a terminal applies the same checks by hand from the rule files and says that it did.</p>
+      <p><strong>Dataset.</strong> The 6,835-article dataset is external and fetched on demand, never bundled. When present it adds nearest winning examples, topic and shape swipe files, cover-image references and a way to check the current month’s named entities. Without it, every rule still applies.</p>
+      <p><strong>State.</strong> Version 1 keeps no persistent state. The repository defines the interface and JSON schemas for personalization and performance tracking later, but no skill claims to remember or learn from earlier runs unless a store is actually connected. The original skills described their record-keeping as self-learning; this one does not.</p>
+      <p><strong>Optional tooling.</strong> The author’s X Articles finder, which collected the dataset, is included separately under <code>optional/</code>. It needs Apify and model-specific tagging and is not a dependency. The cover-image analysis tools (Pillow pixel checks, an Apple Vision OCR helper) sit beside it for the same reason.</p>
+
+      <h2>Tests Against Drift</h2>
+      <p>The repository does not just say the different interfaces should stay in sync. It checks. A single test script, run by CI on every push and pull request, verifies the repository structure, the skill front matter, that every internal reference resolves, that the generated ChatGPT packages and the <code>llms.txt</code> / <code>toolkit.json</code> indexes match the canonical skills, that no Claude-specific paths or claims have leaked into model-neutral files, that nothing credential-shaped is committed, that the author’s rule files are byte-identical to the archived originals, and that the three scoring scripts run with and without the dataset and reproduce the author’s own worked example.</p>
+      <p>The goal is not that CI is nice to have. It is that an agent reading the toolkit through any door gets the same methodology, and that the measured rules cannot be quietly edited.</p>
+
+      <h2>What I Learned</h2>
+      <p>I started this thinking I needed to turn someone else’s Claude skills into skills for the tools I use. I ended up deciding that was the wrong layer.</p>
+      <p>The useful part was not Claude. It was not ChatGPT or Grok either. It was the methodology. So I put that in GitHub and made the agents come to it.</p>
+      <p>AGENTS.md, llms.txt and toolkit.json are different doors into the same system. An agent can run the scripts if it has a terminal, or follow the same rules by hand if it does not. The repository owns the method. The model is replaceable.</p>
+      <p>For this build, the durable asset turned out to be the methodology, the instructions, the schemas, the tests and the source data, stored somewhere boring and portable. That is a pattern I expect to use again.</p>
+
+      <h2>Source and Attribution</h2>
+      <p>The underlying research, the dataset, the source methodology and the original headline-writer, hook-writer and cover-writer skills are by <strong><a href={sourceLink} target="_blank" rel="noopener">@fuckgrowth</a></strong>, published in September 2026. The headline rules come from the 40,478-article study described above; the cover rules come from a separate study of 1,391 covers on X Articles over 300,000 views. Every measured number in the toolkit is the author’s, and the author’s rule files are kept byte-for-byte in the repository. @fuckgrowth has given explicit permission for the material to be used and redistributed in this MIT-licensed toolkit.</p>
+      <p>The model-neutral port, the architecture, the workflow and package format, the agent interfaces and adapters, the state interface and schemas, the tests and the documentation are this project’s. The repository’s <code>SOURCES.md</code>, <code>PROVENANCE.md</code> and <code>NOTICE.md</code> list the sources and classify every file as original, ported or added.</p>
+      <p>The research is observational: the rules raise odds, they do not predict a given article. The dataset ends September 26, 2026. The cover study is winners-only. None of that is softened on the page or in the repository.</p>
+      <p><a href={repoLink} target="_blank" rel="noopener"><strong>View on GitHub →</strong></a></p>
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .build {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+  .build-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--fg);
+  }
+  /* Status badge: same treatment as the Building cards. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+    background-color: var(--bg);
+  }
+  .badge-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background-color: currentColor;
+  }
+  .badge-live {
+    color: var(--accent-2);
+    border-color: color-mix(in oklab, var(--accent-2) 35%, var(--border));
+  }
+  .badge-live .badge-dot {
+    background-color: var(--accent-2);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-2) 18%, transparent);
+  }
+  .badge-shipped {
+    color: #94a3b8;
+    border-color: rgb(100 116 139 / 0.2);
+    background-color: rgb(100 116 139 / 0.1);
+  }
+  .badge-shipped .badge-dot {
+    background-color: #64748b;
+  }
+  .summary {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--fg);
+    margin: 0 0 1.1rem;
+    max-width: 42rem;
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--fg);
+    margin: 0 0 1.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-key {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 0.4rem;
+  }
+  .stack {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .stack li {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.55rem;
+  }
+
+  /* Markdown body */
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--fg);
+  }
+  .prose :global(h2) {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 2.75rem 0 1rem;
+    color: var(--fg);
+  }
+  .prose :global(h2::before) {
+    content: '// ';
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    letter-spacing: 0.08em;
+    vertical-align: 0.15em;
+  }
+  .prose :global(p) {
+    margin: 0 0 1.15rem;
+  }
+  .prose :global(strong) {
+    color: var(--fg);
+    font-weight: 650;
+  }
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 1.15rem;
+    padding-left: 1.4rem;
+  }
+  .prose :global(li) {
+    margin-bottom: 0.35rem;
+  }
+  .prose :global(li::marker) {
+    color: var(--accent);
+  }
+  .prose :global(a) {
+    color: var(--accent);
+  }
+  @media (max-width: 560px) {
+    .build {
+      padding-top: 2.75rem;
+    }
+    .stack {
+      margin-bottom: 2.25rem;
+    }
+  }
+  /* Related links row (same as the AI Werewolf page). */
+  .build-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.75rem;
+    margin: -1.5rem 0 2.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .build-links a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity 150ms ease;
+  }
+  .build-links a:hover {
+    opacity: 0.8;
+  }
+  .prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  /* Architecture figure: the repository's real file names laid out as a flow.
+     Pure HTML/CSS so it cannot show anything the repo does not contain. */
+  .prose :global(.arch) {
+    margin: 0 0 2.25rem;
+    padding: 1.5rem 1.25rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: var(--font-mono);
+  }
+  .prose :global(.arch ul),
+  .prose :global(.arch ol) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .prose :global(.arch li) {
+    margin: 0;
+  }
+  .prose :global(.arch-node) {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--bg);
+    text-align: center;
+  }
+  .prose :global(.arch-root) {
+    border-color: var(--accent);
+  }
+  .prose :global(.arch-k) {
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .prose :global(.arch-v) {
+    font-size: 0.875rem;
+    color: var(--fg);
+  }
+  .prose :global(.arch-line) {
+    width: 1px;
+    height: 1.25rem;
+    background-color: var(--border);
+  }
+  .prose :global(.arch-doors) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+    position: relative;
+    padding-top: 1rem;
+  }
+  .prose :global(.arch-doors::before) {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16.66%;
+    right: 16.66%;
+    height: 1px;
+    background-color: var(--border);
+  }
+  .prose :global(.arch-doors li) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--bg);
+    text-align: center;
+    position: relative;
+  }
+  .prose :global(.arch-doors li::before) {
+    content: '';
+    position: absolute;
+    top: -1rem;
+    left: 50%;
+    width: 1px;
+    height: 1rem;
+    background-color: var(--border);
+  }
+  .prose :global(.arch-stages) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .prose :global(.arch-stages li) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--bg);
+  }
+  .prose :global(.arch-stages li:not(:last-child)::after) {
+    content: '→';
+    color: var(--muted);
+    margin-left: 0.25rem;
+  }
+  .prose :global(.arch-lock) {
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+  }
+  .prose :global(.arch-out) {
+    border-color: var(--accent);
+  }
+  .prose :global(.arch figcaption) {
+    margin-top: 1rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--muted);
+    text-align: center;
+  }
+  @media (max-width: 36rem) {
+    .prose :global(.arch-doors) {
+      grid-template-columns: minmax(0, 1fr);
+      padding-top: 0;
+    }
+    .prose :global(.arch-doors::before),
+    .prose :global(.arch-doors li::before) {
+      display: none;
+    }
+  }
+</style>
