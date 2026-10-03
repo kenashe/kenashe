@@ -1,0 +1,49 @@
+---
+title: "LLM security starts where code enters the pipeline"
+description: "Greg Kroah-Hartman’s LLM security framing points builders away from model mystique and toward ordinary controls: provenance, review boundaries, logs, rollback, and treating generated code as untrusted input until it earns trust inside the software pipeline."
+pubDate: 2026-10-03
+tags: ["ai-security", "coding-agents", "developer-tools", "model-reliability", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-03-llm-security-starts-where-code-enters-the-pipeline/hero.webp
+  alt: "LLM security starts where code enters the pipeline"
+sources:
+  - title: "Greg Kroah-Hartman – Security in the LLM Age [video]"
+    url: "https://www.youtube.com/watch?v=NnV_cWeoo5Q"
+---
+
+TL;DR: Treat LLM output like any other untrusted software supply chain input, useful, sometimes fast, never allowed to skip provenance, review, testing, and rollback.
+
+## What changes when LLMs write code?
+
+My primary source here is Greg Kroah-Hartman’s talk, “Security in the LLM Age,” surfaced on Hacker News. Kroah-Hartman is best known for Linux kernel work, including stable kernel maintenance, so the useful lens is not “AI futurism.” It is software maintenance under pressure.
+
+That matters because most LLM security talk gets stuck in two extremes. One side says models are magic interns and the old rules no longer apply. The other says generated code is poison and serious teams should ban it. Neither is how builders actually behave.
+
+The real change is volume and ambiguity. LLMs make it cheaper to produce code, config, tests, shell commands, documentation, migration scripts, and glue. Some of it is correct. Some of it is subtly wrong. Some of it copies patterns that were common online but are now unsafe. The security problem is not that a model can emit bad code. Humans already do that. The problem is that the model can emit plausible bad code at a pace that overwhelms normal review habits.
+
+That means the control point moves upstream. If a coding agent can open a pull request, edit dependencies, run terminal commands, or touch production credentials, then the agent is part of the engineering system. Not a chat box. Not a toy. A participant with permissions.
+
+## Where should teams put the guardrails?
+
+The boring controls are still the good controls.
+
+Generated code should enter through the same path as human code: branch, diff, tests, review, CI, security scanning, deploy gate, rollback plan. If the LLM proposes a dependency, the dependency needs the same scrutiny as any other third-party package. If it writes a regular expression for auth routing, that deserves more attention than a UI copy tweak. If it suggests a shell command, the command should be visible before execution.
+
+![an untrusted glowing machine output entering a guarded software pipeline with review gates, test chambers, and a rollbac](../../assets/blog/2026-10-03-llm-security-starts-where-code-enters-the-pipeline/inline-1.webp)
+
+The highest-risk failure mode is permission creep. A team starts with autocomplete. Then a coding assistant can edit files. Then it can run tests. Then it can install packages. Then it gets repo-wide context. Then it gets access to tickets, logs, customer traces, and deployment tools. Each step may be reasonable. The combined system may be too powerful for the review process around it.
+
+So I would separate three questions that often get mashed together. What can the model read? What can it change? What can it execute? Reading production logs is a privacy and data-handling question. Changing code is a supply chain question. Executing commands is an operations question. Different risks. Different approvals.
+
+## What should builders measure?
+
+Accuracy is not enough. For coding agents, I care about blast radius.
+
+Can the system produce a clean diff that a reviewer can understand? Can it cite the files it touched and why? Can it run only approved commands? Does it preserve tests instead of deleting them to make the build pass? Does it add dependencies without hiding them inside generated scaffolding? Does it fail closed when context is missing?
+
+This is where “model reliability” becomes an engineering practice, not a benchmark slogan. A stronger model helps, but a strong model with broad permissions and weak logs is still a bad system. A weaker model constrained to narrow edits, with good diffs and tests, may be safe enough for real throughput.
+
+There is also a cultural piece. Teams need permission to say, “The AI wrote this, but I own it.” That sentence sounds obvious. It is not. If generated code ships, accountability cannot sit with the tool. It sits with the maintainer, reviewer, and organization that accepted it.
+
+A practical builder move: map every AI coding workflow as an input path into your software supply chain. Start with one narrow use case, like test generation or documentation updates. Require diffs, CI, human review, and easy rollback. Then expand permissions one at a time. The catch most readers miss: the risky moment is not when the model gets smarter. It is when the organization quietly grants it more access than the process was designed to supervise.
