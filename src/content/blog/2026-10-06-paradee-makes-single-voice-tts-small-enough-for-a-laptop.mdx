@@ -1,0 +1,56 @@
+---
+title: "Paradee makes single-voice TTS small enough for a laptop"
+description: "Paradee shows a practical path for local text-to-speech: distill one voice from a larger open model, keep the teacher’s intermediate speech features, and ship an 8.5 MB int8 model that runs fast on one CPU thread."
+pubDate: 2026-10-06
+tags: ["voice-ai", "distillation", "small-models", "local-ai", "model-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-06-paradee-makes-single-voice-tts-small-enough-for-a-laptop/hero.webp
+  alt: "Paradee makes single-voice TTS small enough for a laptop"
+sources:
+  - title: "Paradee: Distilling Kokoro-82M into an 8M-Parameter Single-Voice Text-to-Speech Model"
+    url: "http://arxiv.org/abs/2610.06817v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Paradee is useful because it treats text-to-speech as a narrow product problem, not a general model problem: one voice, tiny footprint, laptop-speed inference.
+
+## What did Paradee actually shrink?
+
+The primary source is the arXiv paper titled “Paradee: Distilling Kokoro-82M into an 8M-Parameter Single-Voice Text-to-Speech Model,” with code, model files, and audio samples published at https://github.com/sahilmahendrakar/paradee.
+
+The headline is simple: Paradee distills Kokoro-82M, an open text-to-speech model with 54 voices, into an 8.07M-parameter model that speaks one voice. Stored in int8, Paradee is 8.5 MB. The paper reports 10x fewer parameters, 15x less compute, and 25x faster-than-real-time generation on one CPU thread. Its UTMOS score lands at 4.41, close to Kokoro’s reported 4.52.
+
+That is the right trade for a lot of real products.
+
+Most voice interfaces do not need 54 voices. A podcast tool may need one house narrator. A kiosk may need one brand voice. An accessibility reader may need one familiar local voice that works offline. If the product requirement is “sound like this one voice, quickly, on cheap hardware,” then carrying a multi-voice model is waste.
+
+Paradee’s core move is specialization. Not better at everything. Smaller at one thing.
+
+![large multi-voice speech model narrowing into one tiny local voice model on a laptop](../../assets/blog/2026-10-06-paradee-makes-single-voice-tts-small-enough-for-a-laptop/inline-1.webp)
+
+## Why is the training recipe interesting?
+
+Paradee keeps Kokoro’s architecture, but narrows the layers. It also avoids some of the pain that makes speech models annoying to train.
+
+Instead of learning alignment from scratch, Paradee first uses the frozen Kokoro teacher to synthesize a corpus. It keeps the teacher’s durations, pitch, energy, and phoneme features. Then it trains the system in two halves.
+
+The small text side learns to predict those saved speech features. The small decoder learns to turn the teacher’s saved values into the teacher’s audio. That decoder training starts with spectral losses, then moves to adversarial training. After that, the two halves get connected and the weights are quantized to int8.
+
+That matters because alignment learning and joint training are where small speech projects often get sticky. Paradee sidesteps much of that by using the teacher not just as a target waveform generator, but as a feature factory.
+
+This is the part I like. Distillation is often described as “make the student copy the teacher.” Here, the teacher leaves breadcrumbs. Timing, pitch, energy, phonemes. The student does not have to discover the whole structure of speech from raw text and audio. It learns a narrower mapping inside a teacher-shaped world.
+
+## What is the catch?
+
+There is one obvious limitation: Paradee speaks one voice. That is not a bug if the deployment target is fixed. It is a problem if the user expects voice variety, cloning, emotional range, multilingual coverage, or fast personalization.
+
+There is also an audio artifact worth paying attention to. The Paradee paper reports that the student initially kept a slight buzz. The paper traces it to the phase of voiced speech between 2 and 8 kHz. The fix is not another training run. It applies a phase-locking filter after synthesis, with no extra parameters. That removes most of the buzz, according to the paper.
+
+That detail is useful because it is very unglamorous. A tiny model gets close, then an old-fashioned signal-processing fix cleans up a real defect. Good systems are often like that. Model, measurement, patch. Not everything needs a bigger network.
+
+The broader read: small voice models are getting operationally interesting. An 8.5 MB single-voice model running on one CPU thread changes where speech can live. Local apps. Edge devices. Internal tools. Offline readers. Call-center QA playback. Private narration workflows where sending text to a hosted voice API is undesirable.
+
+I would try Paradee when the voice is fixed, latency matters, and the workflow can tolerate some evaluation work. Compare it against the teacher on your actual sentences, not demo text. Test numbers, names, abbreviations, code snippets, punctuation, and long paragraphs. The catch most readers miss: “25x faster than real time” is not the same as “production-ready voice quality for every domain.” The win is not universal TTS. The win is a small, inspectable path to a dedicated voice that can run where a big model does not belong.
