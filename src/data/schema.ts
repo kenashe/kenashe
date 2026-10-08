@@ -17,7 +17,8 @@
 // profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg); 2026-10-02 image
 // becomes the 4:3 JPEG (1200x900; also the homepage og:image and primaryImageOfPage) plus 1:1 and
 // 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
-// per Wikidata P69) and the about.me and Linktree profiles are added. Any change here must be mirrored in the Lucky Domains
+// per Wikidata P69) and the about.me and Linktree profiles are added; 2026-10-08 about.me and Linktree are
+// removed again and knowsAbout is re-centered on six durable topics. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -92,8 +93,6 @@ export const personKenAshe = {
     'https://www.wikidata.org/wiki/Q141507904',
     'https://www.instagram.com/ken.ashe/',
     'https://www.tiktok.com/@ken.ashe',
-    'https://about.me/kenashe',
-    'https://linktr.ee/kenashe',
   ],
   affiliation: {
     '@type': 'Organization',
@@ -102,12 +101,12 @@ export const personKenAshe = {
     url: 'https://luckydomains.io/',
   },
   knowsAbout: [
-    'AI workflows',
     'AI agents',
-    'Marketing automation',
-    'SEO',
+    'AI workflows and automation',
     'AI-assisted development',
-    'Domain acquisition',
+    'Bitcoin',
+    'Digital identity',
+    'Domain names',
   ],
 };
 
