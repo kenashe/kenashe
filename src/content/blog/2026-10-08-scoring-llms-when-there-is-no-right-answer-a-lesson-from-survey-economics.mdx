@@ -1,0 +1,60 @@
+---
+title: "Scoring LLMs When There Is No Right Answer: A Lesson From Survey Economics"
+description: "A new arXiv paper borrows stated-preference economics to evaluate language models on questions with no ground truth, testing coherence instead of correctness, and separating six models sharply on whether their answers even hang together."
+pubDate: 2026-10-08
+tags: ["evals", "benchmarks", "model-reliability", "ai-research", "language-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-08-scoring-llms-when-there-is-no-right-answer-a-lesson-from-survey-economics/hero.webp
+  alt: "Scoring LLMs When There Is No Right Answer: A Lesson From Survey Economics"
+sources:
+  - title: "Validity Without Ground Truth: What Stated-Preference Economics Offers the Evaluation of Language Models"
+    url: "http://arxiv.org/abs/2610.10506v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: When a question has no correct answer, you can still grade a model on whether its answers are internally coherent, and a borrowed framework from survey economics gives you concrete tests to do it, but passing them proves consistency, not truth.
+
+Most evals assume a key exists. Multiple choice has a right letter. Code either runs or it doesn't. Math has an answer. But a huge share of what people actually ask models now has no answer key at all. What is this policy worth? Which option should I pick? How do I weigh privacy against convenience? You cannot score those against ground truth because there is no ground truth to score against.
+
+The paper "Validity Without Ground Truth: What Stated-Preference Economics Offers the Evaluation of Language Models," posted to arXiv under both cs.AI and cs.CL, argues that economists have been stuck on exactly this problem for decades and built a toolkit worth stealing. I think they are right, and the result is one of the more useful eval ideas I have read this year precisely because it refuses to overclaim.
+
+## What problem is this actually solving?
+
+Stated-preference economics runs surveys that ask people what they would pay for things that have no market price. Cleaner rivers. A preserved wetland. Reduced risk. Nobody can check those answers against a true number because the true number does not exist in any observable market. So the field developed a different question: not "is this answer correct" but "is this answer valid," meaning does it behave the way a coherent set of preferences should behave.
+
+![a scale with one empty pan and one pan holding interconnected gears, suggesting judgment without a fixed weight to measu](../../assets/blog/2026-10-08-scoring-llms-when-there-is-no-right-answer-a-lesson-from-survey-economics/inline-1.webp)
+
+That reframing maps cleanly onto LLM evaluation. The authors lay out the economics vocabulary and translate each piece: content validity (does the instrument cover the right ground), construct validity (do the answers relate to each other the way theory says they should), criterion validity (do they predict something external), reliability (do you get the same answer twice), plus incentive compatibility and consequentiality (does the respondent have any reason to answer honestly). None of these need a correct answer. They need a model of how good answers hang together.
+
+The move here is honest about its own ceiling. Validity is not truth. A model can be perfectly coherent and perfectly wrong, the same way a person with consistent but mistaken beliefs is still consistent. The paper says this plainly: "Passing validity tests shows that a model's answers are coherent, not that they are correct." That sentence is the whole discipline of the approach. It tells you what you bought and what you did not.
+
+## How do the tests separate the models?
+
+To show it works, the authors took a published water-quality valuation survey, Vossler et al. 2023, and ran it through six models. Economic theory makes predictions you can actually check. Demand should slope down: raise the price, willingness to pay should fall. Willingness to pay should respond to scope: a bigger environmental improvement should be worth more than a smaller one. And it should respond to income: richer households should, on average, be willing to pay more.
+
+Those are not opinions. They are structural properties any coherent preference set should exhibit. So you can score a model on whether its stated answers obey them, without ever knowing the "right" willingness to pay for cleaner water.
+
+The results split the field hard. Two older models failed the most basic test at a household income level of $75,000. The two newest passed every test of theoretical validity the authors could score. That is a clean, legible gap, and it is the kind of result that tells you something an accuracy number would hide. An older model answering these questions does not just give worse numbers, it gives numbers that violate the basic shape of rational preference. That is a different and more serious failure than being a little off.
+
+![two downward-sloping curves, one smooth and one jagged and broken, side by side](../../assets/blog/2026-10-08-scoring-llms-when-there-is-no-right-answer-a-lesson-from-survey-economics/inline-2.webp)
+
+## Where does the clean story break down?
+
+Here is the part I appreciate most, because it is where a weaker paper would have stopped. The newest models passed every theoretical-validity test, and then diverged on convergent validity. Convergent validity asks whether two instruments that should measure the same underlying thing actually agree. The models were each internally coherent. They just did not agree with each other.
+
+Sit with that. Two models can both pass every logical consistency check you can construct, and still land in different places on what the thing is worth. Coherence does not collapse the answer space to one point. It only rules out the incoherent region. For an operator, that is the catch: a model passing these tests is a necessary filter, not a sufficient one. You have confirmed the model is not contradicting itself. You have not confirmed it is giving you the answer a careful human panel would give.
+
+This is also where I would push on the method. Six models, one survey domain, water quality. The framework is general by argument, not yet by demonstration across many domains. The economic-theory predictions (downward-sloping demand, scope sensitivity, income sensitivity) are clean because economics handed them over ready-made. Plenty of the squishy questions people ask models do not come with a tidy theory that says what coherent answers must look like. The hard work in applying this broadly is writing down those structural predictions for your own domain, and that is not automatic.
+
+## How would a builder actually use this?
+
+Steal the posture before you steal the tests. If you are evaluating a model on open-ended judgment work (pricing, prioritization, recommending one option over another, weighing tradeoffs), stop pretending you have a gold answer and start writing down the structural properties a sane answer must have. Monotonicity: if input A dominates input B, the model should not rate B higher. Scope sensitivity: a bigger ask should move the number in the expected direction. Reliability: ask twice, slightly reworded, and check the spread. Those three alone will catch failures your LLM-as-judge rubric sails right past, because a judge model scoring vibes can be fooled by a confident incoherent answer.
+
+![a filter funnel removing jagged broken shapes while smooth consistent shapes pass through](../../assets/blog/2026-10-08-scoring-llms-when-there-is-no-right-answer-a-lesson-from-survey-economics/inline-3.webp)
+
+The catch most readers will miss: these tests tell you which models to eliminate, not which to trust. The two newest models both passed and still disagreed. So use validity as a gate, then spend your real evaluation budget on the models that clear it, comparing them against each other and against human judgment on the specific calls you care about. Coherence is the cheap screen. Correctness, where it even exists, is the expensive part, and nothing here lets you skip it.
+
+Primary source: "Validity Without Ground Truth: What Stated-Preference Economics Offers the Evaluation of Language Models," arXiv cs.AI and cs.CL, using the water-quality valuation survey from Vossler et al. 2023.

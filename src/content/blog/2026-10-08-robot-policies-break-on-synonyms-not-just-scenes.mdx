@@ -1,0 +1,56 @@
+---
+title: "Robot policies break on synonyms, not just scenes"
+description: "A VLA paper shows that tiny instruction changes can swing robot task success by tens of points, but also that a cheap rewrite layer can recover performance without retraining. The useful lesson is not better prompting as theater. It is input normalization as a reliability control."
+pubDate: 2026-10-08
+tags: ["robotics", "prompt-engineering", "model-reliability", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-08-robot-policies-break-on-synonyms-not-just-scenes/hero.webp
+  alt: "Robot policies break on synonyms, not just scenes"
+sources:
+  - title: "Rephrase Before You Act: Characterizing and Mitigating Language Sensitivity in Vision-Language-Action Models"
+    url: "http://arxiv.org/abs/2610.10526v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Vision-language-action models can fail because users phrase the same command differently, and a simple rewrite layer may be one of the cheapest reliability fixes before retraining.
+
+## What breaks when the robot hears a synonym?
+
+The arXiv paper “Rephrase Before You Act: Characterizing and Mitigating Language Sensitivity in Vision-Language-Action Models” is about a boring problem that matters a lot: wording.
+
+Not intent. Not physics. Not perception. Wording.
+
+The headline example is almost comic. The paper reports that $π_\{0.5\}$ turns on a LIBERO stove 100% of the time for “switch on the stove” and 2% of the time for “switch on the hot plate.” Same apparent task. Different phrase. Near-total collapse.
+
+That is not a small prompt-engineering footnote. It means the model’s action policy is carrying brittle language associations into the physical task. The paper says vision-language-action models, or VLAs, do not simply inherit the language stability of the vision-language models they are built on. Once language is tied to action, phrasing can become a control surface.
+
+This is the part that should make builders slow down. A robot demo can look good if the operator knows the magic words. A warehouse, kitchen, lab bench, or home assistant will not get magic words. It will get “put the mug away,” “move the cup,” “clear this,” “place that there,” and some tired person saying the same thing five different ways.
+
+![two robot arms facing the same object, one speech bubble causing a failed motion, another speech bubble passing through ](../../assets/blog/2026-10-08-robot-policies-break-on-synonyms-not-just-scenes/inline-1.webp)
+
+## Is this a prompt problem or a policy problem?
+
+Both, which is why the paper is interesting.
+
+The researchers tested single-edit phrasing swings and used an oracle phrase search. They report that phrasing alone nearly closes the 21-point gap between in-distribution and out-of-distribution tasks. That is a big clue. Some “generalization” failures may partly be language interface failures.
+
+The fix they test is practical: do not retrain the policy. Instead, score many phrasings on a few training tasks, ask a large language model to distill the evidence into 10 to 20 rephrasing rules, then rewrite each incoming instruction once at deployment.
+
+That sounds too simple. It also sounds exactly like the kind of systems glue that ships.
+
+The reported gains are not magic. They are bounded. The rules improve frozen $π_0$ by 16% to 27% relative across twelve held-out tasks, including adversarial, VLM-generated, and human-generated phrasings. Gains are concentrated on out-of-distribution tasks. The pipeline also replicates on $π_\{0.5\}$ and LIBERO, where in-finetune success rises from 93.6% to 97.8%.
+
+The key constraint: no retraining, no per-step verification, and the rewrite applies zero-shot to unseen tasks and instructions. That makes this closer to an input-normalization layer than a new model capability.
+
+## Why this matters beyond robotics
+
+The obvious read is “robots need better prompts.” I think that undersells it.
+
+The better read is that language interfaces for action systems need canonicalization. Before the system acts, translate messy human intent into the narrow phrasing distribution the policy actually handles. Search engines have done query rewriting forever. RAG systems normalize questions before retrieval. Agents often need tool-call schemas that reduce ambiguity. Robotics is now hitting the same wall, except mistakes can move physical objects.
+
+There is a catch. A rewrite layer can hide failures as well as fix them. If the rephraser changes intent, the policy may confidently do the wrong thing. The paper’s approach works because the rules are derived from observed model behavior on scored phrasings, not just generic paraphrasing. That distinction matters. “Make it clearer” is vague. “Rewrite toward forms this policy succeeds on” is an engineering control.
+
+For builders, I would test this before reaching for fine-tuning. Build a phrase set for each task. Measure success by wording, not just by task. Find the phrases that fail. Then add a constrained rewrite pass and retest on held-out human phrasings. The missed catch: do not let the rewrite model become an unmeasured agent in front of your agent. Log original instructions, rewritten instructions, policy outcomes, and cases where meaning may have shifted. The cheap fix is only cheap if you can see when it lies.
