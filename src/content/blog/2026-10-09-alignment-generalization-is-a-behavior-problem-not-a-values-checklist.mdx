@@ -1,0 +1,58 @@
+---
+title: "Alignment generalization is a behavior problem, not a values checklist"
+description: "The arXiv paper “Predicting Alignment Generalization with Value Representations” argues that activation patterns predict how alignment training spills into unseen behaviors far better than text descriptions of values."
+pubDate: 2026-10-09
+tags: ["alignment", "post-training", "evals", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-09-alignment-generalization-is-a-behavior-problem-not-a-values-checklist/hero.webp
+  alt: "Alignment generalization is a behavior problem, not a values checklist"
+sources:
+  - title: "Predicting Alignment Generalization with Value Representations"
+    url: "http://arxiv.org/abs/2610.12410v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you want to predict how alignment training will generalize, watch what the model represents internally when applying values, not how neatly humans describe those values.
+
+## What problem is this paper actually naming?
+
+The arXiv paper “Predicting Alignment Generalization with Value Representations” gives a useful name to a problem every serious model team already has: alignment generalization prediction.
+
+Post-training usually starts with a target. Be helpful. Be harmless. Be honest. Refuse dangerous requests. Respect privacy. Avoid deception. Whatever the exact list, the team turns values into training signals and evals.
+
+The catch is that training on one value does not stay boxed inside that value. Fine-tuning a model to follow a narrow behavior can change how it behaves in other contexts that were never directly trained. Sometimes that is good. Sometimes it creates weird regressions. Sometimes the eval suite still looks fine because the suite is checking the target behaviors, not the spillover.
+
+This paper studies that spillover across 66 values found in modern alignment targets. The core question is simple: if you tune a model toward one value, can you predict how that will affect many held-out values?
+
+That is a better framing than “is this model aligned?” Alignment is not a single switch. It is a web of behavior changes. Pull one strand and others move.
+
+![one cluster of connected glowing nodes shifting as a single node is pulled outward](../../assets/blog/2026-10-09-alignment-generalization-is-a-behavior-problem-not-a-values-checklist/inline-1.webp)
+
+## Why do activations beat written value descriptions?
+
+The most useful result is also the least surprising if you spend time with models: activation-based representations worked much better than text-based descriptions.
+
+The paper reports that the best activation-based methods reached correlations of 0.45 with its generalization matrix. Description-based baselines reached 0.05. That is a huge gap for the practical question being asked.
+
+My read: written values are labels. Activations are closer to how the model is actually using the value in context.
+
+A phrase like “be honest” looks clean in a policy document. Inside a model, honesty can overlap with uncertainty expression, refusal style, citation behavior, deference, hedging, confidence calibration, and willingness to contradict the user. A text description flattens that. Activations preserve more of the messy structure.
+
+This also explains why alignment evals can feel overfit. A model can learn the shape of a desired answer without learning the deeper behavior the team wanted. Or it can learn the deeper behavior and drag along adjacent traits nobody intended to move.
+
+The paper also reports initial evidence for a shared, model-independent value space, then uses empirical generalization dynamics to build a taxonomy of LLM values. I would treat that as promising, not settled. “Initial evidence” is doing real work there. Still, the direction matters. If values have measurable geometry across models, alignment work can become less like policy prose and more like behavioral engineering.
+
+## What changes for builders and evaluators?
+
+The near-term lesson is not “throw away written principles.” You still need them. Teams need human-readable targets for governance, product decisions, safety review, and user trust.
+
+But written targets are not enough for training and evaluation. If activation patterns predict downstream behavior better, then serious alignment workflows should test internal representations alongside output behavior. Not as magic mind-reading. As another instrument panel.
+
+This is especially relevant for teams fine-tuning smaller models, domain models, support agents, coding agents, or internal enterprise assistants. Most of those teams will not build a full alignment lab. They will define a few desired behaviors, tune on examples, run evals, and ship. That is exactly where hidden generalization bites.
+
+A customer support model trained to be “empathetic” may become less direct. A coding assistant trained to be “cautious” may over-refuse safe refactors. A medical intake bot trained to “avoid diagnosis” may become evasive even when summarizing patient-provided facts. The value you train is not the only value you move.
+
+Practitioner’s take: before fine-tuning for a behavioral trait, create a small matrix of adjacent traits you care about, including ones you do not want to change. Run pre/post evals on all of them, not just the target trait. If you have access to activations, start logging representation shifts during value-in-context prompts and compare them across candidate training sets. The catch most readers miss: the biggest risk is not that alignment fails visibly, it is that it succeeds locally while quietly bending neighboring behaviors.
