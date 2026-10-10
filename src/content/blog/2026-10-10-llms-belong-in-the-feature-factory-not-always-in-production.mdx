@@ -1,0 +1,54 @@
+---
+title: "LLMs belong in the feature factory, not always in production"
+description: "LLM-BlockFE points to a practical pattern for enterprise AI: use large models offline to turn messy long text into frozen executable features, then run cheap structured models in production where latency, cost, and auditability matter."
+pubDate: 2026-10-10
+tags: ["applied-ai", "enterprise-ai", "ai-workflows", "language-models", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-10-llms-belong-in-the-feature-factory-not-always-in-production/hero.webp
+  alt: "LLMs belong in the feature factory, not always in production"
+sources:
+  - title: "Long Text to Predictive Features: LLM-Guided Blockwise Feature Engineering via Executable Program Search"
+    url: "http://arxiv.org/abs/2610.12390v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The useful move is not replacing every production model with an LLM, it is using an LLM offline to discover better features, then deploying plain executable code.
+
+## What problem is LLM-BlockFE actually solving?
+
+The arXiv cs.CL paper “Long Text to Predictive Features: LLM-Guided Blockwise Feature Engineering via Executable Program Search” is aimed at a very normal enterprise problem: the important signal is often trapped in long messy text, but the production system is built around structured features.
+
+That is especially common in risk systems. The model wants clean columns. The business has notes, applications, case histories, descriptions, logs, messages, complaints, and other text blobs. A human team can turn some of that into features by hand, but that is slow. Running an LLM on every live request may be too expensive, too slow, too hard to monitor, or all three.
+
+LLM-BlockFE tries to split the difference. It uses an LLM during offline feature construction, not during online inference. The system searches for executable feature programs that can read long text and emit structured features. After search, those programs are frozen and deployed like normal code. The downstream prediction model gets columns, not LLM responses.
+
+That architecture matters more than the specific benchmark bump. It treats the LLM as a design-time assistant for feature discovery, not as the runtime decision engine. For a lot of regulated or high-throughput systems, that is the more practical lane.
+
+![messy long documents flowing into an offline construction workshop, then frozen code blocks feeding a compact prediction](../../assets/blog/2026-10-10-llms-belong-in-the-feature-factory-not-always-in-production/inline-1.webp)
+
+## Why use executable programs instead of prompts?
+
+Prompts are flexible. That is also the problem.
+
+A prompt-based extraction system can drift when models change, when providers update behavior, or when edge cases pile up. Executable feature programs are more boring, which is often good. They can be inspected, versioned, tested, rolled back, and monitored with standard software practices.
+
+LLM-BlockFE builds these programs incrementally by appending immutable code blocks. Candidate features are evaluated through a downstream model, so the search is tied to predictive usefulness rather than just whether a generated feature sounds plausible.
+
+The paper also calls out a failure mode in greedy search: it can get stuck. LLM-BlockFE adds a block-level rollback mechanism using depth-calibrated credit allocation, plus multiple independent search trajectories that advance in an interleaved way. In plain English: do not bet the whole feature search on one path, and do not assume the latest added block deserves all the credit or blame.
+
+That is a good general lesson for AI-assisted engineering. LLMs are decent at proposing candidates. They are not enough. You still need an evaluator, a search process, and a way to recover from attractive dead ends.
+
+## How strong are the results?
+
+The reported gains are modest in the way serious production gains are often modest.
+
+Across two public and two private datasets, “Long Text to Predictive Features: LLM-Guided Blockwise Feature Engineering via Executable Program Search” reports absolute AUC improvements of 0.0069 to 0.0358 over the strongest baseline in the full-dataset comparison. In post-launch monitoring across five deployed financial risk-control applications, it reports absolute KS improvements of 0.02 to 1.56 percentage points over the existing manually designed strategy.
+
+Those are not magic numbers. A 0.0069 AUC lift will not impress someone looking for a demo. In a scaled risk-control system, though, small ranking improvements can be meaningful if they are stable, cheap to run, and operationally sane. The private datasets and deployed applications are also hard to judge from the abstract alone. I would want to see feature examples, failure cases, compute cost during search, code safety controls, and how often the generated programs need refreshes.
+
+Still, the direction is right. A lot of enterprise AI value will look like this: LLMs compress expert labor during development, then disappear from the hot path.
+
+For builders, the practical test is simple: find one workflow where long text feeds a structured decision model, then try using an LLM to propose deterministic extractors, scoring each candidate against your real downstream metric. Do not ship free-form LLM outputs if frozen code will do. The catch most teams miss is evaluation. Without a strong offline scorer and a holdout set that matches production, you are just automating feature theater.

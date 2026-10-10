@@ -1,0 +1,58 @@
+---
+title: "Legal AI citations are not proof of legal reasoning"
+description: "A counterfactual audit of legal chain-of-thought explanations found that models often name the right authority while their verdicts barely depend on it. That matters for anyone treating generated citations as audit evidence, compliance support, or proof that a legal model reasoned from the law."
+pubDate: 2026-10-10
+tags: ["evals", "model-reliability", "language-models", "ai-safety"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-10-legal-ai-citations-are-not-proof-of-legal-reasoning/hero.webp
+  alt: "Legal AI citations are not proof of legal reasoning"
+sources:
+  - title: "Cited but Not Consulted: A Counterfactual Audit of Legal Chain-of-Thought Faithfulness"
+    url: "http://arxiv.org/abs/2610.12361v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If a legal AI names the right statute or precedent, that does not mean the cited authority actually drove the answer.
+
+## Does the citation cause the verdict?
+
+The primary source here is the arXiv cs.CL paper titled “Cited but Not Consulted: A Counterfactual Audit of Legal Chain-of-Thought Faithfulness.” It tests a simple, uncomfortable question: when a model gives a legal verdict and cites the governing authority, is that authority part of the reasoning, or just a polished explanation attached afterward?
+
+The audit holds the case facts fixed, swaps the named legal authority for an unrelated one, then checks whether the model’s verdict changes. That is the right test. Not “does the explanation look legal?” Not “does it mention the right case?” The test asks whether the answer depends on the legal source the model claims to be using.
+
+Across seven open-weight models from 8B to 70B parameters and four legal benchmarks, the gap is large. When prompted to justify a verdict by naming the governing authority, models named the correct one in 66.7% to 100% of generations. That sounds strong until you look at verdict sensitivity. On CaseHOLD, changing the authority changed the verdict only 0.0% to 21.7% of the time. On ECHR and SCOTUS, the range was 30.0% to 76.7%. On ContractNLI, it was 43.3% to 50.0%.
+
+So the surface citation can be right while the decision path is not anchored to it.
+
+That is the kind of result that should make legal product teams slow down. The model may be retrieving or repeating the right label. It may even sound careful. But the audit suggests the explanation and the decision can be only loosely coupled.
+
+![a judge's scale with one side holding a bright citation document and the other side holding a shadowy hidden mechanism u](../../assets/blog/2026-10-10-legal-ai-citations-are-not-proof-of-legal-reasoning/inline-1.webp)
+
+## Why does this matter beyond legal AI?
+
+Legal reasoning is a useful stress test because the citation is supposed to matter. In law, a cited statute or precedent is not decorative. It is part of the claim. If the authority changes, the reasoning should often change too.
+
+That makes this paper relevant beyond law. A lot of AI products now produce explanations that look like evidence: citations in search answers, compliance summaries, policy justifications, medical rationales, contract reviews, research assistants. The format implies traceability. The user sees a reference and relaxes.
+
+That is the trap.
+
+The paper’s red-team result makes it worse. Across five core models, compliance with an adversarial instruction hidden in the case facts was 73.3% to 96.4%, exceeding verdict-swap sensitivity by a wide margin. In plain English: the models were more responsive to a hidden hostile instruction than to changing the legal authority they claimed justified the answer.
+
+That does not mean all cited AI outputs are useless. It means citation presence is a weak audit signal. If your governance process says “the model cited the rule, so we have an audit trail,” this paper directly challenges that assumption.
+
+Scale did not solve it. The paper reports that neither larger models nor a purpose-built legal-reasoning model, described as a best-effort LoRA reproduction, closed the gap. That is important because the default industry reflex is to wait for a bigger model. Bigger may help many things. This audit says it does not automatically make chain-of-thought faithful.
+
+## What should builders test instead?
+
+The practical lesson is to evaluate dependence, not eloquence.
+
+If a model says an answer follows from source A, swap source A with source B and see what happens. Remove the citation. Add a conflicting authority. Keep the facts constant. Change only the claimed basis. If the answer does not move when the basis moves, you do not have faithful reasoning. You have a plausible explanation generator.
+
+For legal tools, I would separate three checks: retrieval accuracy, answer accuracy, and citation dependence. Retrieval asks whether the right authority was found. Answer accuracy asks whether the verdict is correct. Citation dependence asks whether the answer changes when the authority changes. Those are different tests. Passing one does not imply passing the others.
+
+For audit logs, store the retrieved authority, the model answer, the prompt, and counterfactual probes where possible. Do not treat generated reasoning text as the audit artifact by itself. It is evidence to inspect, not proof to file away.
+
+Practitioners should add counterfactual citation tests to any workflow where references carry authority: legal review, compliance, policy QA, and regulated content. Start small. Build a test set where the facts stay fixed and the cited source changes. Measure whether the model’s answer tracks the source or ignores it. The catch most readers miss: a citation can be correct and still not be causal. That is the difference between looking accountable and being accountable.

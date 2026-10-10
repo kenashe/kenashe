@@ -1,0 +1,56 @@
+---
+title: "Accuracy is not enough when agents meet conflicting evidence"
+description: "A paper on epistemic humility shows why agent evals need to test whether systems notice conflicts, resolve them, and admit uncertainty instead of only scoring final task success."
+pubDate: 2026-10-10
+tags: ["ai-agents", "agent-evaluation", "model-reliability", "evals"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-10-accuracy-is-not-enough-when-agents-meet-conflicting-evidence/hero.webp
+  alt: "Accuracy is not enough when agents meet conflicting evidence"
+sources:
+  - title: "Accurate but Not Humble: Evaluating Epistemic Humility in LLM Agents under Knowledge Conflict"
+    url: "http://arxiv.org/abs/2610.12360v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Agent evals should test whether a system carries uncertainty through the whole task, not just whether it lands on the right answer.
+
+## What does “epistemic humility” mean for an AI agent?
+
+The arXiv cs.CL paper **“Accurate but Not Humble: Evaluating Epistemic Humility in LLM Agents under Knowledge Conflict”** puts a useful name on a problem builders see all the time: an agent finds evidence that conflicts with what the model “knows,” then still produces a clean final answer as if nothing happened.
+
+That is not just a RAG problem. It is an agent behavior problem.
+
+The paper defines epistemic humility as the agent’s willingness to recognize, act on, and communicate uncertainty during task execution. The frame is practical. The researchers break it into three trajectory-level behaviors: Identify, Solve, and Escalate, or ISE.
+
+Identify means the agent notices a conflict. Solve means it does something useful with the conflict, like checking another source or revising the answer. Escalate means it communicates unresolved uncertainty instead of hiding it under a confident final response.
+
+That last part matters. Many evals only score the final answer. If the answer is right, the system gets credit. If it is wrong, it loses. But real agent work is messier. A support agent, research assistant, coding agent, or compliance workflow may encounter conflicting sources halfway through a task. The question is not only “did it finish?” It is “did it know when the ground got shaky?”
+
+## Where do agents fail under knowledge conflict?
+
+The paper tests two conflict settings: controlled conflict, where contradictory information is deliberately introduced, and naturally occurring conflict during multi-step agent execution. Each is paired with no-conflict controls, which is the right comparison. Otherwise every failure gets blamed on conflict, even when the agent was weak anyway.
+
+The headline finding is uncomfortable: higher task accuracy does not necessarily mean greater epistemic humility.
+
+Some high-accuracy agent configurations recognized conflicts during execution, then failed to communicate unresolved uncertainty in the final answer when they were wrong. That is the worst version for operators. The trace contains the warning, but the user never sees it.
+
+The trajectory-level analysis is the useful part. The researchers report that agents often detect conflicts early, then lose them later. In other words, the problem is not always initial perception. It is state management. The agent’s scratchpad, tool calls, retrieved evidence, and final response policy do not preserve the uncertainty.
+
+![an agent carrying a small warning light through several rooms, with the light growing dim before the final doorway](../../assets/blog/2026-10-10-accuracy-is-not-enough-when-agents-meet-conflicting-evidence/inline-1.webp)
+
+This maps to what I see in practical workflows. A model will say “there is conflicting information here” in step two, then step six reads like a press release. The final answer has been laundered into confidence.
+
+## How should builders evaluate this?
+
+The paper also reports that model-level interventions can improve epistemic humility, but often at the cost of task accuracy. That tradeoff is not surprising. If you train or prompt a system to be more cautious, it may refuse to settle some questions it previously guessed correctly. The real question is where you want that boundary.
+
+For low-stakes brainstorming, too much humility is annoying. For medical intake, legal research, financial controls, security triage, or anything involving user harm, the “confident but wrong” failure mode is far worse than a slower escalation.
+
+This is why I like ISE as an eval lens. It gives teams a way to score behavior across the run, not just at the endpoint. Did the agent notice the conflict? Did it try to resolve it with a reasonable action? If not resolved, did it preserve that uncertainty in the final output?
+
+A good internal eval set should include conflicts between model memory and retrieved evidence, conflicts between two retrieved sources, stale information, ambiguous user requests, and cases where no resolution is possible. The final rubric should penalize false certainty. Not every unresolved conflict needs a refusal, but it does need to show up in the answer.
+
+For builders, the move is simple: add conflict cases to your agent evals before you ship. Log whether uncertainty appears, persists, and reaches the user. Then tune the harness, not just the prompt. The catch most teams miss is that humility is not a sentence you append at the end. It is a property of the whole trajectory, from retrieval to tool use to final response.
