@@ -29,6 +29,18 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'iphone-18-pro-att-activation-failure',
+    title: 'My iPhone 18 Pro Upgrade Failed. Then My Old Phone Lost Service Too.',
+    date: 'October 10, 2026',
+    published: '2026-10-10',
+    dek: 'I walked into an AT&T store with a working phone. After hours of troubleshooting, I left with no cellular service, a reported 48-hour account lock, and no explanation for how to get connected again.',
+    image: {
+      file: 'iphone-18-pro-att-activation-failure.jpg',
+      alt: 'Two iPhones side by side on a table, with one displaying SOS and the other connected to AT&T.',
+      caption: 'My two iPhones on October 10, 2026. One displays SOS while the other shows AT&T service.',
+    },
+  },
+  {
     slug: 'ai-editor-trusted-least',
     title: 'I Used AI to Make My First Video. The AI Editor Was the Part I Trusted Least.',
     date: 'September 25, 2026',
