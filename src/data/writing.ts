@@ -34,6 +34,7 @@ export const essays: Essay[] = [
     date: 'October 10, 2026',
     published: '2026-10-10',
     dek: 'I walked into an AT&T store with a working phone. After hours of troubleshooting, I left with no cellular service, a reported 48-hour account lock, and no explanation for how to get connected again.',
+    authorship: 'Firsthand account',
     image: {
       file: 'iphone-18-pro-att-activation-failure.jpg',
       alt: 'Two iPhones side by side on a table, with one displaying SOS and the other connected to AT&T.',
