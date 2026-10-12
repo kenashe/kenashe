@@ -1,0 +1,58 @@
+---
+title: "Tabular regression still punishes lazy early stopping"
+description: "A tabular deep learning paper rechecks regression objectives across datasets and backbones, finds quantile loss is the real contender against tuned MSE, and shows why one global early-stopping checkpoint can quietly hurt noisy and clean regions differently."
+pubDate: 2026-10-12
+tags: ["ai-research", "model-training", "evals", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-12-tabular-regression-still-punishes-lazy-early-stopping/hero.webp
+  alt: "Tabular regression still punishes lazy early stopping"
+sources:
+  - title: "Revisiting Tabular Deep Regression: Objectives and the Limits of Global Early Stopping"
+    url: "http://arxiv.org/abs/2610.13909v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For tabular deep regression, changing the loss can help, but the bigger operational trap is using one early-stopping checkpoint for data regions that learn at different speeds.
+
+## What actually beats a tuned MSE baseline?
+
+The primary source here is the arXiv cs.AI/cs.LG paper titled “Revisiting Tabular Deep Regression: Objectives and the Limits of Global Early Stopping,” with code published at https://github.com/yandex-research/tabular-regression.
+
+The useful part is not that Mean Squared Error is bad. It is that MSE is often a stronger baseline than papers make it look.
+
+The paper re-evaluates regression objectives across established tabular datasets and multiple neural backbones. That matters because tabular deep learning has a bad habit of producing claims that depend on a specific dataset, model family, tuning budget, or evaluation protocol. Change one of those and the win gets smaller, flips sign, or disappears.
+
+The reported finding is pretty plain: many proposed alternatives to MSE give limited or inconsistent gains once MSE is properly tuned. Quantile loss is the exception. It gives consistent aggregate improvements over MSE across the tested backbones.
+
+That is a builder-relevant result. If you are training a neural tabular regressor for pricing, demand, risk, lead scoring, operations forecasting, or any other continuous target, the first move is not to grab every fancy objective on a leaderboard. Start with a real MSE baseline, tuned fairly. Then test quantile loss.
+
+Quantile loss also gives you something MSE does not: a more natural way to model conditional uncertainty. In real tabular data, the target noise is rarely uniform. Some customer segments, product categories, locations, or transaction types are just messier than others. Pretending the whole dataset has one noise profile is convenient. It is also wrong often enough to cost you.
+
+## Why does early stopping become the hidden bottleneck?
+
+The paper’s sharper point is about training time, not just loss functions.
+
+Even when the objective can represent heteroskedastic target distributions, regions with different target noise can hit their best predictive performance at different epochs. Clean regions may peak earlier. Noisy regions may need longer, or may overfit in a different pattern. A single global early-stopping checkpoint forces one compromise.
+
+That sounds small. It is not.
+
+Most practical training pipelines treat early stopping as plumbing. Pick a validation metric, set patience, save the best checkpoint, ship. But if your validation score blends multiple uncertainty regimes, “best overall” can mean “slightly wrong for everyone.” Or worse, it can mean the model is good for the easy region that dominates the metric and weak for the messy region where the business risk lives.
+
+![two clusters of data taking separate curved training paths toward different best moments, with one shared checkpoint cut](../../assets/blog/2026-10-12-tabular-regression-still-punishes-lazy-early-stopping/inline-1.webp)
+
+This is the kind of failure that rarely shows up in a single aggregate score. You see it later in dashboards, support tickets, underpriced risk, strange residuals, or sales teams saying the model is “usually right except when it matters.”
+
+## What should builders change in the workflow?
+
+The paper introduces a heteroskedasticity-aware extension of quantile loss using input-dependent label smoothing, and reports improvements over quantile loss on several backbones. I would treat that as promising, not settled law. The exact method needs more external replication, especially on private business datasets with ugly joins, stale features, and target leakage risks.
+
+But the workflow lesson is ready now.
+
+When training tabular regressors, slice validation performance by estimated noise, target range, cohort, geography, product type, customer size, or whatever domain grouping plausibly changes uncertainty. Track not only final error, but the epoch where each slice performs best. If those epochs differ, your early-stopping setup is hiding a tradeoff.
+
+Also, do not compare loss functions against a lazy MSE run. That only tells you your baseline was weak. A properly tuned MSE baseline, quantile loss, and sliced validation curves should be the minimum serious test.
+
+Practitioner’s take: if I were adding this to a production modeling loop, I would run MSE and quantile loss with the same tuning budget, log per-slice validation curves across epochs, and inspect whether the “best” checkpoint is actually best for the segments that matter. The catch most teams miss is that objective choice and early stopping interact. A smarter loss can still be kneecapped by a checkpoint chosen for the average case.
