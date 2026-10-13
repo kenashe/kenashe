@@ -57,7 +57,14 @@ export function coverOf(essay: Essay): EssayCover | null {
           `Render <EssayFigure essay={essay} /> in the page, or remove the image field.`,
       );
     }
-    return { kind: 'asset', image: assetFor(essay), alt: essay.image.alt, caption: essay.image.caption };
+    // The listing may use a dedicated 16:9 composition; everything else keeps the declared file.
+    const thumb = essay.image.thumbnail ? assets[`../assets/writing/${essay.image.thumbnail}`] : undefined;
+    if (essay.image.thumbnail && !thumb) {
+      throw new Error(
+        `[writing] "${essay.slug}" declares thumbnail "${essay.image.thumbnail}" but src/assets/writing/${essay.image.thumbnail} does not exist`,
+      );
+    }
+    return { kind: 'asset', image: thumb ?? assetFor(essay), alt: essay.image.alt, caption: essay.image.caption };
   }
   const inline = firstInlineImage(source);
   if (inline) return { kind: 'inline', ...inline };
@@ -83,8 +90,10 @@ export async function ogImageOf(essay: Essay): Promise<OgImage | null> {
       ? { src: cover.src, width: cover.width, height: cover.height }
       : null;
   }
-  const width = Math.min(1200, cover.image.width);
-  const height = Math.round((width * cover.image.height) / cover.image.width);
-  const out = await getImage({ src: cover.image, width, height, format: 'jpg' });
+  // Always the declared file: a listing-only `thumbnail` never becomes the social image.
+  const image = essay.image ? assetFor(essay) : cover.image;
+  const width = Math.min(1200, image.width);
+  const height = Math.round((width * image.height) / image.width);
+  const out = await getImage({ src: image, width, height, format: 'jpg' });
   return { src: out.src, width, height };
 }

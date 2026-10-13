@@ -15,6 +15,10 @@ export interface EssayImage {
   file: string;
   alt: string;
   caption?: string;
+  // Optional 16:9 composition in src/assets/writing/ used only for the /writing/ thumbnail,
+  // for covers whose shape would otherwise be cropped badly by the listing's 16:9 frame
+  // (e.g. a tall illustration). The social image and the page still use `file`.
+  thumbnail?: string;
 }
 
 export interface Essay {
@@ -28,6 +32,19 @@ export interface Essay {
 }
 
 export const essays: Essay[] = [
+  {
+    slug: 'ashe-family-coat-of-arms',
+    title: 'The Ashe Family Coat of Arms: A Cockatrice and a Guinness Connection',
+    date: 'April 6, 2016 · Updated October 13, 2026',
+    published: '2016-04-06', // first published on kennethashe.com; refreshed and republished here
+    dek: 'A search for the Ashe family coat of arms led to a mythical cockatrice, a Latin motto, Shakespeare, and an unexpected Guinness connection.',
+    authorship: 'Human-written original, AI-assisted refresh',
+    image: {
+      file: 'ashe-family-coat-of-arms.jpg',
+      alt: 'Historical Ashe coat of arms featuring two black chevronels, a cockatrice crest, and the motto Non nobis sed omnibus.',
+      thumbnail: 'ashe-family-coat-of-arms-thumb.jpg',
+    },
+  },
   {
     slug: 'iphone-18-pro-att-activation-failure',
     title: 'My iPhone 18 Pro Upgrade Failed. Then My Old Phone Lost Service Too.',
