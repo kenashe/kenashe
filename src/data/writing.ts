@@ -29,6 +29,17 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'ashe-family-coat-of-arms',
+    title: 'The Ashe Family Coat of Arms: A Cockatrice and a Guinness Connection',
+    date: 'April 6, 2016 · Updated October 13, 2026',
+    published: '2016-04-06', // first published on kennethashe.com; refreshed and republished here
+    dek: 'A search for the Ashe family coat of arms led to a mythical cockatrice, a Latin motto, Shakespeare, and an unexpected Guinness connection.',
+    image: {
+      file: 'ashe-family-coat-of-arms.jpg',
+      alt: 'Historical Ashe coat of arms featuring two black chevronels, a cockatrice crest, and the motto Non nobis sed omnibus.',
+    },
+  },
+  {
     slug: 'iphone-18-pro-att-activation-failure',
     title: 'My iPhone 18 Pro Upgrade Failed. Then My Old Phone Lost Service Too.',
     date: 'October 10, 2026',
