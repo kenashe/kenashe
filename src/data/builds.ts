@@ -22,7 +22,7 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
-    title: 'Autonomous SEO Agent',
+    title: 'Autonomous SEO agent',
     status: 'LIVE',
     dek: 'An AI agent that finds five new website opportunities daily, creates professional profiles, verifies accounts through its own Gmail inbox, and tracks everything without manual intervention.',
     stack: ['HyperAgent', 'AI Agents', 'Automation', 'SEO', 'Gmail'],
