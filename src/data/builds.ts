@@ -11,6 +11,8 @@ export type Project = {
   // Detail write-up route (e.g. '/building/ai-werewolf/'). Cards with a link get a
   // "Read the build" CTA; content lives in src/content/builds/.
   link?: string;
+  // Optional CTA label for `link` (defaults to "Read the build"), e.g. "Watch the demo".
+  cta?: string;
 };
 
 // Days elapsed since an ISO date. Computed at build time - Vercel redeploys
@@ -19,6 +21,15 @@ export const daysSince = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 
 export const projects: Project[] = [
+  {
+    title: 'Autonomous SEO Agent',
+    status: 'LIVE',
+    dek: 'An AI agent that finds five new website opportunities daily, creates professional profiles, verifies accounts through its own Gmail inbox, and tracks everything without manual intervention.',
+    stack: ['HyperAgent', 'AI Agents', 'Automation', 'SEO', 'Gmail'],
+    shippedAt: 'Oct 2026',
+    link: '/building/autonomous-seo-agent/#demo',
+    cta: 'Watch the demo',
+  },
   {
     title: 'X article toolkit',
     status: 'LIVE',
