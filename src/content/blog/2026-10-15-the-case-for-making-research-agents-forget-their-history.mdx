@@ -1,0 +1,68 @@
+---
+title: "The Case for Making Research Agents Forget Their History"
+description: "A tier-1 arXiv paper argues that LLM research agents plateau because they get anchored to their own past attempts, and that periodically discarding search state beats just adding more compute, with gains up to 39 percent over a single agent."
+pubDate: 2026-10-15
+tags: ["ai-agents", "ai-research", "agent-memory", "reinforcement-learning", "ai-workflows", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-15-the-case-for-making-research-agents-forget-their-history/hero.webp
+  alt: "The Case for Making Research Agents Forget Their History"
+sources:
+  - title: "Scaling Discovery Requires Forgetting"
+    url: "http://arxiv.org/abs/2610.20563v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The paper "Scaling Discovery Requires Forgetting" shows that LLM research agents stop improving once they accumulate too much of their own history, and that periodically wiping the search state and restarting from the best candidate pushes the same compute budget further, up to 15 percent over parallel agents and up to 39 percent over a single agent.
+
+We spend a lot of energy arguing about how much memory agents should have. Longer context. Persistent memory stores. Shared scratchpads between parallel agents. The assumption underneath all of it is that more retained state equals more capability. This paper, posted to arXiv under both cs.AI and cs.CL as "Scaling Discovery Requires Forgetting," pokes a clean hole in that assumption for one specific job: open-ended discovery.
+
+The finding is counterintuitive enough to be worth sitting with. When you let a research agent remember everything it has tried, it gets worse at finding genuinely new things. Not immediately. It plateaus, then it ossifies.
+
+## Why do research agents plateau?
+
+The authors tested the three obvious ways to scale automated research with LLM agents. Let one agent iterate longer. Run many agents in parallel. Let those parallel agents talk to each other and build on one another's candidates. Each of these is a reasonable bet, and each one buys you something early.
+
+Then all three flatten out.
+
+The mechanism they describe is the interesting part. As an agent accumulates history, it becomes anchored to its own past attempts. It starts making fewer edits, and the edits it does make get smaller. The agent is, in effect, reading its own log and concluding that the sensible move is a small tweak to what it already did. Past that anchoring point, extra budget barely moves the result. You are paying for compute that produces diminishing variation.
+
+![a winding search path that spirals tighter and tighter into a single fixed point, next to a second path that breaks free](../../assets/blog/2026-10-15-the-case-for-making-research-agents-forget-their-history/inline-1.webp)
+
+This matches something anyone who has run long agent loops has felt without naming it. The agent gets cautious. It converges on a local answer and then polishes it forever. More tokens do not fix a motivation problem, and anchoring to history is a motivation problem dressed as a memory feature.
+
+## What does "forgetting" actually mean here?
+
+The intervention is almost embarrassingly simple, which is usually a sign it is real. Periodically, the system discards the search state. Every agent's session goes. The candidate history goes. Then it restarts from the single best candidate found so far.
+
+So it is not amnesia. The best-known solution survives. What gets thrown away is the paper trail of how the agents got there, all the dead ends and near-misses and justifications that were quietly teaching each agent to stay close to home. You keep the result, you burn the reasoning that produced it, and you let fresh sessions attack the problem again from that new high-water mark.
+
+Think of it as a checkpoint plus a reset, run on a schedule. The checkpoint protects your gains. The reset restores the appetite for big edits that the accumulated history had suppressed.
+
+The authors implemented this inside a team of agents that communicate, which is notable. Communication is normally sold as a pure positive: agents share good ideas, they build on each other. But communication also spreads anchoring. If one agent's history biases it toward small edits, and it broadcasts that bias, you can get a whole team quietly agreeing to stop exploring. Forgetting breaks that shared rut.
+
+## How big are the gains, and on what?
+
+They evaluated on four tasks spanning heuristic programming, kernel optimization, and model training. Those are not toy problems. Kernel optimization and model training in particular are exactly the kind of search-heavy, verifiable work where you would deploy an automated research loop in the first place, because you have a scorer that can tell you if a candidate is actually better.
+
+The reported numbers: up to 15 percent improvement over parallel agents, and up to 39 percent over a single agent, on the same budget.
+
+Two things to hold onto there. First, "up to" is carrying weight, as it always does. These are ceilings across the task set, not averages you should expect everywhere. Second, and more important for how you read the result, the comparison is budget-matched. The point is not that forgetting unlocks some new capability the model did not have. It is that forgetting spends the same compute more productively by refusing to let the search calcify.
+
+That second framing is the one I would tattach to the title of the paper. The authors put it plainly: what an agent is allowed to remember matters as much as how much compute it is given. For open-ended discovery, memory is not free. It has a cost, and that cost is exploration.
+
+![two identical fuel tanks powering two machines, one machine stuck grinding in place and the other moving steadily forwar](../../assets/blog/2026-10-15-the-case-for-making-research-agents-forget-their-history/inline-2.webp)
+
+## Where does this apply, and where does it not?
+
+Be careful about overgeneralizing. This is a result about discovery loops with a scored verifier. The whole trick depends on being able to keep the best candidate because you can objectively rank candidates. Kernel speedups, heuristic quality, training outcomes: all scorable.
+
+A customer support agent does not get to forget the ticket in front of it. A coding agent working inside your repo needs to remember the files it already touched this session or it will thrash. Agent memory as a product feature, the kind that remembers your preferences across sessions, is solving a different problem entirely, and nothing here argues against it.
+
+The claim is narrower and sharper than "memory is bad." It is: when the objective is to find something new against a verifier, the record of your own failed attempts becomes a conservative force, and clearing it on a schedule restores exploration. That is a specific regime. Most agents you deploy at work are not in it. The ones doing AutoML, prompt search, code optimization, or any scored iterative-improvement loop absolutely are.
+
+I also want to flag the obvious open question the two abstracts do not settle: how often to forget. Reset too rarely and you ossify anyway. Reset too often and you throw away useful momentum before it compounds. The schedule is a hyperparameter, and the paper's "up to" numbers almost certainly hide real sensitivity to getting it right.
+
+If you run any scored, iterative-improvement loop with LLM agents, try this before you buy more GPU time: snapshot your best candidate, kill every agent session and the full candidate history, and relaunch from that snapshot with fresh context. Do it on a cadence and watch whether edit size recovers. The catch most readers will miss is that this only works when you have a trustworthy scorer, because forgetting is safe only if the thing you keep, the best candidate, is genuinely the best. A noisy or gameable verifier means your reset point is a lie, and all you are doing is restarting from a mirage with extra steps. Fix the eval first, then let the agents forget.
