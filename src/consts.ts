@@ -23,5 +23,6 @@ export const SOCIAL: { label: string; href: string }[] = [
   { label: 'X', href: 'https://x.com/kenashe' },
   { label: 'GitHub', href: 'https://github.com/kenashe' },
   { label: 'YouTube', href: 'https://www.youtube.com/@KenAshe' },
+  { label: 'TikTok', href: 'https://www.tiktok.com/@ken.ashe' },
   { label: 'Email', href: 'mailto:hello@kenashe.ai' },
 ];
