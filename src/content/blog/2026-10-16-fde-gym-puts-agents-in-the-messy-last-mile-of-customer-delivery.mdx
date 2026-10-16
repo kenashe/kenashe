@@ -1,0 +1,58 @@
+---
+title: "FDE-Gym Puts Agents in the Messy Last Mile of Customer Delivery"
+description: "A new benchmark drops agents into simulated customer projects with vague requirements and hidden constraints, and the best model resolves just 14 of 95 tasks. Here is what that gap means for anyone shipping AI to real clients."
+pubDate: 2026-10-16
+tags: ["ai-agents", "benchmarks", "agent-evaluation", "applied-ai", "enterprise-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-16-fde-gym-puts-agents-in-the-messy-last-mile-of-customer-delivery/hero.webp
+  alt: "FDE-Gym Puts Agents in the Messy Last Mile of Customer Delivery"
+sources:
+  - title: "FDE-Gym: The Last Mile of AI Delivery"
+    url: "http://arxiv.org/abs/2610.22350v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: FDE-Gym tests agents on real customer delivery work instead of clean task tickets, and the best configuration scores 0.56 and fully resolves only 14 of 95 tasks, which tells you the hard part of shipping AI is discovering what the customer never said out loud.
+
+Most agent benchmarks measure the wrong thing. They hand an agent a well-specified task: an issue report, a spec, a ticket with acceptance criteria baked in. The agent solves it or it doesn't. That is a real skill, but it is not the job. The job, when you are actually delivering AI to a paying customer, is figuring out what the ticket should have said in the first place.
+
+That is the gap **FDE-Gym: The Last Mile of AI Delivery** goes after, published on arXiv under both cs.AI and cs.CL. FDE stands for forward-deployed engineer, the person a vendor sends into a customer's live systems to make the thing actually work. The benchmark is 95 end-to-end delivery tasks drawn from 20 customer scenarios across 18 sectors, each adapted by industry experts from real delivery projects. And the headline number is brutal in the useful way: in the realistic setting, the best of 13 model configurations resolves only 14 of 95 tasks.
+
+## What does FDE-Gym actually test that other benchmarks don't?
+
+The setup is the interesting part. Instead of a static task description, FDE-Gym puts an agent inside a simulated customer environment with two moving pieces: scripted stakeholders the agent has to talk to, and modifiable customer systems the agent operates on. So the agent has to interview people, poke at a production-like system, and deliver a working solution against the customer's own success metric.
+
+Scoring is normalized between 0 and 1, where 0 is the unchanged system and 1 is the reference solution. A "resolved" task means a score of at least 0.8 with no incident. Crucially, there are penalties for how the agent interacts: messages sent, trial runs, waiting time. You do not get to brute-force the answer by spamming the stakeholder with forty questions and running the pipeline a hundred times. That penalty structure is what makes this feel like real consulting work rather than a lab puzzle. A client who you ping every ten minutes and whose systems you keep breaking is a client you are about to lose.
+
+![a clean specification sheet on one side and a tangled web of conversations, systems, and unspoken constraints on the oth](../../assets/blog/2026-10-16-fde-gym-puts-agents-in-the-messy-last-mile-of-customer-delivery/inline-1.webp)
+
+The authors also built an online platform so humans can practice FDE skills under the same grading criteria. That is a nice tell about intent. This is not just a scoreboard for models. It is a model of what the skill itself looks like, which means the same yardstick measures a junior engineer and a frontier model on equal footing.
+
+## Why do the agents fail where they do?
+
+The paper is precise about the bottleneck, and it is not what you would guess if you think agents fail on raw capability. The primary failure is discovering unstated constraints. Performance drops sharply when the model has to uncover requirements that nobody handed it. Give the agent explicit guidance and it does fine. Make it figure out what matters on its own, the way a real FDE does, and it falls apart.
+
+But here is the finding that actually sharpened my thinking: information discovery is necessary and not sufficient. The authors isolated 23 tasks where the best configuration obtained every key fact from the stakeholders. Perfect information. On those 23, it still reached a business uplift of 0.8 or higher on only 10.
+
+Read that again. Even when the agent knew everything, it delivered less than half the time.
+
+So there are two distinct skills failing here, not one. First, asking the right questions and surfacing hidden constraints. Second, actually translating full knowledge into a working, metric-moving solution inside a live system. A lot of us assumed that once an agent "understands the requirements" the rest is execution, and execution is the part we thought was solved. FDE-Gym says no. The connective work between knowing and doing is its own wall.
+
+![a figure holding all the puzzle pieces but still unable to assemble them into a finished shape](../../assets/blog/2026-10-16-fde-gym-puts-agents-in-the-messy-last-mile-of-customer-delivery/inline-2.webp)
+
+## How much should you trust one benchmark?
+
+Honestly, treat the specific numbers as a snapshot, not scripture. Thirteen model configurations from seven providers were evaluated, but the paper's abstract does not name which configuration won or which providers were tested, so I am not going to assign the 0.56 mean score or the 14-of-95 result to any particular lab. The authors do not give that breakdown in the material I have, and inventing a name would be exactly the kind of thing I will not do.
+
+A few honest caveats. These are simulated customers with scripted stakeholders, not live humans, so the realism has a ceiling: scripted stakeholders answer more consistently than real ones and never go on vacation mid-project. The tasks were "adapted" from real projects, which is a judgment call by the experts who built them. And 95 tasks across 18 sectors is broad but thin per sector. None of that invalidates the result. It just means the right reading is directional: current agents are far weaker at ambiguous, live delivery than at well-specified tasks, and the gap is large and consistent. That direction is almost certainly real even if the exact scores shift as models improve.
+
+What makes this benchmark worth watching is that it is adversarial to the thing labs are currently good at optimizing. You can juice a clean coding benchmark. It is much harder to juice "discover the constraint the customer forgot to mention and move their real metric without breaking anything."
+
+## The gap that should reshape how you deploy
+
+The practical lesson sits right in that 23-task experiment. If you are deploying agents into customer work today, your instinct is probably to pour effort into requirements gathering: better intake forms, sharper discovery calls, a RAG layer over the customer's docs. Worth doing. But FDE-Gym shows that even flawless discovery only gets you to 10 wins out of 23. The execution-under-ambiguity half of the problem is where most of the value leaks out.
+
+Practitioner's take: run your own agent deployments against this two-part frame before you promise a client autonomy. Split the work into discovery (does the agent surface the unstated constraints?) and delivery (given perfect info, does it ship a metric-moving result without incidents?). Log both separately, because a single pass/fail hides which half is broken, and they need different fixes. For discovery, the move is keeping a human in the loop on the clarifying-questions phase, where agents are weakest and a penalty for over-asking matters most. For delivery, the move is narrowing scope to tasks where the success metric is measurable and the system is sandboxed enough that a bad run does not become a production incident. The catch most readers will miss is that penalty structure. A benchmark that charges you for every message and every trial run is modeling the part of consulting that makes clients renew, and if your internal evals only measure final-answer correctness, you are grading your agents on the easy half of the job and shipping them into the hard one.
