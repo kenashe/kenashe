@@ -13,11 +13,11 @@
 // contact, sameAs incl. PMI; Substack dropped); 2026-09-10 sameAs gains the Lucky
 // Domains founder profile page; 2026-09-11 sameAs gains HackerNoon, DEV, Hashnode,
 // Medium, YouTube and Crunchbase author/profile pages; 2026-09-20 sameAs gains the Wikidata
-// item (Q141507904); 2026-09-23 sameAs gains the personal Instagram and TikTok
+// item (removed 2026-10-16 after the Wikidata item was deleted); 2026-09-23 sameAs gains the personal Instagram and TikTok
 // profiles; 2026-09-23 image becomes the dark-polo portrait (ken-ashe-2026.jpeg); 2026-10-02 image
 // becomes the 4:3 JPEG (1200x900; also the homepage og:image and primaryImageOfPage) plus 1:1 and
 // 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
-// per Wikidata P69) and the about.me and Linktree profiles are added; 2026-10-08 about.me and Linktree are
+// per P69 on the since-deleted Wikidata item) and the about.me and Linktree profiles are added; 2026-10-08 about.me and Linktree are
 // removed again and knowsAbout is re-centered on six durable topics. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
@@ -90,7 +90,6 @@ export const personKenAshe = {
     'https://www.youtube.com/@KenAshe',
     'https://www.crunchbase.com/person/ken-ashe-42ad',
     'https://luckydomains.io/founder/ken-ashe/',
-    'https://www.wikidata.org/wiki/Q141507904',
     'https://www.instagram.com/ken.ashe/',
     'https://www.tiktok.com/@ken.ashe',
   ],
