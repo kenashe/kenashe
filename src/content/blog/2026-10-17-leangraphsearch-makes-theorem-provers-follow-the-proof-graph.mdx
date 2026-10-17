@@ -1,0 +1,56 @@
+---
+title: "LeanGraphSearch makes theorem provers follow the proof graph"
+description: "LeanGraphSearch is a reminder that better AI reasoning often comes from better retrieval structure, not just bigger models: follow dependency graphs in Mathlib, surface non-obvious lemmas, and the theorem prover gets more useful proof attempts per reflection turn in formal math."
+pubDate: 2026-10-17
+tags: ["ai-research", "reasoning-models", "developer-tools", "model-reliability", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-17-leangraphsearch-makes-theorem-provers-follow-the-proof-graph/hero.webp
+  alt: "LeanGraphSearch makes theorem provers follow the proof graph"
+sources:
+  - title: "Lean Graph Search for Formal Theorem Proving"
+    url: "http://arxiv.org/abs/2610.22339v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: LeanGraphSearch improves Lean theorem proving by retrieving lemmas through Mathlib’s dependency graph, not just by matching text or embeddings to the current theorem.
+
+## What problem is LeanGraphSearch actually solving?
+
+The arXiv cs.LG paper “Lean Graph Search for Formal Theorem Proving” is about a very practical bottleneck in formal theorem proving: finding the right prior lemmas.
+
+That sounds small until you try to prove anything in Lean. The prover does not need vibes. It needs machine-checkable proof steps. If the useful lemma is buried in Mathlib and named in a way that does not look much like your target theorem, a normal retrieval system can miss it.
+
+Most retrieval systems start from similarity. Match the target theorem, or an intermediate proof state, against library declarations. That helps. But math libraries are not just piles of text. They are dependency networks. One theorem depends on prior lemmas, which depend on earlier lemmas, which often show up again in related proof routes.
+
+LeanGraphSearch uses that structure. It builds a graph from Mathlib’s forward dependencies, links each declaration to the premises it depends on, starts from semantically matched declarations, then propagates relevance through the graph to find supporting lemmas that may not be lexically obvious. After expansion, it reranks candidates against the original query.
+
+That is the interesting part. The method does not ask the model to “reason harder” in the abstract. It gives the prover a better map of the terrain.
+
+![theorem target connected to nearby lemmas, with hidden dependency paths converging into a proof checker](../../assets/blog/2026-10-17-leangraphsearch-makes-theorem-provers-follow-the-proof-graph/inline-1.webp)
+
+## Do the retrieval gains matter for proving?
+
+According to “Lean Graph Search for Formal Theorem Proving,” LeanGraphSearch improves recall by up to 12% over LeanSearch v2 on MathlibQR. On MathlibMPR, it covers up to 3.7% extra complete annotated proof route groups.
+
+Those are retrieval numbers. Useful, but not enough by themselves. The real test is whether better candidates produce more completed proofs.
+
+The paper reports that when LeanGraphSearch is integrated into an iterative proving loop guided by Lean feedback, it improves pass rate across three theorem proving benchmarks. The reported gains are as high as 40% compared with a vanilla prover at 8, 16, and 32 reflection turns, and up to 10% compared with LeanSearch v2.
+
+The “reflection turns” detail matters. A theorem prover working with feedback has a budget. Each turn is another chance to adjust after Lean says no. If retrieval can put better lemmas into context earlier, the system spends fewer attempts thrashing around. That is accuracy-cost efficiency, not just benchmark decoration.
+
+I like this because it points away from a lazy explanation of AI progress. Not every gain comes from a larger model or a longer context window. Sometimes the win is in representing the problem domain correctly. Mathlib already encodes a lot of human work. LeanGraphSearch treats that work as a graph, not just a searchable document store.
+
+## Why does this matter beyond formal math?
+
+Formal theorem proving is a clean testbed for a broader pattern: retrieval should match the structure of the domain.
+
+In code, dependencies matter. In law, citations matter. In science, methods, datasets, and prior results matter. In enterprise workflows, approvals, tickets, docs, and database schemas form their own graph whether anyone admits it or not.
+
+Plain semantic search often retrieves things that sound right. Graph-aware retrieval can retrieve things that are structurally useful. That distinction is huge for agents and reasoning systems. An agent does not only need a relevant paragraph. It needs the missing prerequisite, the constraint, the prior decision, or the function that everything else quietly depends on.
+
+The caution: graph search is not magic. The graph has to be good. Mathlib has unusually clean structure because Lean proofs are formal objects with explicit dependencies. Most business knowledge graphs are messier, incomplete, political, and full of stale edges. If you apply this idea outside Lean, the hard part is not picking a ranking algorithm. It is making the dependency structure trustworthy enough to use.
+
+For builders, the move is simple: when RAG starts failing on multi-step tasks, do not only swap embedding models. Ask what dependency graph already exists in your domain. Imports, citations, tickets, call graphs, workflow transitions, schema relationships, audit logs. Index the text, yes. But also traverse the structure. The catch most readers miss: graph retrieval helps most when the useful item is not obviously similar to the query, which is exactly where vanilla semantic search looks confident and quietly fails.
