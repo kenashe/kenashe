@@ -1,0 +1,100 @@
+---
+title: "What greedy sampling and expert-skip defaults cost you on a single-4090 Qwen3.8 rig"
+description: "Two Strata config defaults, greedy decoding before 0.1.45 and an aggressive expert-skip setting, quietly erode output quality on local MoE models. Here is what one r/LocalLLaMA tuning log measured, and how to check your own run config."
+pubDate: 2026-10-18
+tags: ["local-ai", "small-models", "model-reliability", "ai-infrastructure", "qwen"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-18-what-greedy-sampling-and-expert-skip-defaults-cost-you-on-a-single-4090-qwen3-8/hero.webp
+  alt: "What greedy sampling and expert-skip defaults cost you on a single-4090 Qwen3.8 rig"
+sources:
+  - title: "if you're on Strata before 0.1.45 and your client doesn't set sampling, you're running greedy"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1x8lwa1/if_youre_on_strata_before_0145_and_your_client/"
+  - title: "32GB to 64GB of RAM took Qwen3.8-Flash-Next from IQ2_XS (2-bit) to Unsloth UD-IQ4_XS (4-bit) on a single 4090"
+    url: "https://www.reddit.com/r/LocalLLaMA/comments/1x8l18e/32gb_to_64gb_of_ram_took_qwen38flashnext_from_iq2/"
+---
+
+TL;DR: If you run a local MoE model on Strata before 0.1.45 without a sampling block, you are decoding greedy and probably seeing loops, and the default expert-skip setting hands back a chunk of the quality you paid for when you moved to a bigger quant.
+
+My primary source here is a pair of r/LocalLLaMA posts from user Distinct-Pie2389, who documented moving a Qwen3.8-Flash-Next setup from a 2-bit quant to Unsloth's UD-IQ4_XS on a single RTX 4090, and caught two defaults that were quietly costing output quality. The numbers are theirs, measured on their box. I am synthesizing and adding operator context, not confirming anyone's benchmark.
+
+This is a small post about a small setup. But the pattern matters for anyone running models locally: the defaults in your inference engine are making decisions you probably did not consent to, and two of them here are the difference between a model that loops and one that works.
+
+## Why was the model looping before 0.1.45?
+
+Greedy decoding. That is the short version.
+
+Distinct-Pie2389 found that before Strata 0.1.45, a run config without a `sampling` block decoded greedy whenever the incoming request did not set its own temperature. Greedy means the model always picks the single highest-probability token. No sampling, no variation. On these MoE models that is exactly what produces repetition loops, where the output gets stuck circling the same phrase.
+
+The fix landed upstream in 0.1.45 (referenced as #2685 in the post). Now a request with no sampling inherits the model card's values instead of falling to greedy:
+
+- Thinking mode: temp 1.0, top_p 0.95, top_k 20
+- Non-thinking: temp 0.7, top_p 0.8, top_k 20, presence penalty 1.5
+
+Those match Unsloth's recommended settings for Qwen3.8-Flash-Next, per the post. Anything your client explicitly sends still overrides them. There was also a side detail worth catching: the web chat page had been sending a stored 0.6 temperature, and stopped.
+
+If you are on 0.1.44 or older, the author's advice is to update, or paste this into your run config:
+
+```
+"sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20}
+```
+
+The reason this is easy to miss: it only bites configs that have no sampling block at all. If you set temperature anywhere in your stack, you never saw it. Distinct-Pie2389 only noticed because their old configs were silent on sampling, which is how they inherited greedy without ever choosing it.
+
+![a single dominant path chosen repeatedly forming a tight closed loop, beside a branching tree of varied paths spreading ](../../assets/blog/2026-10-18-what-greedy-sampling-and-expert-skip-defaults-cost-you-on-a-single-4090-qwen3-8/inline-1.webp)
+
+## What does the expert-skip default actually cost in quality?
+
+Here is the subtler one. Since 0.1.42, Strata defaults to `STRATA_ROUTE_TAIL_SKIP=7`. It skips low-ranked experts that the cache missed, which buys decode speed. On a mixture-of-experts model, each token routes to a handful of experts; this setting tells the engine to not bother fetching the long-tail ones it does not already have warm.
+
+The catch: Strata's own QUANTS.md measured that default doubling the Unsloth 4-bit file's KL divergence against Q8_0 in RAM-budget mode, from 0.053 to 0.115. KL divergence here is a stand-in for how far the quantized model's output distribution drifts from the near-full-precision reference. Lower is closer. Doubling it is not nothing.
+
+Read that in context. Distinct-Pie2389 upgraded from a 2-bit quant to a 4-bit one specifically to recover quality, and bought 64GB of RAM to do it. The skip default then gives a meaningful slice of that quality straight back for speed. Paying for the better quant and leaving the skip at 7 is working against yourself.
+
+Their A/B on UD-IQ4_XS at 262K context, same config otherwise:
+
+- Skip 7 (default): 93 t/s decode at 36K, 93 t/s at 136K
+- Skip 0: 72 t/s at 36K, 81 t/s at 136K
+- Prompt speed unchanged: ~2,000 t/s at 36K, ~2,900 t/s at 136K
+
+So the skip costs roughly 15 to 20 t/s of decode. The author chose quality and set it to zero:
+
+```
+"env": {"STRATA_ROUTE_TAIL_SKIP": "0"}
+```
+
+That is a judgment call, not a universal rule. If you are latency-bound and the task is forgiving, the default might be right for you. The point is to make that trade on purpose instead of inheriting it.
+
+## Was the jump from 2-bit to 4-bit worth the speed hit?
+
+The hardware move was 32GB to 64GB of DDR5-5800, on an RTX 4090, i9-14900K, Arch. That extra RAM is what let the setup move off IQ2_XS.
+
+The constraint the author worked around is one every local operator hits: where do the experts live. UD-Q4_K_XL wants ~88GB to keep all experts in RAM, which on a 64GB box means streaming ~19GB of experts off a SATA SSD (~550 MB/s) mid-generation. That disk read during decode is a killer. UD-IQ4_XS is ~55GiB of experts, and with a 40GiB RAM budget plus the 4090 holding the rest, it fits with zero blob reads from the file. The log confirmed it: 40.00 GiB of experts in RAM, 0 blob reads. Expert cache hit rate ~91%.
+
+The speed cost of the quality jump, by their numbers on the same card:
+
+- IQ2_XS: 140-160 t/s
+- IQ3_S: 110-126 t/s
+- UD-IQ4_XS: 87-98 t/s on short prompts, ~92-94 t/s on needle tests at 36K and 136K
+
+So roughly half the tokens per second, in exchange for quality. Strata's quant table has UD-IQ4_XS matching Q8_0's top token 88.9% of the time, versus 84.5% for IQ3_XXS and 80.6% for Q2_0, with IQ2_XS sitting somewhere between those lower two. Needle tests at both 36K and 136K found the target, and tool calls came back clean with the right function and args on the first try.
+
+![a stack of containers partly filling a box with room to spare, next to an identical box overflowing with the stack spill](../../assets/blog/2026-10-18-what-greedy-sampling-and-expert-skip-defaults-cost-you-on-a-single-4090-qwen3-8/inline-2.webp)
+
+For local work, 90 t/s is plenty for interactive coding and agentic loops. The quality and the clean tool calls matter more there than raw throughput. Different answer if you are serving many users at once.
+
+## What should you check on your own rig?
+
+Three things, in order of how quietly they hurt.
+
+First, your sampling block. Open your run config. If there is no `sampling` entry and you are on Strata 0.1.44 or older, you are probably decoding greedy and eating loops you blamed on the model. Update or add the block.
+
+Second, `STRATA_ROUTE_TAIL_SKIP`. If you moved up a quant for quality, the default of 7 is pulling in the other direction. Decide on purpose.
+
+Third, the calibrator. Distinct-Pie2389 ran `tools/calibrate.py` (~30 min) and it moved `--spec-min-p` from 0.5 to 0.7 for about +4%, confirmed `--pcie-frac 0.20`, and flagged that anything at 0.55 or higher cost 20 to 40%. Per-box tuning like that does not transfer. Run it on your own hardware.
+
+![three dials on a control panel, two turned to wrong positions dimly lit and one glowing correctly after adjustment](../../assets/blog/2026-10-18-what-greedy-sampling-and-expert-skip-defaults-cost-you-on-a-single-4090-qwen3-8/inline-3.webp)
+
+Credit where it is due: the author was clear that the fix and the measurements are the Strata dev's upstream work, and that they only caught all this because their old configs were silent on sampling.
+
+Practitioner's take: the reusable lesson is not "set skip to 0," it is that inference-engine defaults optimize for a goal that may not be yours, usually speed, and they do it silently. Before you trust any local benchmark you ran or read, dump the full effective config: sampling, expert routing, KV quant, draft settings. A model that loops is often a greedy-decode config, not a bad model. A quant that disappoints is often an aggressive skip setting eating the quality you paid RAM for. The catch most people miss is that these settings interact with your specific hardware, your SSD speed, your RAM budget, your PCIe fraction, so copying someone else's numbers without running the calibrator on your own box just gives you a confident wrong answer. Measure it where it runs.
