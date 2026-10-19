@@ -1,0 +1,66 @@
+---
+title: "An AI Agent That Reproduces Cancer Studies and Checks Where They Wobble"
+description: "A new benchmark called SEER-Repro tests whether LLM agents can reproduce published medical findings and stress-test the analytical choices behind them, reproducing 77.4% of 2,190 claims and flagging roughly one in ten for human review."
+pubDate: 2026-10-19
+tags: ["ai-agents", "medical-ai", "benchmarks", "ai-research", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-19-an-ai-agent-that-reproduces-cancer-studies-and-checks-where-they-wobble/hero.webp
+  alt: "An AI Agent That Reproduces Cancer Studies and Checks Where They Wobble"
+sources:
+  - title: "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery"
+    url: "http://arxiv.org/abs/2610.23845v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: An LLM agent reproduced 77.4% of 2,190 atomic claims from 20 published cancer-registry papers and flagged potentially consequential analytical choices in 9.5% of the findings it fully reproduced, which points at a real near-term job for agents: not discovering science, but auditing it.
+
+The paper is "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery," posted to arXiv under both cs.AI and cs.CL. It does something more useful than most agent demos. Instead of asking whether a model can write a paper, it asks whether a model can check one. And it grounds that question in a database that actually matters: the SEER cancer registry, which the authors note underlies tens of thousands of published studies.
+
+That framing is the whole story. Reproducibility is a known crisis in empirical science, and the reason it stays a crisis is cost. Rerunning someone else's analysis by hand is slow, unglamorous work that nobody gets tenure for. If agents can take even part of that load, the payoff is not a flashy new result. It is confidence in the results we already have.
+
+## What is SEER-Repro actually testing?
+
+Three things, stacked.
+
+First, a benchmark. The authors assembled 20 published SEER-based papers along with the data and resources needed to reproduce them. That bundling is the hard part and the valuable part. Most reproducibility efforts die because the original data, code, and parameter choices are scattered or missing. Packaging 20 papers into a runnable benchmark is the kind of plumbing work that makes everything downstream possible.
+
+Second, a reproduction agent. It takes a published paper and tries to regenerate its claims from the underlying SEER data. The headline number: 77.4% of 2,190 atomic claims reproduced. "Atomic claim" is doing work here. They broke each paper into small, checkable assertions (this hazard ratio, that survival difference) rather than grading a paper pass or fail. That is the right granularity. A paper can be 90% solid and 10% shaky, and a single verdict hides exactly the part you care about.
+
+![a single research paper being split into many small checkable pieces, each piece getting a separate stamp of approval or](../../assets/blog/2026-10-19-an-ai-agent-that-reproduces-cancer-studies-and-checks-where-they-wobble/inline-1.webp)
+
+Third, and most interesting to me, a robustness pipeline. For the claims it reproduced, the agent identifies the analytical choices that produced each finding, proposes defensible alternatives, reruns the analysis, and checks whether the conclusion survives. Across the fully reproduced findings, it flagged potentially consequential choices in 9.5% and sent those to expert review.
+
+## Why does the 9.5% matter more than the 77.4%?
+
+The reproduction number is impressive, but reproduction only tells you the authors did what they said they did. It does not tell you whether what they did was the right call.
+
+That is where the robustness pipeline earns its keep. In any real analysis, you make dozens of defensible-but-arbitrary decisions. Which patients to exclude. How to bin ages. Which covariates to adjust for. Where to set a cutoff. Each one is reasonable on its own. Collectively they define what researchers call the "garden of forking paths," and a finding that only holds on one specific path through that garden is a finding you should not trust very far.
+
+So an agent that systematically enumerates those forks, tries the alternatives, and reports which findings flip is doing something humans rarely have the patience to do exhaustively. Nine and a half percent of reproduced findings resting on a consequential analytical choice is not a scandal. It is a realistic, uncomfortable number. It says: most results are sturdy, but a meaningful minority depend on a judgment call that deserves a second look.
+
+The design choice I respect most is that the pipeline flags for expert review rather than declaring findings wrong. That is the correct posture. The agent is not the arbiter of truth. It is a very patient research assistant that points a human at the ten studies out of a hundred where the analytical choices actually move the needle.
+
+![a branching path through a maze where most branches arrive at the same destination but a few diverge sharply](../../assets/blog/2026-10-19-an-ai-agent-that-reproduces-cancer-studies-and-checks-where-they-wobble/inline-2.webp)
+
+## Where does this break, and what are the catches?
+
+Start with the 22.6% it did not reproduce. The paper does not resolve why each of those failed, and that matters enormously. A failure to reproduce can mean the original paper was wrong, or that the data access differed, or that the agent misread the methods, or that a detail was never published in the first place. Those are completely different problems with completely different fixes, and lumping them into one "failed" bucket would be a mistake. The honest read is that reproduction failure is a signal to investigate, not a verdict.
+
+Second, this lives inside one database. SEER is unusually clean and well-documented, which is exactly why it anchors so many studies and exactly why it is a friendly target for an agent. Messier domains with bespoke datasets, proprietary pipelines, and undocumented preprocessing will be much harder. I would not assume 77.4% generalizes to clinical trials or lab science with different data conventions.
+
+Third, the robustness check depends on the agent proposing *good* alternatives. If it only tries variations the original authors would have also tried, it finds the obvious forks and misses the subtle ones. The quality of the "defensible alternatives" is the ceiling on this whole approach, and it is hard to evaluate from the outside.
+
+And the quiet risk worth naming: an automated reproducibility stamp could become a checkbox that journals and authors game. The moment "passed the agent" becomes a credential, people optimize for passing the agent. The value here is in directing expert attention, not replacing it. Treat the output as a worklist, not a seal of approval.
+
+## What should a builder take from this?
+
+The transferable pattern is bigger than cancer registries.
+
+The architecture is: decompose a document into atomic claims, regenerate each claim from source data, then perturb the analytical choices and see what holds. That three-step loop applies anywhere you have structured data behind a written conclusion. Financial reports against ledgers. Policy analyses against the underlying tables. Internal data-science memos against the warehouse. A/B test writeups against the raw logs.
+
+If you want to try it, start with the decomposition step, because it is where most people skip to the fun part and regret it. Force the agent to extract small, independently checkable claims before it touches the data. Grading a whole document is useless. Grading a hundred specific assertions tells you exactly where the body is buried. Then build your "defensible alternatives" library by hand for your domain, because that is the part the model is worst at and the part that generates the most value. The catch most readers will miss: the win is not automation of judgment, it is triage. The agent's real output is a short list that says "here are the three claims a human should actually look at," and that list is worth far more than any reproduce-or-not verdict.
+
+Primary source: "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery," arXiv (cs.AI and cs.CL). Worth reading in full if you build agents that have to check work rather than produce it.
