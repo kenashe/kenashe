@@ -1,0 +1,246 @@
+---
+// /connect — permanent conference "digital business card". All content comes from
+// src/data/connect.ts; edit that file, never this one, to change text or buttons before an
+// event (docs/connect.md). The URL must never change.
+import { Image } from 'astro:assets';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import ConnectIcon from '../../components/ConnectIcon.astro';
+import { connect, CONTACT_CARD } from '../../data/connect';
+import { personKenAshe, websiteKenAshe } from '../../data/schema';
+import headshot from '../../assets/connect/ken-ashe-headshot.webp';
+
+const buttons = connect.buttons.filter((b) => b.show);
+const links = connect.links.filter((l) => l.show);
+// Fail the build rather than ship a page with nothing highlighted by mistake.
+if (!buttons.some((b) => b.id === connect.emphasized)) {
+  throw new Error(`[connect] emphasized "${connect.emphasized}" is not a visible button id in src/data/connect.ts`);
+}
+const isExternal = (href: string) => /^https?:\/\//.test(href);
+
+const title = 'Connect with Ken Ashe';
+const description = `${connect.name}: ${connect.subtitle}. ${connect.intro} Follow, connect, or save my contact.`;
+
+const pageSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    websiteKenAshe,
+    {
+      '@type': 'ProfilePage',
+      '@id': 'https://kenashe.ai/connect/#profile',
+      url: 'https://kenashe.ai/connect/',
+      name: title,
+      mainEntity: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      about: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isPartOf: { '@id': 'https://kenashe.ai/#website' },
+      inLanguage: 'en-US',
+    },
+    personKenAshe,
+  ],
+};
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  image="/images/ken-ashe-headshot.jpg"
+  ogImageWidth={1200}
+  ogImageHeight={900}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Connect', path: '/connect/' },
+  ]}
+>
+  <JsonLd slot="jsonld" data={pageSchema} />
+  <article class="connect">
+    <header class="card-head">
+      <Image
+        class="portrait"
+        src={headshot}
+        alt="Ken Ashe"
+        widths={[144, 288, 432]}
+        sizes="(min-width: 40rem) 144px, 128px"
+        loading="eager"
+        fetchpriority="high"
+      />
+      {connect.greeting && <p class="greeting">{connect.greeting}</p>}
+      <h1>{connect.name}</h1>
+      <p class="subtitle">{connect.subtitle}</p>
+      <p class="intro">{connect.intro}</p>
+    </header>
+
+    <nav class="buttons" aria-label="Connect with Ken Ashe">
+      {
+        buttons.map((b) => (
+          <a
+            class:list={['btn', { 'btn-primary': b.id === connect.emphasized }]}
+            href={b.href}
+            data-connect={b.id}
+            {...(isExternal(b.href) ? { target: '_blank', rel: 'noopener' } : {})}
+            {...(b.href === CONTACT_CARD ? { type: 'text/vcard' } : {})}
+          >
+            <ConnectIcon name={b.icon} />
+            <span>{b.label}</span>
+          </a>
+        ))
+      }
+    </nav>
+
+    {
+      links.length > 0 && (
+        <ul class="links">
+          {links.map((l) => (
+            <li>
+              <a href={l.href} data-connect={l.id} {...(isExternal(l.href) ? { target: '_blank', rel: 'noopener' } : {})}>
+                <ConnectIcon name={l.icon} size={16} />
+                <span>{l.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </article>
+</BaseLayout>
+
+<script>
+  // Button clicks as Vercel Web Analytics custom events (same package the site already loads;
+  // no new tracking service). Page views, referrers and device types for /connect are
+  // recorded automatically. Note: Vercel only reports custom events on Pro/Enterprise plans;
+  // on Hobby the calls are harmless no-ops.
+  import { track } from '@vercel/analytics';
+  document.querySelectorAll<HTMLAnchorElement>('[data-connect]').forEach((a) => {
+    a.addEventListener('click', () => track('connect_click', { button: a.dataset.connect ?? '' }));
+  });
+</script>
+
+<style>
+  .connect {
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 0;
+  }
+  .card-head {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .card-head :global(.portrait) {
+    display: block;
+    width: 128px;
+    height: 128px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+  }
+  .greeting {
+    display: inline-block;
+    margin: 0 0 0.9rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 9vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0 0 0.5rem;
+    color: var(--fg);
+  }
+  .subtitle {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 1rem;
+  }
+  .intro {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    color: var(--fg);
+    margin: 0 auto;
+    max-width: 24rem;
+  }
+  .buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    min-height: 3.5rem;
+    padding: 0.85rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 150ms ease, transform 100ms ease;
+  }
+  .btn:hover,
+  .btn:focus-visible {
+    border-color: var(--accent);
+  }
+  .btn:active {
+    transform: scale(0.985);
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    font-size: 1.125rem;
+    min-height: 3.75rem;
+  }
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    border-color: var(--fg);
+  }
+  .links {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.5rem;
+    margin: 2rem 0 0;
+    padding: 0;
+  }
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  @media (min-width: 40rem) {
+    .connect {
+      padding-top: 3rem;
+    }
+    .card-head :global(.portrait) {
+      width: 144px;
+      height: 144px;
+      margin-bottom: 1.25rem;
+    }
+  }
+  .links a:hover,
+  .links a:focus-visible {
+    color: var(--accent);
+  }
+</style>
