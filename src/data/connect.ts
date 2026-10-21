@@ -84,8 +84,6 @@ export const connect = {
     organization: 'Lucky Domains',
     email: EMAIL,
     website: WEBSITE,
-    region: 'NJ',
-    country: 'USA',
     note: 'Met at a conference? I build things, test new technology, and show what actually happens at kenashe.ai.',
     profiles: [
       { label: 'X', url: PROFILE.x },

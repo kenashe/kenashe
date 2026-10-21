@@ -44,7 +44,6 @@ export const GET: APIRoute = () => {
       `item${i + 2}.X-ABLabel:${esc(p.label)}`,
       `X-SOCIALPROFILE;TYPE=${p.label.toLowerCase()}:${p.url}`,
     ]),
-    `ADR;TYPE=WORK:;;;;${esc(c.region)};;${esc(c.country)}`,
     `NOTE:${esc(c.note)}`,
     `PHOTO;ENCODING=b;TYPE=JPEG:${photo}`,
     'END:VCARD',
