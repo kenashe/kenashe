@@ -20,7 +20,7 @@ Profile URLs, the email and the website are defined once in the `PROFILE`, `EMAI
 | Highlight a different button | `emphasized: '<button id>'` (must be a visible button; the build fails otherwise) |
 | Add a new button | Copy an entry, give it a new unique `id` |
 | Change the small links under the buttons | `links` (same fields as buttons) |
-| Change what's in "Save My Contact" | `contact` (public business details only: name, title, organization, email, website, region, social profiles) |
+| Change what's in "Save My Contact" | `contact` (public business details only: name, title, organization, email, website, social profiles) |
 
 Spare buttons for YouTube, TikTok and email are already in the list with `show: false`.
 
