@@ -7,6 +7,8 @@
 
 ## Common changes (all in `src/data/connect.ts`)
 
+Profile URLs, the email and the website are defined once in the `PROFILE`, `EMAIL` and `WEBSITE` constants at the top of the file. Buttons, the small links and the contact card all use them, so change a URL there and it updates everywhere.
+
 | To... | Change |
 |---|---|
 | Add an event greeting ("Great meeting you at NFT.NYC") | `greeting: '...'` (set back to `''` to hide it) |

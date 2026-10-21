@@ -32,6 +32,20 @@ export interface ConnectButton {
 /** Path of the generated contact card. Use as a button href to make it a "save contact" button. */
 export const CONTACT_CARD = '/connect/ken-ashe.vcf';
 
+/**
+ * Every profile URL and contact detail, defined once. Buttons, the small links and the
+ * contact card all point here, so changing a URL in this block changes it everywhere.
+ */
+const PROFILE = {
+  x: 'https://x.com/kenashe',
+  linkedin: 'https://www.linkedin.com/in/kenashe',
+  github: 'https://github.com/kenashe',
+  youtube: 'https://www.youtube.com/@KenAshe',
+  tiktok: 'https://www.tiktok.com/@ken.ashe',
+};
+const EMAIL = 'hello@kenashe.ai';
+const WEBSITE = 'https://kenashe.ai/';
+
 export const connect = {
   name: 'Ken Ashe',
   subtitle: 'AI Builder | Entrepreneur | CPA & PMP',
@@ -45,21 +59,21 @@ export const connect = {
 
   /** Primary buttons, top to bottom in this order. */
   buttons: [
-    { id: 'x', label: 'Follow on X', href: 'https://x.com/kenashe', icon: 'x', show: true },
-    { id: 'linkedin', label: 'Connect on LinkedIn', href: 'https://www.linkedin.com/in/kenashe', icon: 'linkedin', show: true },
+    { id: 'x', label: 'Follow on X', href: PROFILE.x, icon: 'x', show: true },
+    { id: 'linkedin', label: 'Connect on LinkedIn', href: PROFILE.linkedin, icon: 'linkedin', show: true },
     { id: 'building', label: 'See What I’m Building', href: '/building/', icon: 'building', show: true },
     { id: 'contact', label: 'Save My Contact', href: CONTACT_CARD, icon: 'contact', show: true },
     // Spares, hidden until needed. Flip show to true and move them into position.
-    { id: 'youtube', label: 'Watch on YouTube', href: 'https://www.youtube.com/@KenAshe', icon: 'youtube', show: false },
-    { id: 'tiktok', label: 'Follow on TikTok', href: 'https://www.tiktok.com/@ken.ashe', icon: 'tiktok', show: false },
-    { id: 'email', label: 'Email Me', href: 'mailto:hello@kenashe.ai', icon: 'mail', show: false },
+    { id: 'youtube', label: 'Watch on YouTube', href: PROFILE.youtube, icon: 'youtube', show: false },
+    { id: 'tiktok', label: 'Follow on TikTok', href: PROFILE.tiktok, icon: 'tiktok', show: false },
+    { id: 'email', label: 'Email Me', href: `mailto:${EMAIL}`, icon: 'mail', show: false },
   ] satisfies ConnectButton[],
 
   /** Small text links under the buttons. Same fields as buttons. */
   links: [
     { id: 'site', label: 'kenashe.ai', href: '/', icon: 'globe', show: true },
-    { id: 'github', label: 'GitHub', href: 'https://github.com/kenashe', icon: 'github', show: true },
-    { id: 'youtube-link', label: 'YouTube', href: 'https://www.youtube.com/@KenAshe', icon: 'youtube', show: true },
+    { id: 'github', label: 'GitHub', href: PROFILE.github, icon: 'github', show: true },
+    { id: 'youtube-link', label: 'YouTube', href: PROFILE.youtube, icon: 'youtube', show: true },
   ] satisfies ConnectButton[],
 
   /** What goes into the downloadable contact card. Public business details only. */
@@ -68,16 +82,16 @@ export const connect = {
     lastName: 'Ashe',
     title: 'AI Builder, Entrepreneur, CPA & PMP',
     organization: 'Lucky Domains',
-    email: 'hello@kenashe.ai',
-    website: 'https://kenashe.ai/',
+    email: EMAIL,
+    website: WEBSITE,
     region: 'NJ',
     country: 'USA',
     note: 'Met at a conference? I build things, test new technology, and show what actually happens at kenashe.ai.',
     profiles: [
-      { label: 'X', url: 'https://x.com/kenashe' },
-      { label: 'LinkedIn', url: 'https://www.linkedin.com/in/kenashe' },
-      { label: 'GitHub', url: 'https://github.com/kenashe' },
-      { label: 'YouTube', url: 'https://www.youtube.com/@KenAshe' },
+      { label: 'X', url: PROFILE.x },
+      { label: 'LinkedIn', url: PROFILE.linkedin },
+      { label: 'GitHub', url: PROFILE.github },
+      { label: 'YouTube', url: PROFILE.youtube },
     ],
   },
 };
