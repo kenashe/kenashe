@@ -14,7 +14,7 @@ const autonomousBlog: Project = {
 
 // The curated builds surfaced as cards (matches the prior Projects card set).
 const CURATED = [
-  'AI Explainer Producer',
+  'AI explainer producer',
   'Autonomous SEO agent',
   'X article toolkit',
   'AI UGC video lab',
