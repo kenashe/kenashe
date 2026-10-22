@@ -22,7 +22,7 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
-    title: 'AI Explainer Producer',
+    title: 'AI explainer producer',
     status: 'SHIPPED',
     dek: 'Built an AI agent that researches, fact-checks, scripts, and produces educational videos using a virtual presenter. Tested it with a published ENSv2 explainer.',
     stack: ['AI Agents', 'HyperAgent', 'HeyGen', 'Video Production'],
