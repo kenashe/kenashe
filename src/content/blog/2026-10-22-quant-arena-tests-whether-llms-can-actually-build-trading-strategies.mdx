@@ -1,0 +1,64 @@
+---
+title: "Quant-Arena Tests Whether LLMs Can Actually Build Trading Strategies"
+description: "A new arXiv benchmark puts nine frontier models through the full quant research loop on real A-share data, freezes their strategies, and tests on a sealed year. The best model wins the leaderboard but still loses to the market."
+pubDate: 2026-10-22
+tags: ["benchmarks", "ai-agents", "agent-evaluation", "ai-research", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-22-quant-arena-tests-whether-llms-can-actually-build-trading-strategies/hero.webp
+  alt: "Quant-Arena Tests Whether LLMs Can Actually Build Trading Strategies"
+sources:
+  - title: "Quant-Arena: Benchmarking LLM Agents for Quantitative Trading Research"
+    url: "http://arxiv.org/abs/2610.30113v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Quant-Arena made nine frontier LLMs run the full quant research loop on real market data and then tested them on a sealed year they never saw, and not one of them beat a simple equal-weight index.
+
+That last part is the headline most people will skip past. So let me keep it front and center. The strongest model on the board, listed as GPT-6 Astra, won relative to the other eight. It still lost to the market.
+
+## What is Quant-Arena actually measuring?
+
+The benchmark comes from "Quant-Arena: Benchmarking LLM Agents for Quantitative Trading Research," posted to arXiv under both cs.AI and cs.CL. The idea is to stop grading the pieces and start grading the whole job.
+
+Most finance-flavored LLM benchmarks score a slice. Can the model write a valid alpha formula? Can it produce code that runs? Can it make a reasonable buy/sell call on a single day? Those are real questions, but they dodge the one that matters to anyone who has actually done quant research: can the model close the loop and produce something that holds up after the research period ends?
+
+Quant-Arena models the loop the way a human researcher lives it. Propose a market hypothesis. Turn it into an executable signal. Build features and stock-scoring code. Test on history. Decide what to keep. Then commit.
+
+![a loop of four connected stages cycling back on itself, with one stage breaking off into a single sealed box](../../assets/blog/2026-10-22-quant-arena-tests-whether-llms-can-actually-build-trading-strategies/inline-1.webp)
+
+The structure is the clever part. Models get feedback only on 2022 to 2023. They iterate against that window. Then they freeze exactly one strategy, and that frozen strategy gets judged on a sealed 2024 that they never got to tune against. This is the difference between fitting the past and predicting the future, and it's the exact trap that kills most backtested strategies in the real world.
+
+## Why do no models beat the market?
+
+Because overfitting is easy and generalization is hard, and these models are very good at the easy part.
+
+An LLM iterating on 2022 to 2023 data will find patterns. Some will be real. Many will be noise that happened to pay off in that window. The 2024 sealed test is designed to separate those two cases, and the result is blunt: no model beats the equal-weight market in 2024. The authors report GPT-6 Astra scores highest among the nine frontier models evaluated, but "highest" here means best relative to the field, not profitable against a dumb baseline.
+
+I want to be careful about what this does and does not say. It does not say LLMs are useless at quant. It says that in this specific setup, on A-share data, with these frontier models, the full end-to-end loop did not clear the bar of a naive index. That's a narrower and more honest claim than "AI can't trade." But it's also a reality check for anyone selling the opposite.
+
+The evaluation itself is where the credibility lives. A cash-account evaluator applies trading constraints and costs. It includes market impact estimated from a simulated order book, which means the test isn't pretending your orders fill at the mid price with zero slippage. The score is dominated by realized excess return, with signal quality and feature diversity as complements. That weighting matters. You can't game this by producing one clever-looking signal. You get paid on what actually came out the other end, after costs, on data you never saw.
+
+![a strategy curve that looks strong on a tuning period then flattens against a straight baseline line on a separate seale](../../assets/blog/2026-10-22-quant-arena-tests-whether-llms-can-actually-build-trading-strategies/inline-2.webp)
+
+This is the part most benchmark headlines miss. The hard thing in quant isn't generating ideas. Generating ideas is what LLMs do effortlessly, which is precisely the problem. The hard thing is knowing which ideas survive contact with out-of-sample data and real execution costs. Quant-Arena puts the test where the difficulty actually is.
+
+## Can you trust a benchmark built on one market and a sealed year?
+
+Partly, and the caveats are worth naming.
+
+One market, A-shares, one sealed year, 2024. A single held-out year is a small sample. A strategy can lose to the market in one year and still be sound over a decade, and it can beat the market in one year purely by luck. So I'd read "no model beats equal-weight in 2024" as a strong signal against breathless claims, not as a proof that these models can't ever generate out-of-sample edge. One year is one draw.
+
+The model naming also deserves a flag. The sources list "GPT-6 Astra" as the top scorer across nine frontier models, but the abstracts here don't enumerate the other eight, don't give the numeric scores, and don't describe the harness each model ran under. Agent performance is enormously sensitive to the harness: tooling, retries, how feedback is surfaced, how many iterations are allowed. Two papers with identical abstracts under cs.AI and cs.CL is almost certainly the same work cross-listed, so treat this as one result, not two independent confirmations.
+
+The good news on trust is that the benchmark is open to submissions from any model or agent harness, with a public leaderboard. That's the right design. A static benchmark that nobody can contest ages badly. One that anyone can submit to, with a frozen test year and a cost-aware evaluator, at least resists the worst kind of cherry-picking. If a vendor claims their agent cracks quant research, the question becomes simple: where's the Quant-Arena submission, and does it beat equal-weight on the sealed year?
+
+## What should a builder actually do with this?
+
+If you're building anything that generates strategies, signals, or decisions that get judged after the fact, Quant-Arena is a template worth copying even if you never touch a stock.
+
+The pattern generalizes. Split your data so the model iterates on one window and gets judged on a sealed one it can't tune against. Force it to commit to a single frozen artifact before you reveal the test. Score on the real outcome after real costs, not on how good the plan looked. Weight your metric so one lucky component can't carry the whole thing. That's an eval discipline, and most teams building agentic systems skip it because tuning-period numbers always look great in a demo.
+
+The catch most readers will miss: the lesson isn't "LLMs are bad at finance." It's that an idea generator with no out-of-sample discipline will overfit anything you let it iterate against, and it'll produce beautiful backtests on the way down. The value of this benchmark is the frozen year. Build your own frozen year into whatever you ship. If your agent can't beat the dumbest reasonable baseline on data it never saw, you don't have a strategy. You have a very confident curve fit.
