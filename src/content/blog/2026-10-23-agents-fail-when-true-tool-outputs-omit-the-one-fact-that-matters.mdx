@@ -1,0 +1,54 @@
+---
+title: "Agents fail when true tool outputs omit the one fact that matters"
+description: "EpiSEM-Bench tests a practical agent failure mode: not hallucinated evidence, but missing evidence. The useful lesson is that agent evals need to measure whether systems go looking for absent safety facts before they act."
+pubDate: 2026-10-23
+tags: ["ai-agents", "agent-evaluation", "model-reliability", "ai-safety"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-23-agents-fail-when-true-tool-outputs-omit-the-one-fact-that-matters/hero.webp
+  alt: "Agents fail when true tool outputs omit the one fact that matters"
+sources:
+  - title: "EpiSEM-Bench: Evaluating Safety and Evidence Recovery in LLM Agents under Missing Evidence"
+    url: "http://arxiv.org/abs/2610.31650v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The agent safety problem is not only false information, it is true-but-incomplete tool output that leaves out the fact needed to know whether an action is allowed.
+
+## What does missing evidence break?
+
+The primary source here is the arXiv paper “EpiSEM-Bench: Evaluating Safety and Evidence Recovery in LLM Agents under Missing Evidence.” Its core point is practical and uncomfortable: a tool-using agent can do the wrong thing even when the user request is benign and every tool response is true.
+
+That is not the usual hallucination story. It is an omission story.
+
+Picture an agent asked to complete a normal workflow. It calls a tool. The tool returns facts. Nothing in those facts is false. But the response omits a safety-relevant condition, policy state, permission flag, medical constraint, account status, or environmental detail. The agent now has enough surface information to proceed, but not enough evidence to know whether proceeding is permitted.
+
+EpiSEM-Bench turns that into an executable benchmark with 300 matched unsafe/safe task pairs across six domains. The matched-pair design matters. It lets the benchmark test whether the agent can avoid prohibited actions while still completing allowed ones. A system that refuses everything is not safe in any useful product sense. A system that acts confidently on incomplete evidence is not safe either.
+
+The paper also tests ten models and reports substantial variation across them. That part should not surprise anyone shipping agents, but it does cut against the lazy version of model ranking. A model can look cautious under missing evidence and still fail to recover the right evidence when given a chance.
+
+![an agent standing between two doors, one path fed by complete evidence and one path with a missing puzzle piece blocking](../../assets/blog/2026-10-23-agents-fail-when-true-tool-outputs-omit-the-one-fact-that-matters/inline-1.webp)
+
+## Why is “ask for more evidence” not enough?
+
+EpiSEM-Bench separates two behaviors that often get mashed together.
+
+First, does the agent avoid unsafe execution when critical evidence is omitted? Second, if recovery is possible, does it actively seek the missing fact and then use it correctly?
+
+The paper reports that recovery access reduces unsafe execution for all ten models. Good. But it also finds that agents differ in whether they actually obtain the missing facts and act appropriately in both the safe and unsafe worlds. That distinction is the useful part.
+
+A brittle agent may pass a narrow safety test by refusing under uncertainty. That protects against one class of bad action, but it also kills the point of automation. Another agent may ask one extra question, receive the missing evidence, and still fail to connect it to the decision boundary. The benchmark’s “minimum observed failure cardinality” is a way of measuring how little evidence has to go missing before behavior breaks, including cases where failures happen even with full evidence and cases where no failure is observed after exhaustive testing.
+
+For builders, the headline is not “which model won.” The provided summary does not name a winner. The headline is that omission handling is its own capability. It is adjacent to reasoning, tool use, refusal behavior, and policy following, but not reducible to any one of them.
+
+## What should agent evals test before production?
+
+Most agent tests I see are still too happy-path. They check whether the model can call the right API, format the response, and avoid obvious disallowed requests. That misses this class of failure.
+
+A better eval suite should include paired tasks where the same user intent is allowed in one world and prohibited in another. Then suppress one critical fact and see what the agent does. Does it proceed? Refuse? Ask for the exact missing evidence? Call a second tool? Complete the safe case after recovery instead of over-refusing?
+
+That last point is important. Safety evals that only measure “did not act” will reward useless agents. Production systems need boundary discipline and task completion. EpiSEM-Bench is interesting because it treats both as part of the problem.
+
+Practitioner's take: if you are building agents with tools, add omission tests to your pre-launch evals. Pick your riskiest workflow, create safe and unsafe twins, remove the deciding fact from the tool response, and score whether the agent asks for that fact before acting. The catch most teams miss is that truthful tool outputs are not enough. Your agent needs a habit of noticing what is absent.

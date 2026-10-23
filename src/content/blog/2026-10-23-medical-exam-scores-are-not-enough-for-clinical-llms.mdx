@@ -1,0 +1,56 @@
+---
+title: "Medical exam scores are not enough for clinical LLMs"
+description: "Open medical models can score well enough to look useful on residency exams, but the MIR results show why deployment needs reasoning checks, confidence calibration, and image-use tests, not just leaderboard accuracy."
+pubDate: 2026-10-23
+tags: ["medical-ai", "evals", "model-reliability", "open-source-ai", "multimodal-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-23-medical-exam-scores-are-not-enough-for-clinical-llms/hero.webp
+  alt: "Medical exam scores are not enough for clinical LLMs"
+sources:
+  - title: "Would an LLM Match into a Residency? Uncertainty, Reasoning and Image Use of Open Language Models on the Spanish MIR Examination"
+    url: "http://arxiv.org/abs/2610.31586v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A model can score well on a medical exam and still fail the checks that matter in clinical use: knowing when it is wrong, reasoning soundly, and using the image in front of it.
+
+## Would an open LLM match into residency?
+
+The primary source here is the arXiv paper titled “Would an LLM Match into a Residency? Uncertainty, Reasoning and Image Use of Open Language Models on the Spanish MIR Examination.” It evaluates four open models, from 8 billion to 27 billion parameters, on 1,552 questions across eight editions of Spain’s MIR medical residency exam.
+
+The headline result is impressive. Under the exam’s own scoring rules, the three larger models would rank roughly among the first 600 to 3,000 candidates. That would leave 41 to 43 specialties open to them.
+
+If you stop there, the story sounds simple: open models are getting good enough for serious medical reasoning on local hardware. That matters. Health systems care about cost, privacy, latency, and control. A model that can run on owned infrastructure is not the same product category as an API-only model with patient data flowing elsewhere.
+
+But the paper is more useful because it does not stop at the score. It asks the operator questions. Does the model know when it is guessing? Does medical fine-tuning help? Are correct answers backed by sound clinical reasoning? Does the model actually use medical images?
+
+Those are the questions that separate an exam demo from a workflow.
+
+![a medical exam answer flowing into three separate checks: confidence, reasoning, and image attention](../../assets/blog/2026-10-23-medical-exam-scores-are-not-enough-for-clinical-llms/inline-1.webp)
+
+## Why did abstention fail?
+
+One of the most interesting findings is that abstention never paid.
+
+On MIR-style multiple choice questions, a wrong answer carries a penalty, so a rational test-taker should skip when confidence drops below the break-even point. The paper reports that even the models’ least confident answers were correct more often than the 25% break-even threshold.
+
+That sounds like good news, but it points to a calibration problem. The models were underconfident in a way that made abstention useless. Medical fine-tuning reduced overconfidence, but it also reduced accuracy, and it did not improve how well confidence separated right answers from wrong ones.
+
+That is the part I would circle for anyone building clinical AI. A confidence score is only useful if it changes action. If “low confidence” still means “better than random enough to answer,” then it is not a triage signal. It is decoration.
+
+This is where medical benchmarks often mislead product teams. Accuracy tells you whether the model can answer. Calibration tells you whether you can design a safe handoff. The second one is what matters when the workflow includes a physician, a nurse, a pharmacist, or a patient.
+
+## What does “right for the wrong reason” cost?
+
+The paper’s strongest warning is not about wrong answers. It is about correct ones.
+
+Across the models, 13% to 38% of correct answers rejected a distractor for a clinically unsound reason. Confidence did not reflect that flaw. So the model could land on the right option while giving reasoning that would be unsafe to trust.
+
+That is ugly for any chain-of-thought-shaped product experience. Users do not just read the final answer. They read the explanation and update their own judgment. In medicine, a persuasive bad rationale can be more dangerous than a plain “I don’t know.”
+
+The image result is also sobering. Removing or swapping the provided contextual images left accuracy unchanged. That does not prove images never matter on every medical task, but it does show that a model can appear multimodal while mostly solving from text priors. If your clinical workflow depends on a model reading an image, you need an eval that breaks when the image is wrong or missing.
+
+Practitioner’s take: If I were testing an open medical model, I would not start with “Can it pass the exam?” I would build a small harness around my actual task: force abstention, swap images, hide key context, score the rationale separately from the answer, and review correct answers for bad clinical logic. The catch most teams miss is that the model’s best-looking outputs may be the ones that need the closest audit, because accuracy can hide fragile reasoning.

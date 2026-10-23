@@ -1,0 +1,60 @@
+---
+title: "RAG Scores Move When Ground Truth Gets Better"
+description: "A clinical RAG evaluation on breast lesion literature shows a practical problem for every builder: retrieval metrics can look stable while the definition of relevance quietly changes underneath them."
+pubDate: 2026-10-23
+tags: ["rag", "evals", "model-reliability", "medical-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-23-rag-scores-move-when-ground-truth-gets-better/hero.webp
+  alt: "RAG Scores Move When Ground Truth Gets Better"
+sources:
+  - title: "How Ground Truth Shapes Retrieval Scores: Evidence-Aware Evaluation of a Retrieval-Augmented Generation System for Breast Lesions"
+    url: "http://arxiv.org/abs/2610.31606v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: RAG evals are only as good as their evidence labels, and better ground truth can change what your scores mean even when your retriever rankings do not move.
+
+## What did this breast lesion RAG paper actually test?
+
+The primary source here is the arXiv paper titled “How Ground Truth Shapes Retrieval Scores: Evidence-Aware Evaluation of a Retrieval-Augmented Generation System for Breast Lesions,” listed under cs.AI and cs.CL.
+
+The setup is small, but useful. The system worked over 18 breast lesion management documents and an 18-query development benchmark, with one Yes/No or WH-question per document. Retrieval used a mix of dense embeddings, BM25, and cross-encoder reranking. The paper tested chunk sizes from 128 to 1024 tokens, overlap from 0 to 20%, and four retriever configurations.
+
+The selected setup was a hybrid retriever with 384-token chunks and 20% overlap. It retrieved accepted evidence in the top three results for 17 of 18 queries. Recall@3, R-Precision, MRR@3, and nDCG@3 all hit 0.94.
+
+That sounds like a clean win. But the paper’s more interesting point is not “hybrid retrieval works.” We already see that pattern often enough.
+
+The useful bit is how relevance was defined. The evaluation mapped evidence spans to every chunk that contained them, and treated overlapping chunks with equivalent evidence as relevant. That matters because chunking can create multiple “correct” retrieval targets from the same underlying evidence.
+
+![overlapping document fragments feeding into multiple acceptable retrieval targets](../../assets/blog/2026-10-23-rag-scores-move-when-ground-truth-gets-better/inline-1.webp)
+
+## Why does ground truth change the meaning of a RAG score?
+
+The paper reports that ground-truth curation increased evidence spans from 25 to 37 and accepted chunk targets from 36 to 51. The retrieval rankings did not change.
+
+That is the whole lesson.
+
+If the system returns the same ranked list, but the evaluator recognizes more of those chunks as valid evidence, then the measured performance can improve without the model, index, or retriever getting any better. The eval got better. The system did not.
+
+That is not cheating. It is reality.
+
+In RAG systems, especially clinical RAG, relevance is not binary in the simple search-engine sense. A chunk may contain a partial guideline, a duplicated recommendation, a narrow exception, or the same evidence with slightly different surrounding context. If the gold set only marks one version as correct, your metric punishes valid retrieval. If it marks too much as correct, your metric flatters noisy retrieval.
+
+This paper handles that by making evidence spans first-class. Not perfect, but better than judging chunks as if chunk boundaries were natural clinical facts. They are not. Chunk boundaries are an engineering artifact.
+
+The paper also separated retrieval evaluation from generation evaluation. Generation was tested on a 512-token index at K=1 to 5 using DeepEval claim-level metrics, with deepseek-v4-pro as the LLM judge, plus BLEU and ROUGE. I would not overread that part. LLM-as-judge can be useful, but in medicine the paper is right to call for independent validation and radiologist assessment of evidence sufficiency.
+
+## What should builders copy from this?
+
+Copy the protocol shape, not the headline number.
+
+For a serious RAG system, especially in legal, medical, finance, compliance, or engineering support, start by labeling evidence spans. Then map those spans to all chunks that contain them. Only after that should you compute Recall@K, MRR, nDCG, or whatever dashboard metric the team prefers.
+
+Also, run the same retrieval rankings against multiple ground-truth versions. Early labels. Curated labels. Expert-reviewed labels. If your score jumps while rankings stay fixed, you learned something important: your benchmark was undercounting valid evidence.
+
+The catch is cost. Evidence-aware eval takes more work than throwing 100 question-answer pairs into a spreadsheet. It forces someone to say, “This exact sentence supports the answer.” That is slow. It is also where most of the value lives.
+
+For builders, my practical move is simple: take 20 real user questions, label evidence spans before judging answers, then compare retrievers at the chunk level and the span level. Try BM25 plus embeddings plus reranking before reaching for a more exotic architecture. The miss most teams make is treating the ground truth as fixed. In RAG, the ground truth is part of the system.

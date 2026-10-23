@@ -1,0 +1,60 @@
+---
+title: "Four-Bit N-Gram Tables: Cutting the Memory Tax on Engram Models"
+description: "A new arXiv paper shows n-gram embedding tables in models like DeepSeek-V4.1-Flash can run at four bits, saving roughly 75% of table memory while keeping over 99% of the quality gain, with a short fine-tune to recover the rest."
+pubDate: 2026-10-23
+tags: ["model-training", "inference", "open-source-ai", "small-models", "ai-research"]
+draft: true
+image:
+  src: ../../assets/blog/2026-10-23-four-bit-n-gram-tables-cutting-the-memory-tax-on-engram-models/hero.webp
+  alt: "Four-Bit N-Gram Tables: Cutting the Memory Tax on Engram Models"
+sources:
+  - title: "Low-Bit N-Gram Embeddings for Language Models"
+    url: "http://arxiv.org/abs/2610.31646v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: You can store the n-gram embedding tables in modern open-weight models at four bits instead of full precision, save about 75% of that table memory, and keep more than 99% of the quality those tables bought you.
+
+The paper is "Low-Bit N-Gram Embeddings for Language Models," posted to arXiv under cs.AI and cs.CL. It targets a specific and fast-growing cost center inside recent models: the n-gram embedding table. If you have not been tracking why DeepSeek and Qwen started bolting lookup memory onto their architectures, this is the practical consequence, and it matters for anyone running these models on constrained hardware.
+
+## What is an n-gram embedding table and why does it eat so much memory?
+
+Start with the thing being optimized. An n-gram embedding table stores learned vectors for short token sequences, pairs or triples of consecutive tokens, that the model retrieves during a forward pass. Instead of recomputing the representation of "New York" every time from scratch, the model looks it up. This is a memory-for-compute trade, and recent open-weight models have leaned into it hard.
+
+The number the authors lead with is the one worth remembering: DeepSeek-V4.1-Flash allocates 196 billion parameters to its Engram n-gram memory. That is not a rounding error. That is a huge slice of the model's total footprint sitting in a lookup table. The whole appeal of these tables is that they improve validation loss and downstream task performance for relatively cheap compute. The catch is they are not cheap on memory, and memory is exactly the thing that decides whether a model fits on your GPU or your budget.
+
+![a large storage block shrinking down to a quarter of its original size while a quality gauge stays nearly full](../../assets/blog/2026-10-23-four-bit-n-gram-tables-cutting-the-memory-tax-on-engram-models/inline-1.webp)
+
+So the question the paper asks is narrow and useful: can you keep the benefit of the table while paying far less memory for it? Their answer is quantization applied specifically to these tables, not the weights of the network broadly.
+
+## How much do you actually save at four bits?
+
+Here is the core result, measured across nanochat, Llama, and GPT-2 family models trained from scratch. Four-bit tables save roughly 75% of table memory while preserving more than 99% of the validation-loss improvement that adding the tables gave you in the first place. Read that carefully. The comparison is not "the model is still fine." The comparison is "the specific gain the table contributed is almost entirely intact at a quarter of the storage."
+
+Push below four bits and the quality drop gets real. The authors are honest about this: fewer bits means a larger hit. But they also show a short fine-tuning phase recovers a significant part of that loss. So the frontier is not a hard wall at four bits, it is a sloped trade where you can buy back quality with a little post-training if you want to go more aggressive.
+
+The more interesting move is what they do with the memory they freed. Instead of just pocketing the savings, you can reinvest it in a larger table. A bigger low-bit table can beat the original full-precision table outright while still using less total memory. That flips the usual quantization story. Normally quantization is a defensive move, a way to make something fit at a small quality cost. Here it becomes offensive: shrink per-entry precision, add more entries, come out ahead on both memory and quality.
+
+## Does this hold on real large models, not just toy ones?
+
+This is where most compression papers get thin, and this one does not. The authors test on two large existing models, DeepSeek-V4.1-Flash and Qwen3.8-Flash-Next. On those, low-bit tables save 47 to 55% of table memory with perplexity increases of less than 1.2%, and they report downstream task performance largely preserved.
+
+A few things to flag honestly. The savings on the big models (47 to 55%) are smaller than the 75% headline from the trained-from-scratch runs. That is the realistic number for someone picking up an off-the-shelf model, and it is still a meaningful cut. "Largely preserved" is doing some work in that sentence, so if you deploy this you want to run your own downstream evals rather than trusting the phrase. Perplexity holding within 1.2% is a good signal, but perplexity is not the same as task accuracy, and the authors are describing their own measurements. Treat the from-scratch results as the clean experiment and the large-model results as the applied validation.
+
+![a lookup table being compressed, with a separate larger table of the same total size showing more rows](../../assets/blog/2026-10-23-four-bit-n-gram-tables-cutting-the-memory-tax-on-engram-models/inline-2.webp)
+
+What makes this credible is the spread of model families. nanochat, Llama, GPT-2, DeepSeek, Qwen. That is a lot of different training recipes and tokenizers agreeing that the table specifically tolerates low precision better than the dense weights do. That intuition makes sense. A lookup table is retrieval, and retrieval is more forgiving of coarse quantization than the matrix multiplies that do the actual reasoning.
+
+## Who should care about this, and when?
+
+If you train models, this is a design decision you can make now: budget the n-gram table at low precision from the start, and spend the freed memory on table size. If you serve open-weight models with Engram-style memory, this is a deployment lever that could meaningfully lower the memory a model needs to fit, which cascades into cheaper inference and more headroom for context.
+
+![two parallel paths from one model, one wide and heavy, one slim, arriving at the same quality endpoint](../../assets/blog/2026-10-23-four-bit-n-gram-tables-cutting-the-memory-tax-on-engram-models/inline-3.webp)
+
+The thing I like about this work is that it is unglamorous and specific. No new architecture, no claimed emergent capability, just a clean observation that one expensive component tolerates a cheaper representation, backed by tests across six model families and two production-scale models. That is the kind of result that quietly ships into the next generation of models and nobody writes a keynote about it.
+
+The limitation to keep in front of you: this only helps if your model actually uses n-gram embedding tables. Plenty of models do not. If you are running a standard transformer with no Engram-style memory, there is no table here to quantize and this paper does not apply to you. The technique is powerful precisely because it is targeted, which is also why it is narrow.
+
+A builder would do three things with this. First, check whether the model you run has an n-gram or Engram table at all, and how many parameters it costs, because that tells you the size of the prize. Second, if it does, test four-bit tables against your own downstream eval set rather than trusting perplexity, since that is where the "largely preserved" caveat lives. Third, if you train, do not just pocket the savings, reinvest the freed memory into a larger low-bit table and measure whether you land ahead of the full-precision baseline, which is the one result most readers will skim past. The catch most people miss: the headline 75% is from models trained from scratch, and the real-world number on an existing model is closer to half, still worth it, just not the poster figure.
