@@ -18,7 +18,7 @@
 // becomes the 4:3 JPEG (1200x900; also the homepage og:image and primaryImageOfPage) plus 1:1 and
 // 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
 // per P69 on the since-deleted Wikidata item) and the about.me and Linktree profiles are added; 2026-10-08 about.me and Linktree are
-// removed again and knowsAbout is re-centered on six durable topics. Any change here must be mirrored in the Lucky Domains
+// removed again and knowsAbout is re-centered on six durable topics; 2026-10-23 sameAs gains the Notable Men profile. Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -92,6 +92,7 @@ export const personKenAshe = {
     'https://luckydomains.io/founder/ken-ashe/',
     'https://www.instagram.com/ken.ashe/',
     'https://www.tiktok.com/@ken.ashe',
+    'https://notablemen.com/connect/ken-ashe',
   ],
   affiliation: {
     '@type': 'Organization',
