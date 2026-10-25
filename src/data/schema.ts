@@ -18,7 +18,7 @@
 // becomes the 4:3 JPEG (1200x900; also the homepage og:image and primaryImageOfPage) plus 1:1 and
 // 16:9 WebP crops of that portrait, alumniOf (Case Western Reserve University,
 // per P69 on the since-deleted Wikidata item) and the about.me and Linktree profiles are added; 2026-10-08 about.me and Linktree are
-// removed again and knowsAbout is re-centered on six durable topics; 2026-10-23 sameAs gains the Notable Men profile; 2026-10-24 the Forbes Business Council profile. Any change here must be mirrored in the Lucky Domains
+// removed again and knowsAbout is re-centered on six durable topics; 2026-10-23 sameAs gains the Notable Men profile; 2026-10-24 the Forbes Business Council profile; 2026-10-25 image narrowed to the square headshot only (the 16:9 crop cut off Ken's face in Google results). Any change here must be mirrored in the Lucky Domains
 // repo's three copies in the same pass (DECISIONS.md D9).
 
 export const personKenAshe = {
@@ -30,11 +30,7 @@ export const personKenAshe = {
   mainEntityOfPage: 'https://kenashe.ai/about/',
   // The canonical portrait in the three aspect ratios Google asks for, all cropped from the
   // same dark-polo source (public/images/ken-ashe-2026.jpeg); stable, unhashed URLs.
-  image: [
-    'https://kenashe.ai/images/ken-ashe-headshot.jpg',
-    'https://kenashe.ai/images/ken-ashe-headshot-1x1.webp',
-    'https://kenashe.ai/images/ken-ashe-headshot-16x9.webp',
-  ],
+  image: ['https://kenashe.ai/images/ken-ashe-headshot-1x1.webp'],
   jobTitle: 'AI application builder',
   description:
     'Ken Ashe is a CPA, PMP, and AI application builder who documents what he ships, what breaks, and what the evidence supports.',
