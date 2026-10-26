@@ -1,0 +1,58 @@
+---
+title: "Inbox agents need labels before models"
+description: "An inbox-agent paper shows why builders should label first, train second, and evaluate actions instead of classifier accuracy. A small logistic regression model beat larger LLMs on several fields, but action costs changed the winner, which is the real lesson for applied agents."
+pubDate: 2026-10-26
+tags: ["ai-agents", "evals", "agent-evaluation", "ai-workflows", "model-reliability", "building-with-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-26-inbox-agents-need-labels-before-models/hero.webp
+  alt: "Inbox agents need labels before models"
+sources:
+  - title: "Measure Before You Train: Typed Decision Models vs. a Classical Baseline vs. a Generative LLM for Routing a Personal Multilingual Inbox"
+    url: "http://arxiv.org/abs/2610.32955v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Before training an email agent, build a real measurement loop with human labels, because the best model on classifier accuracy may still make the worst product decisions.
+
+## What did the inbox-agent paper actually measure?
+
+The primary source here is the arXiv paper “Measure Before You Train: Typed Decision Models vs. a Classical Baseline vs. a Generative LLM for Routing a Personal Multilingual Inbox.” It studies Foyer, a self-hosted personal inbox agent used on real Italian and English email.
+
+The setup matters more than the model menu.
+
+Foyer has to decide what each message is, whether it is urgent, whether it needs a reply, whether to create a task, or whether to ignore it. That sounds like a normal “AI assistant” workflow. The catch is that many of these systems grade themselves using labels they created in the first place. That is not evaluation. That is a mirror.
+
+This paper does the boring, useful thing instead. It freezes snapshots, samples emails, groups by thread, pre-registers hypotheses, and puts human labels into the review loop. The dataset is small by internet standards: 739 real emails, with 231 unbiased samples and 500 adversarially sampled ones. But it is real. And for agents, real usually beats huge and synthetic.
+
+The comparison spans nine systems: production keyword rules, TF-IDF plus logistic regression, local typed decision models, a hosted decision model, and hosted generative LLMs including Qwen2.5-7B and Gemma 4 26B/31B.
+
+## Why did a classical model beat the LLMs?
+
+The surprising result is not that LLMs were useless. They were not. The surprising result is that TF-IDF plus logistic regression, trained with about 200 labels, had the highest accuracy on every measured field: 0.79 for type, 0.74 for urgency, 0.83 for needs-reply, and 0.90 for is-noise.
+
+That is a very unfashionable win.
+
+It also came with a clear limitation. The logistic regression model never predicted the two rarest classes, and on message type it was statistically tied with Gemma 4. So this is not “small models always beat LLMs.” It is narrower and more useful: if the task is typed routing over one person’s inbox, with enough labeled examples from that actual inbox, old tools can be hard to beat.
+
+The paper also reports that few-shot prompting did not close the gap. That tracks with what I see in applied workflows. Prompting can patch behavior. It does not magically supply ground truth about one person’s habits, clients, suppliers, and tolerance for missed work.
+
+The contact-graph result is the cleanest product lesson. Sender relationship, such as client, supplier, or service, was recovered with 98.6% accuracy when other emails from the same contact were available. No model could reliably infer it from a single message. That data belongs in state, memory, or a contact graph. Not in an overstuffed prompt.
+
+![an inbox stream splitting into a human-labeled sample, a contact memory graph, and an action decision gate](../../assets/blog/2026-10-26-inbox-agents-need-labels-before-models/inline-1.webp)
+
+## What should builders optimize instead of accuracy?
+
+The paper’s sharpest point is that accuracy was not the product metric.
+
+The most accurate system most often ignored emails that needed action: 18%, compared with 4% for the best LLM. That is the kind of failure users remember. Nobody cares that your classifier won a benchmark if it quietly drops a client request.
+
+Then the paper shows the operator move: choose a threshold based on the cost of mistakes. Adjusting the noise-probability threshold cut the missed-action rate in half and made the logistic regression system the cheapest option.
+
+That is the right frame for agents. Not “which model is smartest?” Ask: what mistake is expensive, what mistake is tolerable, and where should a human stay in the loop?
+
+For inbox routing, false ignores are worse than false flags. For medical intake, missed escalation may dominate. For sales ops, false positives may waste team time, but missed high-intent replies may cost revenue. Same pattern, different cost matrix.
+
+Practitioner’s take: start with 100 to 300 human-labeled examples from the real workflow, not a model swap. Freeze a test set, group related items so the system cannot cheat, measure the action that users actually care about, then tune thresholds by mistake cost. Try a classical baseline before calling an LLM. The catch most teams miss is that some “AI” context is not in the message at all. It lives in relationships, history, and workflow state.

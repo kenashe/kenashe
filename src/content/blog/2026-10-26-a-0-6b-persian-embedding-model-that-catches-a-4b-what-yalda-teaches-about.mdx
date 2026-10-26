@@ -1,0 +1,66 @@
+---
+title: "A 0.6B Persian Embedding Model That Catches a 4B: What Yalda Teaches About Distillation"
+description: "A new open Persian retrieval model, Yalda-Embedding, nearly matches a model six times its size using relational distillation. Here is what that result means for anyone building RAG in a low-resource language, and where the catch hides."
+pubDate: 2026-10-26
+tags: ["distillation", "rag", "small-models", "open-source-ai", "qwen"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-26-a-0-6b-persian-embedding-model-that-catches-a-4b-what-yalda-teaches-about/hero.webp
+  alt: "A 0.6B Persian Embedding Model That Catches a 4B: What Yalda Teaches About Distillation"
+sources:
+  - title: "Yalda-Embedding: Open Development of a Competitive Persian Retrieval Model"
+    url: "http://arxiv.org/abs/2610.32933v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A 595.8-million-parameter Persian retrieval model, distilled from a bigger teacher, came within 0.0075 macro-average of a model nearly seven times its size, and the team released the weights, code, and the teacher-embedded dataset so you do not have to repeat the expensive part.
+
+The paper is "Yalda-Embedding: Open Development of a Competitive Persian Retrieval Model," posted to arXiv under both cs.AI and cs.CL. It is a small-model result in a low-resource language, which is exactly the kind of work that gets overlooked because it is not a frontier launch. I think it is more useful than most frontier launches for people actually shipping retrieval systems.
+
+## What did Yalda-Embedding actually do?
+
+Start with the base. The team took Qwen3-Embedding-0.6B, an off-the-shelf compact embedding model, and adapted it for Persian using more than a million query-document pairs. The result is a 595.8-million-parameter model they call Yalda Embedding.
+
+On eight Persian retrieval tasks from FaMTEB (the Persian slice of the MTEB benchmark family), Yalda posts the highest macro-average among the 0.6B-class models evaluated: 0.5488. It beats both Qwen3-Embedding-0.6B and F2LLM-v2-0.6B on every one of the eight tasks. Not on average. On every task.
+
+The headline number is the comparison up a weight class. Yalda approaches Qwen3-Embedding-4B, a model nearly seven times larger. It wins on four tasks, ties on one, and trails by 0.0075 in macro-average. For a model that costs a fraction as much to run at inference, trailing a 4B by under a hundredth of a point is the whole story.
+
+![a small sphere nearly reaching the height of a much larger sphere, with the small one glowing brighter](../../assets/blog/2026-10-26-a-0-6b-persian-embedding-model-that-catches-a-4b-what-yalda-teaches-about/inline-1.webp)
+
+## How did distillation close the gap?
+
+This is the part worth sitting with, because the ablation is honest about what did and did not work.
+
+Contrastive fine-tuning alone, under their one-epoch setup, gave only a modest mean improvement over the starting point. Worse, it actually regressed on two of the eight tasks. If the team had stopped there and shipped it, they would have had a model that was better on average and quietly worse in two places. That is the kind of result that looks fine on a summary slide and bites you in production.
+
+What moved the needle was relational knowledge distillation from F2LLM-v2-8B, a much larger teacher. The distilled configuration improved all eight tasks over the non-distilled version and raised the mean from 0.4813 to 0.5488. That is a 0.0675 jump, and it is the difference between "a bit better than the base" and "competitive with a 4B."
+
+"Relational" is the key word. Instead of just matching the teacher's output embeddings point by point, relational distillation teaches the student to reproduce the relationships between embeddings, the structure of which things are close to which. That structure is what retrieval depends on. You are not asking "is this document's vector exactly right," you are asking "does this document rank above that one for this query." Teaching relationships maps directly onto the job.
+
+![a cluster of points connected by lines, with a smaller cluster learning to match the same connection pattern](../../assets/blog/2026-10-26-a-0-6b-persian-embedding-model-that-catches-a-4b-what-yalda-teaches-about/inline-2.webp)
+
+One more detail that I did not expect. The gains showed up even on hard-negative evaluation tasks, despite the team training without explicitly mined or supplied hard negatives. Hard-negative mining is usually the expensive, fiddly step that makes retrieval models good at telling near-misses apart. Getting improvement on those tasks without that pipeline suggests the teacher's relational structure already encodes some of that discrimination, and the student inherits it. That is a real efficiency, not a rounding error.
+
+## Why does a Persian model matter if you do not work in Persian?
+
+Because the method travels, and the constraint is common.
+
+The paper frames the problem plainly: effective dense retrieval for Persian is held back by limited language-specific training resources and a shortage of compact embedding models. Swap "Persian" for Vietnamese, Swahili, Tagalog, or any of a hundred languages, and you have the same wall. Most of the embedding ecosystem is tuned for English and a handful of high-resource languages.
+
+The recipe here is reusable: take a decent multilingual compact base, adapt it on in-language pairs, then distill relational structure from a bigger teacher in the same family. You get a model small enough to serve cheaply and good enough to compete several sizes up. For anyone building RAG for a language that the big labs under-serve, that is a template, not a curiosity.
+
+There is a second reason it matters. The team released model weights, training and evaluation code, the pairwise dataset, and the teacher-embedded counterpart of that dataset. That last item is the quiet gift. Teacher inference, running an 8B model over your whole dataset to generate the targets, is the expensive step in distillation. By publishing the teacher-embedded dataset, they let you reuse their teacher pass instead of paying for your own. You can inspect data composition, re-run the evaluation independently, and build on the work without burning the compute again.
+
+## Where is the catch?
+
+A few things to hold in mind before you treat 0.5488 as a verdict.
+
+First, the one-epoch training setup is explicit in the paper. These are the numbers under that constraint, and the fact that contrastive fine-tuning alone regressed on two tasks may be partly an artifact of limited training. More epochs could change the shape of the ablation. Read the result as "what this recipe buys you in one pass," not "the ceiling."
+
+Second, benchmark macro-average is not your corpus. FaMTEB's eight tasks are a reasonable proxy for Persian retrieval broadly, but your documents, your query distribution, and your definition of a good hit are specific. A 0.0075 gap on a benchmark can invert on your data, in either direction. The released eval code is there precisely so you can check against your own.
+
+Third, "approaches a 4B" is a cost-quality trade, not a free win. If your deployment can comfortably run the 4B and you need every last point of accuracy, the smaller model is not strictly better. The argument for Yalda is efficiency: near-4B quality at 0.6B cost. That matters enormously at scale and matters less if you serve ten queries a day.
+
+If you build retrieval in a low-resource language, the move is concrete. Pull the Yalda weights and the released dataset, run the evaluation code against a held-out slice of your own corpus, and check whether the relational-distillation story holds on your data. If you are adapting a different language, the reusable asset is the pattern, compact base plus in-language pairs plus relational distillation from a same-family teacher, and the reusable cost-saver is publishing or obtaining a teacher-embedded dataset so the expensive inference pass happens once. The catch most readers will miss is that the contrastive-only step quietly got worse on two tasks before distillation rescued it. If you shortcut the distillation to save time, you can ship a model that benchmarks slightly higher on average and fails exactly where your users feel it.

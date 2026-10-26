@@ -1,0 +1,50 @@
+---
+title: "SemantEq makes formal-math evals less easy to game"
+description: "SemantEq targets a subtle failure mode in AI math formalization: a prover can prove two statements equivalent without showing they mean the same thing. The useful lesson is broader than Lean, separate proof generation from proof acceptance."
+pubDate: 2026-10-26
+tags: ["evals", "model-reliability", "reasoning-models", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-26-semanteq-makes-formal-math-evals-less-easy-to-game/hero.webp
+  alt: "SemantEq makes formal-math evals less easy to game"
+sources:
+  - title: "SemantEq: Faithful Bidirectional Equivalence of Formal Statements"
+    url: "http://arxiv.org/abs/2610.32919v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: SemantEq is a cleaner way to check whether an AI-generated formal math statement means the same thing as the original, by auditing the proof path instead of trusting that logical equivalence equals faithful translation.
+
+## Why isn't logical equivalence enough?
+
+In `SemantEq: Faithful Bidirectional Equivalence of Formal Statements`, an arXiv cs.AI/cs.LG paper with code and data released at https://github.com/hlxr89/SemantEq, the problem is not that AI systems cannot prove things. It is almost the opposite.
+
+Statement autoformalization turns natural-language math into a proof assistant statement, here Lean 4. As models and provers improve, they can often prove the formal statement. But the harder question is whether the formal statement is the right one.
+
+The obvious check is bidirectional logical equivalence: can Lean prove `P ↔ Q` between a candidate statement and a trusted reference? The SemantEq paper argues that this test can be too weak. If both `P` and `Q` are already provable from the library, a prover can route through truth itself: `P ↔ True ↔ Q`. That passes equivalence while saying very little about whether `P` and `Q` express the same mathematical claim.
+
+That is a real eval problem. Stronger provers make the old test worse, not better, because they can connect more unrelated true statements. This is the same pattern we see in other AI evals: once the model gets stronger, a benchmark can start measuring loophole-finding instead of the target skill.
+
+## What does SemantEq actually change?
+
+SemantEq changes the acceptance condition. It does not just ask whether two statements can be proved equivalent. It asks whether one statement can be transformed into the other through allowed steps, such as logical rearrangement and rewriting with equations already in the Lean library.
+
+The important detail: SemantEq judges the proof term that Lean checks, not the tactic script the model wrote. That matters because tactic scripts are procedural and can hide a lot of messy search. Proof terms expose the object Lean actually accepted.
+
+![two math statements connected by small permitted transformation stones, with a separate proof generator outside a gate a](../../assets/blog/2026-10-26-semanteq-makes-formal-math-evals-less-easy-to-game/inline-1.webp)
+
+The reported numbers are useful because they show the tradeoff. SemantEq-Eval, a search procedure without a model, reached 100% precision and 65.6% recall on the ProofNetVerif test split under the paper’s adjudicated labels. BEq+ reached 95.8% precision and 61.8% recall. Pushing SemantEq-Eval to spend 8.9 times more CPU added at most three pairs, so brute force did not buy much.
+
+Then the paper tries a language model. The model finds more proofs, but under two of four prompts it proves both directions for about two in five non-equivalent pairs. That is the scary part. The model is helpful as a generator, but not trustworthy as the judge.
+
+SemantEq-ProofAudit is the split-brain answer: let the model generate candidate equivalence proofs, then audit them against a policy derived from SemantEq. On 104 non-equivalent pairs, it accepted none. On 407 equivalent pairs, it raised recall from 65.4% to 81.1% under the best prompt.
+
+## What should AI builders take from this?
+
+The broad lesson is not “Lean is hard,” although it is. The lesson is that proof-producing systems need acceptance policies that are narrower than what a clever model can technically prove.
+
+I like the architecture: generation is flexible, acceptance is constrained. A stronger model can improve recall by finding more candidate paths, but the meaning of “accepted” does not drift every time the generator improves. That is exactly the shape I want in applied AI workflows where correctness matters: contract review, code migration, data cleaning, medical coding, policy compliance. Let the model propose. Make the checker boring.
+
+The catch most readers miss: SemantEq is not trying to decide mathematical truth from scratch. It assumes a trusted reference formalization and asks whether another statement faithfully matches it. That narrower scope is why the method can be strict. If you are building with AI, copy that constraint. Define the reference artifact, define the allowed transformations, inspect the accepted object rather than the model’s story about it, and keep the generator separate from the gatekeeper.

@@ -1,0 +1,62 @@
+---
+title: "When an LLM's 'True' and 'False' Don't Sum to One"
+description: "A new arXiv paper tests whether the probabilities in LLM-agent opinion simulations describe real positions or just the sentence the model was shown, and finds the two wordings of a claim add up to 1.18 instead of 1. Here is what that breaks."
+pubDate: 2026-10-26
+tags: ["simulation", "ai-agents", "model-reliability", "evals", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-26-when-an-llms-true-and-false-dont-sum-to-one/hero.webp
+  alt: "When an LLM's 'True' and 'False' Don't Sum to One"
+sources:
+  - title: "Do \"True\" and \"False\" Add Up to One? Complement Consistency in LLM-Agent Opinion Simulations"
+    url: "http://arxiv.org/abs/2610.32874v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: In LLM-agent opinion simulations, the number an agent reports for "how likely is this claim true" is tied to the exact wording it saw, not a stable internal position, so flipping the claim to its complement does not flip the probability the way it should, and any conclusion you draw from those numbers inherits that crack.
+
+## What is the paper actually testing?
+
+The primary source is "Do 'True' and 'False' Add Up to One? Complement Consistency in LLM-Agent Opinion Simulations," posted to arXiv under both cs.AI and cs.CL. The setup it studies is one a lot of people have adopted quietly: you spin up a network of LLM agents, each one reports a probability that some claim is true, each agent sees its own last number plus its neighbors' numbers, and then everyone updates. Run it for a few rounds and you get something that looks like opinion dynamics. Consensus, polarization, cascades. People use this to model how beliefs spread.
+
+The test is simple and kind of beautiful. If that probability really describes the agent's position on the underlying question, then the wording shouldn't matter. Ask "how likely is it that X is true" and get p. Rewrite the claim as its logical complement, "how likely is it that X is false," and you should get back roughly 1 minus p. The two should sum to one. That is just what it means for a number to be about the world rather than about the sentence.
+
+It doesn't sum to one.
+
+![a claim and its mirror-image complement, with two probability values that should balance on a scale but tip to one side](../../assets/blog/2026-10-26-when-an-llms-true-and-false-dont-sum-to-one/inline-1.webp)
+
+## How big is the gap, and is it just noise?
+
+On 2,304 agent states pulled from a live network simulation, Qwen3-4B's paired reports sum to 1.18 on average. Not 1.00. The authors also ran it on 48 real fact-checking claims from AVeriTeC and got the same over-one result. Then they built a clean benchmark: 24 worlds, each with exactly two possible outcomes, where the right answer is forced to sum to one by construction. All three models tested, Qwen3-4B, Llama-3.2-3B, and Gemma-3-4B, show the same failure.
+
+The obvious objection is that this is just sampling jitter, the normal wobble you get from any language model. The authors checked. The discrepancy is two to ten times larger than the shift you get from a same-meaning paraphrase. In other words, rephrasing the claim without changing its meaning moves the number a little, which is expected. Flipping it to its complement moves the number far more than that, which is the bug. And it holds up under repeated sampling, across different peer group sizes, and across different "report strengths." This is not a fluke you can average away with more runs.
+
+That distinction matters more than it looks. Everyone knows LLMs are a bit noisy. The point here is that the complement gap is a different animal from noise. It is structured. The model is anchored to the surface form of the question, and "true" and "false" are not being treated as two ends of the same axis.
+
+## Why does this break the simulations people actually run?
+
+Here is where it stops being a cute consistency puzzle and starts mattering for anyone drawing conclusions from these setups.
+
+The authors seed two populations from complementary starting states. One population starts believing the claim, the other starts believing its complement, at mirror-image probabilities. If the dynamics were about the claim and not the wording, these two populations should stay mirror images of each other forever. Flip one, you get the other.
+
+They don't. After five rounds the divergence between the two populations is positive for every model. The asymmetry doesn't cancel out as the simulation runs. It compounds. So if you run one of these opinion-dynamics studies and report that the population converged on "true," you cannot assume you'd have gotten the symmetric result had you framed the claim the other way. The conclusion is partly an artifact of how you worded the prompt, and the wording effect grows with each round rather than washing out.
+
+![two mirrored starting populations that should stay symmetric drifting apart over successive rounds](../../assets/blog/2026-10-26-when-an-llms-true-and-false-dont-sum-to-one/inline-2.webp)
+
+This is the quiet failure mode in a lot of "we simulated public opinion with agents" work. The output looks like a belief distribution. It reads like one. But a belief distribution should be invariant to whether you asked about the glass being half full or half empty, and this one isn't.
+
+## Can you just patch it by averaging the two wordings?
+
+Sort of, and that caveat is the honest part of the paper. The obvious fix: ask both wordings, take each answer and the complement of its paired answer, average them. By construction that restores consistency, the two now sum to one, and it lowers Brier loss averaged over the two wordings. Good.
+
+But "averaged over the two wordings" is doing work there. At the final round, the averaged version beats the *better* of the two original wordings for only one of the three models. So the patch buys you consistency and a better score on average, but it does not reliably beat just having picked the better framing to begin with. You've removed the embarrassing asymmetry without necessarily making the simulation more accurate. That is a real result, not a sales pitch for the fix, and I respect the paper for saying so plainly.
+
+They also note why most existing robustness checks miss this entirely. A typical sensitivity sweep, vary the update schedule, vary which agents you target, keeps the claim wording fixed the whole time. So it produces a small, stable interaction and everyone concludes the simulation is robust. It is robust to everything except the one transformation that would expose the problem. Complement consistency needs its own test. It is not covered by the sweeps people already run.
+
+## Practitioner's take
+
+If you are building anything that treats an LLM's reported probability as a belief, and agent opinion simulations are the clearest case but not the only one, add a complement check before you trust the numbers. It costs almost nothing: run your claim, run its logical negation, see if the two probabilities land near one. If they sum to 1.18, your "belief" is partly a readout of the sentence you typed, and any downstream dynamics inherit that. Three small open models failed here, so don't assume a bigger closed model is clean until you've checked yours the same way.
+
+The catch most people will miss: the averaging fix cleans up the *appearance* of the problem without guaranteeing a more accurate answer, and it only beats the better single wording on one model out of three. So averaging is a way to stop reporting a wording-dependent artifact, not a way to manufacture truth. The deeper lesson is to stop reading simulated probabilities as beliefs at all unless they survive a rewording test you ran on purpose. A number that changes when you flip the question is describing your prompt, not the world.
