@@ -77,6 +77,12 @@ plainly, and treat the next deploy as the real verification.
   membership IS the origin signal.
 - Post JSON-LD: `author` is the Organization "KenAshe Digest (automated)"; `publisher` stays
   the canonical Person. Keep it that way.
+- Two feeds, kept apart: `/rss.xml` is the Digest (machine-published, labelled automated);
+  `/writing/rss.xml` lists only the `/writing/` essays from `src/data/writing.ts`, with each
+  item's authorship label as a category. Submit the writing feed, never the Digest feed, to
+  blog directories that only accept personally written blogs (added 2026-10-27).
+- `BaseHead.astro` carries `rel="me"` links to profiles that link back to kenashe.ai
+  (Mastodon verification, IndieWeb sign-in). Only add a profile there if it links back.
 
 ### Publishing a Writing essay (image rule)
 
