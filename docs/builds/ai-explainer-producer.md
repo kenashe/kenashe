@@ -70,6 +70,19 @@ AI can do a substantial share of video production now. The human still supplies 
 Building a reusable workflow was worth more than asking a tool to make one video. The checkpoints, the claim ledger and the assembly toolkit are what I’ll keep.
 And making content with AI can itself be content worth sharing. This page is part of that.
 
+### Follow-up: ENSv2 Vote Results (October 27, 2026)
+
+After publishing the original 3:56 ENSv2 explainer, I produced a second, shorter video covering the successful ENSv2 activation vote and the upcoming multi-year renewal discounts.
+
+This 40-second update uses an AI-generated presenter and two ENS names I own to illustrate the pricing changes:
+
+- **108.eth:** a three-year renewal at $440 per year, compared with the standard $640 annual rate.
+- **ashe.eth:** a six-year renewal at $90 per year, compared with the standard $160 annual rate.
+
+It’s another published output from my AI-assisted video production experiments.
+
+Video: [ENSv2 Vote Passed: New .eth Renewal Discounts Explained](https://www.youtube.com/watch?v=dcK_1nMhy8w)
+
 ### What’s Next
 
 I plan to keep testing the agent on other technical subjects. Future experiments might include better virtual presenters, shorter production time, platform-specific edits, and measuring whether AI-assisted videos perform differently from ones I make the traditional way. None of that is done yet.
