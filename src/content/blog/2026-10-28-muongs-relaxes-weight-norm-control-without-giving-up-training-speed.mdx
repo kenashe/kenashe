@@ -1,0 +1,62 @@
+---
+title: "MuonGS relaxes weight-norm control without giving up training speed"
+description: "MuonGS is a training optimizer idea for LLM pretraining: remove only the radial part of each Muon update, let norms grow slowly, and preserve enough effective learning rate to keep making progress late in training."
+pubDate: 2026-10-28
+tags: ["model-training", "language-models", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-28-muongs-relaxes-weight-norm-control-without-giving-up-training-speed/hero.webp
+  alt: "MuonGS relaxes weight-norm control without giving up training speed"
+sources:
+  - title: "MuonGS: Pretraining LLMs with Relaxed Weight-Norm Control"
+    url: "http://arxiv.org/abs/2610.37647v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: MuonGS is interesting because it suggests LLM pretraining may not need tight weight-norm constraints to keep optimizer progress alive, only enough control to stop norms from eating the effective learning rate.
+
+## What problem is MuonGS trying to fix?
+
+Primary source: arXiv, “MuonGS: Pretraining LLMs with Relaxed Weight-Norm Control” (no author or lab name was included in the supplied material).
+
+The paper is about a boring-sounding detail with real consequences: how optimizer updates interact with the norm of a model’s weights during pretraining.
+
+Muon has become one of the more interesting optimizer families for language model training because it changes the geometry of updates. But the paper argues that vanilla Muon can suffer from a slower kind of progress over time. The key object is the accumulated effective learning rate:
+
+\(C_T=\sum_\{t&lt;T\}η_t/\|W_t\|_F\)
+
+Plain English: if the weight norm grows, the same nominal learning rate buys you less relative movement. A model can still be taking steps, but those steps matter less compared with the size of the weights.
+
+The paper’s framing is useful because it separates “the learning rate on the config file” from “the relative movement the model actually gets.” That distinction matters in long pretraining runs, where late-stage progress is expensive and small changes in optimizer behavior can turn into a lot of tokens.
+
+According to “MuonGS,” vanilla Muon may only accumulate this effective movement logarithmically in the worst case. MuonW and MuonH do better under the paper’s stated conditions by enforcing stronger norm control. The new bet is that strong control is not the only path.
+
+## How does Gram-Schmidt projection change the update?
+
+MuonGS removes the radial component of each Muon update using Gram-Schmidt projection.
+
+That means the update is adjusted so it does not directly push outward along the current weight direction. But unlike methods that fix or tightly bound the weight norm, MuonGS still lets the norm grow. Just slowly.
+
+That is the paper’s main design move: relax the constraint, keep the useful part.
+
+![three optimizer paths moving across a surface, one spiraling outward too quickly, one locked to a narrow ring, and one d](../../assets/blog/2026-10-28-muongs-relaxes-weight-norm-control-without-giving-up-training-speed/inline-1.webp)
+
+With bounded update directions and a constant nominal learning rate, “MuonGS” proves that the weight norm grows at most proportional to \(\sqrt\{t\}\) after \(t\) steps. From there, the paper gets \(C_T=Ω(\sqrt\{T\})\), meaning accumulated effective learning rate keeps growing meaningfully instead of flattening into the weaker logarithmic case.
+
+There is also a theoretical stationarity result: for smooth scale-invariant objectives, MuonGS gets an \(O(T^\{-1/2\})\) guarantee. That is not a product claim. It is a mathematical support beam for the optimizer design.
+
+The practical idea is simple enough: don’t clamp the whole system if the real problem is one bad direction of movement.
+
+## How much should builders care about the reported speedup?
+
+The reported experiments are not toy-only, but they are also not frontier-scale proof.
+
+“MuonGS” reports pretraining experiments on 160M and 400M parameter dense models, plus a MoE model with 135M active parameters and 1B total parameters. In those runs, MuonGS achieved lower validation perplexity than MuonH at long training horizons. For the dense model, the paper reports an estimated token-equivalent speedup of up to about 15% at matched validation loss versus MuonH.
+
+That “up to about 15%” is the headline number, but the important qualifier is scope. These are meaningful model sizes for optimizer research. They are not evidence that every large training stack should swap optimizers tomorrow. The result needs replication across architectures, token mixes, schedules, precision setups, and real production failure modes.
+
+Still, I like this direction because it is not another vague “train smarter” claim. It gives a measurable mechanism: control weight norm growth enough to preserve effective learning rate, without over-constraining the optimizer.
+
+Practitioner’s Take: If you train models, the thing to try is not “use MuonGS everywhere.” It is to start logging effective learning rate relative to weight norms, especially late in training, and compare optimizers on matched loss per token rather than early curve vibes. The catch most readers miss: a 15% token-equivalent gain, if it holds in your setup, is an infrastructure result disguised as an optimizer tweak.

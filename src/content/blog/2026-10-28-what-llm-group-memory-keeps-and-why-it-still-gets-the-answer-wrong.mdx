@@ -1,0 +1,74 @@
+---
+title: "What LLM Group Memory Keeps, and Why It Still Gets the Answer Wrong"
+description: "A new benchmark called CrossProfile shows that when you compress a multi-agent LLM discussion into memory for a final decision maker, the two obvious heuristics both fail, and attribution tags make it worse. Here is what that means for anyone building agent systems."
+pubDate: 2026-10-28
+tags: ["ai-agents", "agent-memory", "benchmarks", "model-reliability", "multimodal-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-10-28-what-llm-group-memory-keeps-and-why-it-still-gets-the-answer-wrong/hero.webp
+  alt: "What LLM Group Memory Keeps, and Why It Still Gets the Answer Wrong"
+sources:
+  - title: "Rare, Relevant, and Still Wrong: How Memory Fails LLM Group Decisions"
+    url: "http://arxiv.org/abs/2610.37624v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: When you squeeze a multi-agent LLM discussion down into a short memory for a final decision maker, keeping "the rarest facts" or "the most relevant facts" both fail in predictable ways, and labeling who said what makes the decision model worse, not better.
+
+Most of the multi-agent hype assumes that more voices plus a summarizer equals better decisions. The paper "Rare, Relevant, and Still Wrong: How Memory Fails LLM Group Decisions" takes that assumption apart. It introduces CrossProfile, a diagnostic benchmark of 60 templates with automatically verified answer keys, expanded to 480 tasks by crossing which agent owns which fact. The result is a clean, uncomfortable finding: the memory policy you pick barely matters. What matters is the balance of evidence that happens to survive.
+
+This is the kind of result that should change how people wire up agent teams, so I want to walk through what it actually shows and what a builder does with it.
+
+## What is the hidden-profile setup, and why does it break summaries?
+
+The hidden-profile task is an old idea from group-decision research, now pointed at LLMs. You distribute facts across several agents so that no single agent has enough to reach the right answer. Some facts support the correct choice. Some are decoys that point at a wrong-but-plausible choice. Some are irrelevant. The right answer only emerges if the group pools the supporting facts.
+
+The trick CrossProfile pulls is holding the text of each fact fixed while shuffling who owns it. That matters because in normal benchmarks, how rare a fact is gets tangled up with whether it helps. The authors call this a confound, and it is the whole game. If the useful facts also happen to be the rare ones, a "keep the rarest claims" policy looks brilliant. Move the same facts to different owners and the illusion collapses.
+
+![scattered puzzle pieces held by separate hands, only a few of which fit the final picture, the rest looking similar but ](../../assets/blog/2026-10-28-what-llm-group-memory-keeps-and-why-it-still-gets-the-answer-wrong/inline-1.webp)
+
+The models under test were Qwen2.5-7B, Llama-3.1-8B, and two DeepSeek models. Not frontier flagships, but exactly the size range people actually deploy in agent swarms because running five copies of a giant model is expensive. That makes the findings more useful, not less.
+
+## Do "rarest-first" or "relevant-first" memory actually help?
+
+Here is the part worth tattooing on the wall of anyone building these systems.
+
+Relevance filtering readmits decoys. The reason is obvious once stated: decoys are on topic. A perfect relevance filter still loses 23 to 31 points to rarest-first selection in the classic hidden-profile configuration, because relevance happily waves the wrong-but-related facts straight through to the decision maker.
+
+Rarest-first is no better than random on average. It wins only in the specific case where the rare facts happen to be the useful ones. Change the ownership, and its edge evaporates. So the heuristic that looked like a winner was really just riding the confound.
+
+The authors put it plainly: accuracy follows the balance of evidence the memory keeps, not the policy that kept it. You are not choosing a smart selection strategy. You are, at best, choosing which pile of evidence gets forwarded, and if that pile skews toward decoys, your clever filter is actively hurting you.
+
+This is a different failure than the usual "the model hallucinated" story. Nothing is hallucinated here. Every fact in memory is real. The system still gets it wrong because the aggregation step lost the signal.
+
+## Why does attributing facts to agents make it worse?
+
+This is the finding I did not expect, and it is the one with the most practical bite.
+
+The decision model exhibits a form of social proof. When a fact is attributed to many agents, the model gives it extra weight. It treats "lots of people said this" as evidence that it is true. In a hidden-profile task that is exactly backwards, because the whole point is that the correct answer depends on facts only one agent holds. Popularity is noise, and the model is treating it as signal.
+
+The fix is almost rude in its simplicity. Remove the attribution tags, or reassign them at random while keeping the line order fixed, and accuracy in the classic configuration jumps by 13 to 24 points. Stripping out who said what makes the model smarter. The social metadata we instinctively add to multi-agent transcripts (Agent 3 agreed, four agents confirmed) is poison for the decision step.
+
+![a single quiet voice holding the correct key while a loud crowd repeats a wrong one](../../assets/blog/2026-10-28-what-llm-group-memory-keeps-and-why-it-still-gets-the-answer-wrong/inline-2.webp)
+
+Think about how much multi-agent tooling is built to preserve exactly that metadata. Debate frameworks, voting schemes, consensus loops, they all lean on counting agreement. This paper says the counting is part of the problem.
+
+## What is the part that should worry you most?
+
+Buried in the abstract is the line that undercuts the entire premise of discussion-then-decide architectures: in natural discussions, the evidence is lost before any memory acts. The complete transcript yields lower accuracy than no notes at all.
+
+Read that twice. Handing the decision model the full, unedited conversation does worse than handing it nothing. The act of discussing destroyed information that was present at the start. The agents talked themselves out of the answer, repeating each other, amplifying the popular claims, and burying the lone critical fact under consensus.
+
+That is a damning result for the "let the agents hash it out" design pattern. It suggests the discussion phase is not neutral scaffolding you can summarize well or badly. It can be net-negative, and no memory policy downstream can recover what the conversation already erased.
+
+## The practitioner's take
+
+If you run multi-agent systems, treat this as a direct instruction to measure your aggregation step in isolation. Build a CrossProfile-style test for your own domain: take a decision where the right answer depends on facts held by only one agent, then shuffle ownership and check whether your pipeline still lands it. Most teams never test this, because the confound makes a broken pipeline look fine on standard cases.
+
+Three concrete moves. First, strip attribution before the final decision step, or at least A/B it, because the paper's 13-to-24-point swing from removing tags is free accuracy you are probably leaving on the table. Second, stop trusting agreement counts as a truth signal inside a single task, since social proof is a bug here, not a feature. Third, question whether you need the discussion phase at all. If the full transcript beats no notes, keep it. If it does not, you are paying tokens to make decisions worse.
+
+The catch most readers will miss: this is measured on 7B-and-8B-class models, and the social-proof weakness may shrink on larger decision models. It also may not. Nobody should assume a bigger model fixes an architecture problem for free. Test it on the model you actually ship, not the one in the headline.
+
+Primary source: "Rare, Relevant, and Still Wrong: How Memory Fails LLM Group Decisions," posted to arXiv under cs.AI and cs.CL. If you build with agent teams, read the CrossProfile section and then go try to break your own aggregator.
