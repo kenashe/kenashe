@@ -1,0 +1,62 @@
+---
+title: "KLM Wants AI to Show Its Evidence. Its Own Negative Results Show Why That's Hard."
+description: "A new arXiv spec proposes recording the evidence behind every AI answer, then publishes its own failed experiments as proof that evidence visibility and answer correctness are two different problems you cannot conflate."
+pubDate: 2026-11-02
+tags: ["ai-research", "evals", "model-reliability", "interpretability", "rag"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-02-klm-wants-ai-to-show-its-evidence-its-own-negative-results-show-why-thats-hard/hero.webp
+  alt: "KLM Wants AI to Show Its Evidence. Its Own Negative Results Show Why That's Hard."
+sources:
+  - title: "The Knowledge Layer Model (KLM): Evidence-Visible AI Output, Routing Diagnostics, and Negative Results"
+    url: "http://arxiv.org/abs/2610.42066v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: The Knowledge Layer Model proposes a standard format for recording what evidence an AI answer actually rests on, and the most useful thing in the paper is not the spec but the pile of negative results showing that seeing the evidence tells you nothing about whether the answer is right.
+
+Most papers in this space ship a clean benchmark and a win. This one, "The Knowledge Layer Model (KLM): Evidence-Visible AI Output, Routing Diagnostics, and Negative Results," posted to arXiv under both cs.AI and cs.CL, does the opposite. It publishes a 0-for-15, an AUC of 0.008 against a required 0.65, a broken legacy scorer that killed a comparison outright, and a benchmark number the authors admit they reverse-engineered from a rounded summary. That honesty is the point, and it is rarer than it should be.
+
+## What is KLM actually proposing?
+
+KLM is described as an open, implementation-neutral specification for inference records. In plain terms: a structured format that travels with an AI answer and records the basis for it. Versioned epistemic assessments (how confident, and under what version of the model's judgment), evidence relations (which retrieved text supports or contradicts the claim), and explicit unknowns (the things the system is openly declaring it does not know).
+
+The paper references KLM v0.3, repository tag v0.3.0, and names SEDIM as the reference implementation, described as the knowledge and evidence architecture of something called Nage AI OS. I want to be careful here: these are the authors' own labels for their own system, and the paper itself flags that findings are "internal and author-reported." So treat SEDIM and Nage AI OS as the authors' reference stack, not as independently validated products.
+
+The motivating idea is sound and worth stating plainly. The paper's framing is that AI answers "require more than apparent correctness: reviewers need to inspect their recorded basis." Anyone who has shipped a RAG system knows the failure mode. The answer looks right. It cites something. A reviewer nods. Nobody checks whether the cited passage actually contains the claim, or whether the model reached the answer through that passage at all. KLM is trying to make that basis inspectable by default.
+
+![an answer card with a visible chain of supporting and contradicting evidence threads behind it, some threads solid and s](../../assets/blog/2026-11-02-klm-wants-ai-to-show-its-evidence-its-own-negative-results-show-why-thats-hard/inline-1.webp)
+
+## Why do the negative results matter more than the spec?
+
+Because they draw a line most "explainable AI" pitches blur: evidence visibility is not correctness. The paper says this outright, and then spends its empirical section proving it on itself.
+
+Walk through what they actually report. A historical platform-domain routing benchmark hit 137/150 across 15 classes, 91.3%, with a nominal 95% Wilson interval of 85.7 to 94.9%. Sounds fine until you read the caveat: the numerator was "recovered from a rounded summary," and membership of the historical examples is "unverified." So the headline accuracy number is itself a reconstruction, not a clean measurement. They tell you that. Most teams would have printed 91.3% in bold and moved on.
+
+Then the failures. A native-model weight-path configuration produced 0 of 15 successful answers in a corrected two-source test. A capacity-growth comparison could not establish any reliable effect because the legacy scorer was defective and the original outputs were missing. The lexical and scoped diagnostics, the tools meant to separate a silent answer from a contradicted one, each scored AUC 0.008 against a pre-registered minimum of 0.65. That is not "underperformed." An AUC near zero means the diagnostic is worse than a coin flip at the job it was built for.
+
+The one clean win is narrow and the authors frame it narrowly. Legacy packing lost gold-containing text in 118 of 221 selected cases. Repaired packing retained it in 221 of 221. Real improvement. But they immediately note it "measures text presence, not answer quality." The gold text being in the context window does not mean the model used it or answered correctly from it. That distinction is the whole thesis of the paper, applied honestly to their own best result.
+
+![two parallel tracks, one labeled by a glowing checkmark and the other by a magnifying glass, running side by side but ne](../../assets/blog/2026-11-02-klm-wants-ai-to-show-its-evidence-its-own-negative-results-show-why-thats-hard/inline-2.webp)
+
+## Can you trust an AI answer just because you can see its evidence?
+
+No, and that is the uncomfortable takeaway for anyone building or buying AI systems right now. The market is full of tools selling "transparency" and "citations" as if a visible source were the same as a verified answer. KLM's own data is a direct rebuttal. You can have beautifully structured evidence records, versioned assessments, explicit unknowns, the whole apparatus, and still have a diagnostic that cannot tell a hallucination from a grounded answer at AUC 0.008.
+
+The paper also reports a cross-language consistency check: Python and TypeScript verifiers reportedly agreed on six checks per synthetic fixture. Good engineering hygiene, two implementations agreeing. But they note a separate production disclosure "was not accepted," and a long list of capabilities (restoration, re-derivation, human-rubric support, boundary isolation, bounded-response evaluation) remain proposed, not built. This is a v0.3 spec with a reference implementation that fails several of its own tests. That is not a knock. It is an accurate self-portrait, and the authors close by saying independent replication and a complete public audit package are future work.
+
+What survives all the caveats is the architecture of thought. Separating "here is the recorded basis" from "here is the verified answer" is the right decomposition. Most systems collapse those two into one green checkmark, and that collapse is where trust gets manufactured without being earned.
+
+## What a builder should take from this
+
+If you run a RAG or agent pipeline, steal the paper's discipline before you steal its spec. Three moves.
+
+First, instrument text presence and answer quality as separate metrics. KLM's cleanest result, 221/221 gold retention, is a retrieval-plumbing metric. It tells you the right text reached the model. It says nothing about whether the output was correct. Log both, and never let the first stand in for the second in a dashboard someone will trust.
+
+Second, build a contradiction detector and actually test it on a silent-versus-contradicted set, the exact task where KLM's diagnostics cratered to AUC 0.008. If your detector cannot beat a coin flip there, you do not have a transparency feature, you have decoration. Measure it before you ship the badge.
+
+Third, publish your negative results internally. The reason this paper is worth your time is that it recovers a benchmark numerator from a rounded summary and tells you so, reports a 0/15, and refuses to claim end-to-end validation it does not have. That posture is how you build an eval culture that catches problems instead of papering over them.
+
+The catch most readers will miss: a spec like KLM makes AI output more inspectable, which is genuinely valuable for audits and review. But inspectable is not the same as trustworthy, and a well-formatted evidence record can give a false sense of rigor to a wrong answer. The honest version of this technology ships with its own failure rates printed next to the feature. This paper did. Hold the vendors selling you "explainable AI" to the same standard.
