@@ -1,0 +1,54 @@
+---
+title: "Int8 embeddings look safe, binary embeddings still look expensive"
+description: "A benchmark of hierarchical embeddings and quantization shows a practical middle path for cheaper vector systems: int8 plus moderate dimension cuts can save serious storage, but retrieval quality falls faster than other embedding tasks."
+pubDate: 2026-11-05
+tags: ["rag", "benchmarks", "model-reliability", "ai-infrastructure"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-05-int8-embeddings-look-safe-binary-embeddings-still-look-expensive/hero.webp
+  alt: "Int8 embeddings look safe, binary embeddings still look expensive"
+sources:
+  - title: "Balancing hierarchical representation and quantization: A performance trade-off in text embeddings"
+    url: "http://arxiv.org/abs/2611.06859v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For most embedding workloads, int8 quantization looks like the boring win, but aggressive binary compression is still a quality tax, especially for retrieval.
+
+## What did this embedding benchmark actually test?
+
+The primary source here is the arXiv paper titled “Balancing hierarchical representation and quantization: A performance trade-off in text embeddings.” It is not trying to introduce a new embedding model. That is useful. It tests two tricks builders already use to make vector systems cheaper: hierarchical representations, where you can use shorter or intermediate representations, and quantization, where you store vectors with lower numerical precision.
+
+The benchmark covers 38 tasks from MTEB, four transformer-based embedding models, 1D and 2D hierarchical representations, and three precision levels: float32, int8, and binary. The paper reports 168 configurations per task. That is the kind of grid that matters because compression choices are usually sold as one-dimensional. Smaller vectors, lower cost, done. Real systems are not that clean.
+
+The headline result is simple: int8 held up. The paper reports that int8 quantization was statistically indistinguishable from float32 for pair classification and re-ranking, and cost at most 1.5 percentage points overall. Binary quantization did not hold up. It was significantly worse across every task category.
+
+That is a good reminder. Compression is not a moral victory. It is a product decision. If you cut storage by a lot but ship worse search, support answers, dedupe, recommendations, or compliance lookup, your infra bill may go down while user trust goes down with it.
+
+![a stack of dense vector blocks shrinking through two compression steps, with a small quality signal bending downward mor](../../assets/blog/2026-11-05-int8-embeddings-look-safe-binary-embeddings-still-look-expensive/inline-1.webp)
+
+## Where is the real trade-off?
+
+The most interesting number in the paper is not just int8 versus float32. It is the combination result: an 8x dimensionality reduction plus int8 produced a 32x reduction in theoretical per-vector storage while preserving 94.4% of baseline effectiveness.
+
+That is a big deal for large vector stores. If you are holding tens or hundreds of millions of embeddings, storage is not an abstract metric. It affects memory residency, index size, replication costs, backup size, migration time, and the number of experiments you can afford to run.
+
+But the paper separates theoretical per-vector storage from end-to-end evaluation time, which is the right move. The researchers measured evaluation times once, so they treat those timing results as indicative, not definitive. They found no evidence that quantization itself speeds up evaluation. Sampling from intermediate layers, on the other hand, shortened evaluation substantially.
+
+That distinction matters. A lot of teams compress embeddings expecting everything to get faster. Sometimes the win is storage, not latency. Latency depends on the vector database, index type, hardware, batching, memory layout, candidate generation, reranking, and network overhead. The embedding format is only one part of the path.
+
+The paper also found that halving embedding dimension once was not statistically detectable above m=16, while two successive halvings always were. Translation for builders: small dimension cuts may be free enough to test aggressively. Repeated cuts are where quality starts sending the bill.
+
+## Why does retrieval break faster?
+
+The warning label is retrieval. The paper says retrieval degrades far faster than every other category, which is exactly the category most RAG systems care about.
+
+That tracks with what operators see in production. Pair classification and re-ranking can tolerate some representation loss because the candidate set is already constrained. Retrieval is the open-field problem. You are asking the vector space to surface the right candidates from a large corpus, often with messy queries, uneven documents, duplicated concepts, and long-tail vocabulary. Small distortions matter.
+
+So I would not read this paper as “compress everything 32x.” I would read it as “int8 is probably your first serious compression test, dimension trimming is promising, and binary should earn its way into production with task-specific evals.” Especially if the system is search-facing.
+
+The other catch is that MTEB is broad, but your corpus is not MTEB. Legal clauses, product docs, support tickets, medical notes, source code comments, and local business pages all behave differently. The paper gives a strong prior. It does not remove the need for your own retrieval eval set.
+
+For a builder, I would try this in order: keep a float32 baseline, run int8 on the same embeddings, test one moderate dimension reduction, then test the combined smaller int8 setup against real queries with judged results. Track recall at your candidate cutoff before reranking, not just final answer quality. The miss most readers will make is benchmarking only the chatbot response. By then, a compressed retriever may have already thrown away the document the model needed.
