@@ -33,6 +33,21 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: 'bambu-lab-burr-puzzle-solution',
+    title: 'How to Solve the Bambu Lab Burr Puzzle (Step-by-Step Assembly Guide)',
+    date: 'November 6, 2026',
+    published: '2026-11-06',
+    dek: 'My 2:44 video walkthrough for assembling the six-piece Bambu Lab Burr Puzzle, filmed overhead and solved twice, with links that jump straight to each part of the solution.',
+    authorship: 'Human-directed, AI-assisted',
+    image: {
+      file: 'bambu-lab-burr-puzzle-solution.jpg',
+      alt: 'Overhead view of two sets of six 3D-printed burr puzzle pieces on a wood table, a red set in the top row and a teal set in the bottom row.',
+      caption: 'Both sets laid out before assembly, red on top and teal below (0:25 in the video).',
+      // The video's own YouTube thumbnail, used for the /writing/ listing and the social image.
+      thumbnail: 'bambu-lab-burr-puzzle-solution-thumb.jpg',
+    },
+  },
+  {
     slug: 'ashe-family-coat-of-arms',
     title: 'The Ashe Family Coat of Arms: A Cockatrice and a Guinness Connection',
     date: 'April 6, 2016 · Updated October 13, 2026',
