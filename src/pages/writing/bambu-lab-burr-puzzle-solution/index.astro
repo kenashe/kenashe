@@ -1,0 +1,400 @@
+---
+// origin: human. Ken's own YouTube tutorial (filmed, edited, and published by Ken on
+// November 6, 2026); the page copy is written from his account and checked against the
+// footage. Static page by design (see /writing/). Video-first: the embed is the principal
+// content and the text only frames it.
+import { getImage } from 'astro:assets';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import JsonLd from '../../../components/JsonLd.astro';
+import EssayFigure from '../../../components/EssayFigure.astro';
+import { essayBySlug, authorshipOf } from '../../../data/writing';
+import { personKenAshe, websiteKenAshe } from '../../../data/schema';
+import { SITE_URL } from '../../../consts';
+// The video's own YouTube thumbnail (also the /writing/ listing image via writing.ts).
+import youtubeThumb from '../../../assets/writing/bambu-lab-burr-puzzle-solution-thumb.jpg';
+
+const essay = essayBySlug('bambu-lab-burr-puzzle-solution');
+const authorship = authorshipOf(essay);
+
+const title = essay.title;
+// <title> gets the site suffix from BaseHead; keep the whole thing near 60 characters.
+const seoTitle = 'Bambu Lab Burr Puzzle Solution (Step-by-Step Video)';
+const description =
+  'How to solve the Bambu Lab Burr Puzzle: a 2:44 overhead video showing how the six pieces go together, solved twice, with links that jump straight to each step.';
+
+// Published video metadata, copied from YouTube on 2026-11-06 (watch page microformat and
+// chapter list). Do not edit by hand without re-checking the video.
+const VIDEO = {
+  id: 'Sft8JZ_afb4',
+  title: 'How to Solve the Bambu Lab Burr Puzzle (Step-by-Step Assembly Guide)',
+  description:
+    'Learn how to solve the Bambu Lab Burr Puzzle with this clear, step-by-step assembly guide. I’ll show you how all six pieces fit together and demonstrate the complete solution twice so you can follow along.',
+  uploadDate: '2026-11-06T04:56:49-08:00',
+  duration: 'PT2M44S',
+  lengthSeconds: 164,
+  lengthLabel: '2:44',
+};
+const watchUrl = `https://www.youtube.com/watch?v=${VIDEO.id}`;
+const embedSrc = `https://www.youtube-nocookie.com/embed/${VIDEO.id}?rel=0`;
+const channelUrl = 'https://www.youtube.com/@KenAshe';
+
+// The video's published YouTube chapters (titles verbatim).
+const chapters = [
+  { start: 0, label: '0:00', title: 'Introduction and piece layout' },
+  { start: 33, label: '0:33', title: 'First assembly walkthrough (teal puzzle)' },
+  { start: 104, label: '1:44', title: 'Second assembly walkthrough (red puzzle)' },
+  { start: 150, label: '2:30', title: 'Final assembly and completed puzzles' },
+];
+const atTime = (s: number) => (s === 0 ? watchUrl : `${watchUrl}&t=${s}s`);
+
+// Social/schema image: a 1200px JPEG of the YouTube thumbnail, so link previews match the video.
+const ogOut = await getImage({ src: youtubeThumb, width: 1200, height: 675, format: 'jpg' });
+const og = { src: ogOut.src, width: 1200, height: 675 };
+
+const pageUrl = new URL(`/writing/${essay.slug}/`, SITE_URL).toString();
+const videoId = `${pageUrl}#video`;
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Article',
+      '@id': `${pageUrl}#article`,
+      headline: title,
+      description: description,
+      url: pageUrl,
+      mainEntityOfPage: pageUrl,
+      image: new URL(og.src, SITE_URL).toString(),
+      datePublished: essay.published,
+      author: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isPartOf: { '@id': 'https://kenashe.ai/#website' },
+      video: { '@id': videoId },
+      inLanguage: 'en-US',
+    },
+    {
+      '@type': 'VideoObject',
+      '@id': videoId,
+      name: VIDEO.title,
+      description: VIDEO.description,
+      thumbnailUrl: [
+        `https://i.ytimg.com/vi/${VIDEO.id}/maxresdefault.jpg`,
+        `https://i.ytimg.com/vi/${VIDEO.id}/sddefault.jpg`,
+        `https://i.ytimg.com/vi/${VIDEO.id}/hqdefault.jpg`,
+      ],
+      uploadDate: VIDEO.uploadDate,
+      duration: VIDEO.duration,
+      embedUrl: `https://www.youtube.com/embed/${VIDEO.id}`,
+      creator: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isFamilyFriendly: true,
+      inLanguage: 'en',
+      hasPart: chapters.map((c, i) => ({
+        '@type': 'Clip',
+        name: c.title,
+        startOffset: c.start,
+        endOffset: chapters[i + 1]?.start ?? VIDEO.lengthSeconds,
+        url: atTime(c.start),
+      })),
+    },
+    websiteKenAshe,
+    personKenAshe,
+  ],
+};
+---
+
+<BaseLayout
+  title={seoTitle}
+  description={description}
+  ogType="article"
+  ogTitle={title}
+  image={og.src}
+  ogImageWidth={og.width}
+  ogImageHeight={og.height}
+  article={{ publishedTime: essay.published }}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Writing', path: '/writing/' },
+    { name: title, path: `/writing/${essay.slug}/` },
+  ]}
+>
+  <JsonLd slot="jsonld" data={articleSchema} />
+  <article class="essay">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/writing/"><span aria-hidden="true">←</span> Writing</a>
+    </nav>
+
+    <header class="essay-header">
+      <p class="page-mark" aria-hidden="true">// writing</p>
+      <h1>{title}</h1>
+      <p class="meta">
+        <span class="meta-key">By</span> Ken Ashe
+        <span aria-hidden="true">·</span> {essay.date}
+        <span aria-hidden="true">·</span> {VIDEO.lengthLabel} video
+        <span aria-hidden="true">·</span> {authorship}
+      </p>
+    </header>
+
+    <div class="prose">
+      <figure class="video" id="video">
+        <div class="video-frame">
+          <iframe
+            id="burr-video"
+            src={embedSrc}
+            data-video-id={VIDEO.id}
+            title={`Ken Ashe: ${VIDEO.title}`}
+            width="560"
+            height="315"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+        <figcaption>
+          <a href={watchUrl} target="_blank" rel="noopener">Watch on YouTube ↗</a>
+          <a class="video-channel" href={channelUrl} target="_blank" rel="noopener">More on my YouTube channel →</a>
+        </figcaption>
+      </figure>
+
+      <p>I printed the Burr Puzzle on my Bambu Lab printer and figured putting it together would be easy. It wasn’t. Six pieces turned out to be a lot more complicated than I expected.</p>
+      <p>I looked for video tutorials, but the ones I found were hard to follow. So I made my own.</p>
+      <p>The goal was a simple, clear demonstration you can follow while you assemble the puzzle yourself. I filmed it from directly overhead and solved it twice: first with a teal set of pieces, then with a red set. If the first walkthrough doesn’t click, the second gives you another look at the same solution.</p>
+
+      <h2>What you’ll learn</h2>
+      <p>The video shows how each of the six pieces is oriented and how they interlock, from loose pieces on the table to a finished puzzle. Both sets start laid out side by side. I assemble the teal puzzle first, then repeat the whole solution with the red pieces.</p>
+
+      <h2 id="chapters">Jump to the solution</h2>
+      <ol class="chapters">
+        {chapters.map((c) => (
+          <li>
+            <a href={atTime(c.start)} data-start={c.start} target="_blank" rel="noopener">
+              <span class="chapter-time">{c.label}</span>
+              <span class="chapter-title">{c.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+      <p class="chapters-note">Each link starts the video above at that point. Open it in a new tab to watch on YouTube instead.</p>
+
+      <h2>Helpful tips</h2>
+      <ul>
+        <li><strong>Lay out your pieces the way I do at the start.</strong> Same order, same orientation. It makes it much easier to tell which piece I’m picking up.
+          <EssayFigure essay={essay} />
+        </li>
+        <li><strong>Pause between steps.</strong> Get each piece into the same position as mine before you move on. Slowing the playback speed on YouTube helps too.</li>
+        <li><strong>Watch it again in red.</strong> If a step doesn’t make sense the first time, jump to the <a href={atTime(104)} data-start="104" target="_blank" rel="noopener">second walkthrough at 1:44</a> and follow the red pieces.</li>
+        <li><strong>Still stuck?</strong> Leave a comment on the video with the timestamp where you got lost, and I’ll do my best to help.</li>
+      </ul>
+
+      <h2>Watch it on YouTube</h2>
+      <p>If this helped you solve your puzzle, the <a href={watchUrl} target="_blank" rel="noopener">original video is on YouTube</a>. I post hands-on builds and technology experiments on <a href={channelUrl} target="_blank" rel="noopener">my channel</a>, and you can see more of what I’ve been testing on <a href="/building/">Building</a> and in my <a href="/writing/">Writing</a>.</p>
+      <p class="disclaimer">This is my own walkthrough of a puzzle I printed. It isn’t an official Bambu Lab tutorial, and I’m not affiliated with Bambu Lab.</p>
+    </div>
+  </article>
+</BaseLayout>
+
+<script>
+  // Progressive enhancement for the chapter links: a plain click restarts the embedded player
+  // at that point instead of leaving the page. Modified clicks (new tab/window) and no-JS
+  // visitors get the YouTube link at the same timestamp.
+  const frame = document.getElementById('burr-video') as HTMLIFrameElement | null;
+  const id = frame?.dataset.videoId;
+  document.querySelectorAll<HTMLAnchorElement>('a[data-start]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      if (!frame || !id || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      frame.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&autoplay=1&start=${a.dataset.start}`;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('video')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+<style>
+  .essay {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .essay-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin: 0 0 1rem;
+    color: var(--fg);
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0 0 2rem;
+  }
+  .meta-key {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .meta span[aria-hidden] {
+    color: var(--accent);
+    padding: 0 0.35rem;
+  }
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--fg);
+  }
+  .prose p {
+    margin: 0 0 1.25rem;
+  }
+  .prose a {
+    color: var(--accent);
+  }
+  .prose h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 2.5rem 0 0.9rem;
+    color: var(--fg);
+    scroll-margin-top: 1.5rem;
+  }
+  .prose ul {
+    margin: 0 0 1.25rem;
+    padding-left: 1.4rem;
+  }
+  .prose li {
+    margin-bottom: 0.6rem;
+  }
+  .prose li::marker {
+    color: var(--accent);
+  }
+  .prose :global(.essay-figure) {
+    margin: 1rem 0 1.5rem;
+  }
+  .prose :global(.essay-figure img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .prose :global(.essay-figure figcaption) {
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* Responsive 16:9 YouTube embed (youtube-nocookie), the principal content of the page. */
+  .prose .video {
+    margin: 0 0 2rem;
+    width: 100%;
+    scroll-margin-top: 1rem;
+  }
+  .prose .video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .prose .video-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .prose .video figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem 1.25rem;
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.55;
+  }
+  .prose .video figcaption a {
+    text-decoration: none;
+  }
+  .prose .video figcaption a:hover,
+  .prose .video figcaption a:focus-visible {
+    text-decoration: underline;
+  }
+  .prose .video .video-channel {
+    color: var(--muted);
+  }
+
+  /* Chapter links: timestamp in mono, title beside it; full-row tap targets. */
+  .chapters {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+  .prose .chapters li {
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .prose .chapters a {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.7rem 0.25rem;
+    color: var(--fg);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .prose .chapters a:hover,
+  .prose .chapters a:focus-visible {
+    color: var(--accent);
+  }
+  .chapter-time {
+    flex: none;
+    min-width: 2.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--accent);
+  }
+  .prose .chapters-note,
+  .prose .disclaimer {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  .prose .disclaimer {
+    margin-top: 2rem;
+  }
+</style>
