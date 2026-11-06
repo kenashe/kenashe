@@ -1,0 +1,64 @@
+---
+title: "The Label Wording Problem Nobody Tests in Agent Routers"
+description: "A study of a 307M Russian cross-encoder shows that how you word your routing labels moves accuracy by up to 0.24 points, and that the fix works for plain words but fails cold on abbreviations and codes."
+pubDate: 2026-11-06
+tags: ["model-reliability", "evals", "ai-agents", "small-models", "benchmarks"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-06-the-label-wording-problem-nobody-tests-in-agent-routers/hero.webp
+  alt: "The Label Wording Problem Nobody Tests in Agent Routers"
+sources:
+  - title: "Label-Wording Augmentation in a Typed-Decision Encoder: Gains on Unfamiliar Words, Not on Abbreviations or Codes"
+    url: "http://arxiv.org/abs/2611.08439v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you route with a typed-decision model, the words you put in your labels are part of your accuracy budget, and a study on the Ru-Jev cross-encoder shows training can buy you robustness on ordinary words but almost nothing on abbreviations or opaque codes.
+
+Most people building agent routers treat the label list as config. You write "billing", "tech support", "sales", wire it into a classifier or a cross-encoder, and move on. The assumption baked into that workflow is that the exact wording doesn't matter much. The model understands intent, right?
+
+The paper "Label-Wording Augmentation in a Typed-Decision Encoder: Gains on Unfamiliar Words, Not on Abbreviations or Codes" (arXiv cs.AI / cs.CL / cs.LG) says that assumption is wrong, and it measures exactly how wrong. This is the clearest write-up I have seen on a failure mode that production teams hit constantly and rarely isolate.
+
+## What is a typed-decision model and why does label wording matter?
+
+A typed-decision model scores options the caller supplies at request time. You hand it a question and a list of candidate labels, and it ranks them. Cross-encoders like Ru-Jev, a 307M-parameter multilingual model trained on thirteen Russian-language tasks, are a common choice because they are small, fast, and cheap to run compared to calling a frontier LLM for every routing decision.
+
+The catch the authors put front and center: the model's developer does not control the label wording. You do. The developer trained on some distribution of label phrasings, and then you show up with your own department names, your own internal jargon, your own three-letter codes. Whether the model works now depends on how close your words sit to what it saw in training.
+
+![a single question feeding into a fan of candidate word-options, with some options drawn clearly and others blurred and f](../../assets/blog/2026-11-06-the-label-wording-problem-nobody-tests-in-agent-routers/inline-1.webp)
+
+That is a different kind of fragility than the usual "the model is dumb" complaint. The question is fixed. The intent is fixed. The only thing that changes is the surface form of the labels, and accuracy swings with it.
+
+## How big is the swing, really?
+
+The team compared two releases of Ru-Jev: an earlier one and a later one that adds an augmentation presenting labels in several surface forms during training. Then they held the questions constant and varied only how eighteen routing labels were worded, across ten label vocabularies produced by three separate processes and checked for overlap with the training data. They ran five candidates per question, and for eight of the vocabularies, eighteen candidates.
+
+On vocabularies made of ordinary or borrowed words (English-derived jargon, office slang, department names), the augmented release won in every setting, by up to 0.24. That is enormous. A quarter of a point of accuracy from nothing but how a label is phrased. And this is not a fishing expedition dressed up as a result: eleven of fourteen gains survived a Holm correction, and for jargon across all labels the label-level confidence interval excluded zero in both settings. The two that did not survive were slang with eighteen candidates and descriptive sentences with five candidates, and the authors say so plainly instead of burying it.
+
+So the augmentation works. Teach the model that one concept can wear many word-costumes, and it generalizes to word-costumes it never saw, as long as those costumes are made of real words.
+
+## Where does the trick stop working?
+
+Here is the part that should change how you build. On abbreviations and opaque codes, the augmentation gives no usable gain. On abbreviations the augmented release is not better, and it is actually worse on the clean slice. On opaque codes both releases sit at or below chance once the authors remove labels that happen to relate to training options. At or below chance. The model is guessing.
+
+![two paths from a word to a meaning, one direct and open, the other blocked by a sealed opaque box](../../assets/blog/2026-11-06-the-label-wording-problem-nobody-tests-in-agent-routers/inline-2.webp)
+
+This makes intuitive sense once you see it. An augmentation that shows the model more ways to say "human resources" teaches it a mapping between words and meaning. An abbreviation like "HR" or an internal code like "DEPT_4471" carries no semantic surface for the model to grab. There is nothing to generalize from. You can augment all day and the model still has no path from the string to the concept.
+
+There is a second warning in the risk-coverage numbers. In most cells where accuracy rose, the risk-coverage area fell, which is good: the model's confidence tracked its correctness better. But with eighteen candidates, confident errors rose on jargon and slang. More options, more chances to be confidently wrong. And on two datasets neither release had seen, accuracy moved by -8.4 and +5.6 points, so the method is not a free lunch on genuinely novel distributions.
+
+The authors also flag four evaluation hazards from comparing two releases, which is the kind of honesty that separates a useful paper from a press release. Comparing model versions is a minefield of confounds, and they name theirs.
+
+## What should a builder do about this on Monday?
+
+Three things, in order.
+
+First, stop treating labels as free config and start treating them as semantic inputs the model has to understand. Write them as real words. "Billing and payments" beats "BILL". "Returns and refunds" beats "RET-02". The study's finding is that plain and borrowed words are exactly where a well-trained router can generalize, so meet it where it is strong.
+
+Second, if your taxonomy is full of abbreviations or internal codes, do not route on the codes. Map a human-readable description to each code outside the model, route on the description, then translate the winning label back to the code in your own code. The model should never see the opaque string. The paper is blunt that codes sit at or below chance, so this is not optional polish, it is the difference between a router and a coin flip.
+
+Third, build the eval the authors built, scaled down. Hold your questions fixed. Generate three or four wordings of each label (a plain version, a jargon version, a department-name version). Measure accuracy across them. If your accuracy swings more than a point or two on wording alone, your router is sitting on a fault line, and you want to know that before a customer does. Watch confident errors specifically as you add more candidate labels, because that is where this study saw the hidden cost.
+
+The catch most readers will miss: this result is on a 307M Russian cross-encoder, not a frontier LLM router, and the augmentation that fixed the plain-word case was baked in at training time, which you probably cannot reproduce on a closed model. But the measurement discipline transfers completely, and so does the core lesson. Your labels are part of your model's input surface. Word them like you mean it, keep the opaque strings out of the model's sight, and test the wording the same way you would test the prompt.

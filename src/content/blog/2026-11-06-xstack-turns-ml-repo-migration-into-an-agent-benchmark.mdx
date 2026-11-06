@@ -1,0 +1,60 @@
+---
+title: "XStack turns ML repo migration into an agent benchmark"
+description: "XStack reframes PyTorch-to-JAX migration as a practical benchmark for coding agents, with agents judged on whole-repository work against published results rather than toy tasks. The useful signal is not that agents can migrate code, it is that even strong ones still fail often."
+pubDate: 2026-11-06
+tags: ["coding-agents", "agent-evaluation", "benchmarks", "ai-infrastructure"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-06-xstack-turns-ml-repo-migration-into-an-agent-benchmark/hero.webp
+  alt: "XStack turns ML repo migration into an agent benchmark"
+sources:
+  - title: "XStack: A Benchmark for ML Repo Migration"
+    url: "http://arxiv.org/abs/2611.08472v1"
+entities:
+  - name: "Nvidia"
+    sameAs: "https://www.wikidata.org/wiki/Q182477"
+  - name: "Google"
+    sameAs: "https://www.wikidata.org/wiki/Q95"
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: XStack is useful because it tests whether coding agents can move real ML repositories across frameworks and hardware, and the answer is still: sometimes, not reliably.
+
+## What does XStack actually test?
+
+The primary source here is the arXiv paper **"XStack: A Benchmark for ML Repo Migration"**. The task is simple to describe and painful to do: an agent gets a PyTorch repository and a clean TPU machine, then has to deliver a working JAX repository.
+
+That is a much better stress test than another single-file coding puzzle. ML repo migration forces an agent to reason across model code, data paths, training loops, numerical behavior, dependencies, framework assumptions, and hardware differences. It is not just "translate this function from PyTorch to JAX." It is "make the project work in a different ecosystem."
+
+XStack frames this as both a practical need and a benchmark. Practical because ML code is often trapped where it was first written, usually PyTorch on NVIDIA GPUs or JAX on Google TPUs. Benchmark because repo migration is long-horizon, concrete, and easy to grade against real outcomes if the target behavior is pinned down well.
+
+The XStack team says grading is based on the source repository's published result, authenticated and calibrated by them. That detail matters. If you only grade whether tests pass, agents can win by satisfying shallow checks. If you grade against the actual published result, the bar moves closer to what researchers and infrastructure teams care about.
+
+![two different machine learning workbenches connected by a tangled bridge, with small inspection gates along the bridge](../../assets/blog/2026-11-06-xstack-turns-ml-repo-migration-into-an-agent-benchmark/inline-1.webp)
+
+## Why is this benchmark harder than normal coding tasks?
+
+Most coding benchmarks compress reality. They ask for a function, a patch, or a fix with local context. Useful, but limited.
+
+Migration work has a different failure shape. The agent can be directionally right and still fail. It can convert 90% of the model and miss a random seed issue. It can rewrite the training loop and introduce a shape mismatch. It can get the syntax right but lose numerical parity. It can install the wrong dependency version, assume CUDA behavior, or fail to understand how TPU execution changes the problem.
+
+That is why XStack's reported results are interesting. Claude Opus 5 passes 75%. GPT-5.6-sol passes 45%. Every other agent is at most 40%, according to XStack. I do not read that as a clean model ranking. I read it as a warning label on autonomy.
+
+A 75% pass rate is impressive for whole-repo migration. It is also not something I would hand over unsupervised if the code matters. A 25% failure rate on infrastructure translation is not a rounding error. It is a queue of broken experiments, silent regressions, and wasted accelerator time.
+
+The bigger point: coding agents are getting closer to real engineering work when the task has a workspace, a machine, a target result, and enough rope to fail. XStack has all four.
+
+## What should builders take from it?
+
+The practical value is not "agents can now port ML stacks." The practical value is that migration can be turned into a measurable workflow.
+
+If you run ML infrastructure, XStack suggests a pattern worth copying internally. Pick representative repos. Define the destination stack. Build clean machines. Capture the expected result. Let agents attempt the migration. Score the output on real execution, not code appearance. Then keep the failed cases.
+
+Those failures are gold. They tell you where your internal codebase is too tied to one framework, where setup instructions are brittle, where tests are missing, and where human reviewers need checklists. A migration benchmark doubles as an infrastructure audit.
+
+There is also a research angle here. "ML code should run where researchers choose, not where it was first written" is the right north star. But freedom across compute stacks will not come from vibes. It will come from boring compatibility work, better tests, clearer repo structure, and agents that can operate inside those constraints.
+
+For builders, I would try this on one non-critical repository first. Ask an agent to migrate it, but do not judge the result by the diff. Run the training path. Compare the published or expected result. Log every failure mode. The catch most readers miss: the agent is not the whole solution. The benchmark is also measuring how migration-ready your code already is.
