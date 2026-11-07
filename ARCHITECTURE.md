@@ -336,3 +336,22 @@ gate thresholds and models are in `config.ts`; feeds in `sources.yaml`; pillar c
 network, no keys. Covers the pure logic: YAML/MDX escaping (both caused production
 outages), slug/tag governance, cosine + related-post selection, clustering/dedup, entity
 detection, and the selection/rotation math. CI runs it before every pipeline run.
+
+### Site review refinements (2026-11-07)
+
+- Inner-page titles use the short suffix `– Ken Ashe`; homepage and site-name metadata
+  retain the full site title. Explicit social-title overrides remain intact.
+- Writing listing thumbnails render reviewed alt descriptions. `thumbnailAlt` in
+  `writing.ts` describes an optional alternate composition; article images keep their own
+  alt text. Listing order and build counts are unchanged.
+- All nine existing static build write-ups use `BuildLayout.astro`, which adds Article,
+  WebSite and canonical Person nodes. Ship months are not publication dates, so no dates
+  are invented. Only explicitly supplied page images enter the Article node. No new
+  collection or content-config changes. Breadcrumbs still come from BaseLayout.
+- `/sitemap.xml` permanently redirects to the working `/sitemap-index.xml`. This is a
+  convenience alias, not a change to the canonical sitemap or a catch-all 404 redirect.
+- The inactive Substack entry is removed from llms.txt. FollowNote supplies X/YouTube
+  links below home, build write-ups, essays and dated Digest posts. Both RSS feeds remain.
+- The homepage contact panel has a 2.5rem gap above it. Hero, content selection and copy
+  are otherwise unchanged. Photo, press strip, email service, sponsorship offer and Digest
+  migration remain decisions for Ken; this patch does not implement them.

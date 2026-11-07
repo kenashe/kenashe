@@ -19,6 +19,7 @@ export interface EssayImage {
   // for covers whose shape would otherwise be cropped badly by the listing's 16:9 frame
   // (e.g. a tall illustration). The social image and the page still use `file`.
   thumbnail?: string;
+  thumbnailAlt?: string; // Use when the listing composition differs from the article image.
 }
 
 export interface Essay {
@@ -45,6 +46,7 @@ export const essays: Essay[] = [
       caption: 'Both sets laid out before assembly, red on top and teal below (0:25 in the video).',
       // The video's own YouTube thumbnail, used for the /writing/ listing and the social image.
       thumbnail: 'bambu-lab-burr-puzzle-solution-thumb.jpg',
+      thumbnailAlt: 'Six red burr puzzle pieces and an assembled blue puzzle on a wooden table, with the title Bambu Lab Burr Puzzle Solution.',
     },
   },
   {
@@ -58,6 +60,7 @@ export const essays: Essay[] = [
       file: 'ashe-family-coat-of-arms.jpg',
       alt: 'Historical Ashe coat of arms featuring two black chevronels, a cockatrice crest, and the motto Non nobis sed omnibus.',
       thumbnail: 'ashe-family-coat-of-arms-thumb.jpg',
+      thumbnailAlt: 'The Ashe coat of arms beside a historical Guinness Extra Stout label; both feature a cockatrice.',
     },
   },
   {
