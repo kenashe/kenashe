@@ -24,7 +24,6 @@ export async function GET(_context: APIContext) {
     `- [Digest](${base}/blog/): The machine-published daily brief (automated).`,
     `- [Disclosure](${base}/disclosure/): How content is made and who is accountable.`,
     `- [Newsroom](${base}/newsroom/): Announcements and press.`,
-    `- [Newsletter](https://newsletter.kenashe.ai): Substack newsletter.`,
     `- [RSS feed](${base}/rss.xml): Machine-readable feed of posts.`,
     '',
     '## Digest posts (machine-published)',

@@ -64,7 +64,7 @@ export function coverOf(essay: Essay): EssayCover | null {
         `[writing] "${essay.slug}" declares thumbnail "${essay.image.thumbnail}" but src/assets/writing/${essay.image.thumbnail} does not exist`,
       );
     }
-    return { kind: 'asset', image: thumb ?? assetFor(essay), alt: essay.image.alt, caption: essay.image.caption };
+    return { kind: 'asset', image: thumb ?? assetFor(essay), alt: thumb ? (essay.image.thumbnailAlt ?? essay.image.alt) : essay.image.alt, caption: essay.image.caption };
   }
   const inline = firstInlineImage(source);
   if (inline) return { kind: 'inline', ...inline };
