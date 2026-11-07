@@ -1,0 +1,66 @@
+---
+title: "OpenAI's LifeVal and the gap between knowing and doing"
+description: "OpenAI says it built LifeVal to measure how well its models handle everyday personal tasks like meal planning and grocery ordering, not just coding and math. Here is what the eval signals, what is still unverified, and how a builder should read it."
+pubDate: 2026-11-07
+tags: ["evals", "benchmarks", "ai-agents", "openai", "agent-evaluation"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-07-openais-lifeval-and-the-gap-between-knowing-and-doing/hero.webp
+  alt: "OpenAI's LifeVal and the gap between knowing and doing"
+sources:
+  - title: "LifeVal: Measuring AI progress on the tasks that matter in everyday life."
+    url: "https://www.youtube.com/watch?v=hJOwOkLHRN0"
+entities:
+  - name: "OpenAI"
+    sameAs: "https://www.wikidata.org/wiki/Q21708200"
+  - name: "ChatGPT"
+    sameAs: "https://www.wikidata.org/wiki/Q115564437"
+---
+
+TL;DR: OpenAI says it built an eval called LifeVal to measure how well ChatGPT handles everyday personal tasks like planning meals and placing a grocery order, which is a shift from grading models on knowing things to grading them on getting things done.
+
+The primary source here is a short OpenAI video titled "LifeVal: Measuring AI progress on the tasks that matter in everyday life." Treat it as what it is: a framing piece from the lab, not a paper, not a leaderboard, not a methodology drop. There are no numbers in it. No sample sizes, no task counts, no accuracy figures, no comparison against other models. So everything below separates what OpenAI claims from what we can actually check, which right now is almost nothing.
+
+That gap is the story. The idea is good. The receipts are missing.
+
+## What is LifeVal actually measuring?
+
+OpenAI's researchers frame LifeVal as a reaction to the shape of most existing evals. Their point: benchmarks cluster around work tasks. Coding. Math. Things with clean right answers you can grade with a script. MMLU, HumanEval, GSM8K, SWE-bench, all of that family rewards a model for producing a correct artifact in a sandbox.
+
+LifeVal is pitched at the opposite corner. The example they give is helping a diabetic parent build a grocery list and plan a week of meals. The researchers are explicit that a written answer is not the goal. As one put it, you don't want "a written answer about how to do that," you want "actual help getting it done." That means pulling in health records, dietary preferences, and a budget, then taking an action on a grocery delivery site.
+
+So LifeVal is an action eval dressed in domestic clothing. The verbs they list are telling: taking notes, remembering, planning, comparing, following up. Those are agent behaviors. Memory, multi-step execution, acting against a real external system with a real end state.
+
+![a split scene, one side a model producing a flat document, the other side a model reaching out and completing a chain of](../../assets/blog/2026-11-07-openais-lifeval-and-the-gap-between-knowing-and-doing/inline-1.webp)
+
+The contrast with a coding eval is sharper than it looks. SWE-bench has a correct answer: the test suite passes or it does not. "Plan a week of diabetic-friendly meals under a budget and order the groceries" has many acceptable answers and a bunch of soft constraints that trade against each other. Grading that is hard. Which is exactly why nobody had a clean eval for it, and exactly why I want to see how OpenAI graded it before I believe the grades.
+
+## Why does an everyday-task eval matter more than another coding benchmark?
+
+Because this is where the daily product actually lives.
+
+Most people are not using ChatGPT to close Jira tickets. They are using it to figure out dinner, draft the awkward email, compare two car seats, remember what the doctor said. Those are low-prestige tasks in benchmark land and high-value tasks in real life. If you want to know whether an assistant is getting more useful to normal people, coding scores tell you almost nothing.
+
+There is also a self-interested reason OpenAI would build this now. The whole industry is pivoting from chat to action. ChatGPT has memory, it has connectors, there is an agent mode. Once a model is taking actions on your behalf, "sounds right" is not good enough. You need to know whether the action landed. Did it order the right items? Did it respect the budget? Did it remember the dietary constraint from three turns ago? A benchmark that scores completion against a real workflow is the honest way to track that.
+
+![a kitchen table covered with everyday personal objects and documents, with faint connecting lines showing them being pul](../../assets/blog/2026-11-07-openais-lifeval-and-the-gap-between-knowing-and-doing/inline-2.webp)
+
+This is also where the privacy weight sits. The example task eats health records, diet, and budget. The whole premise is that the model holds a dossier on you and acts with it. That is the actual cost of a useful life assistant, and an eval built around that use case is implicitly normalizing it. Worth naming, since the video does not.
+
+## What OpenAI has not shown yet
+
+Here is the honest ledger.
+
+We do not know how big LifeVal is. We do not know how many task categories it covers, or whether "grocery delivery" is one of ten domains or the whole thing. We do not know how tasks are scored: human raters, rubric, automated checker against a simulated store, or a model grading a model. We do not know if the grocery site is real or a sandbox, and that difference is enormous, because taking live actions on real sites is the part that breaks in production.
+
+We do not have any results. No model scores, no baselines, no claim that GPT-whatever beats a prior version by X points. Compare that to how OpenAI shipped other evals. When they want to make a credibility claim, they publish the methodology and the numbers. LifeVal, so far, is a concept reel.
+
+So I would not call LifeVal a benchmark yet. It is a stated intention to build one, plus a well-chosen example. That is not nothing. Choosing the diabetic-meal-planning task tells you how they are thinking about scope. But until there is a methodology writeup and a scored run, treating this as evidence that ChatGPT got better at your life would be buying the trailer as the movie.
+
+One more caution. Evals built by the lab that ships the model are useful internally and should be read skeptically externally. If OpenAI builds LifeVal, trains against signals that correlate with it, and then reports that models improved on LifeVal, that is a closed loop. The useful version of this is an independent or at least transparent eval where the grading is reproducible. We are not there.
+
+## Practitioner's take
+
+If you build assistants or agents, steal the framing, not the brand. The move that matters here is grading on task completion against a real end state, not on the quality of the text the model emits. So go build your own small LifeVal for your domain: pick ten real jobs your users actually hand off, define what "done correctly" means for each as a checkable condition (the order contains the right SKUs, the calendar event exists, the budget was respected), and score pass/fail plus a note on why failures happened. That tiny eval will teach you more than any public leaderboard, because it is your tasks and your definition of done.
+
+The catch most people will miss: the hard part was never getting the model to write a good plan. It is getting it to act reliably against messy external systems while remembering constraints across turns, and knowing when to stop and ask instead of guessing. OpenAI naming LifeVal signals they know that is the frontier. Until they show the scores and the method, read it as a direction, not a result.
