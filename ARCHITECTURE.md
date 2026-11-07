@@ -355,3 +355,20 @@ detection, and the selection/rotation math. CI runs it before every pipeline run
 - The homepage contact panel has a 2.5rem gap above it. Hero, content selection and copy
   are otherwise unchanged. Photo, press strip, email service, sponsorship offer and Digest
   migration remain decisions for Ken; this patch does not implement them.
+
+
+### Approved follow-up (2026-11-07)
+
+- Ken elected to keep the Digest at its current URLs. No redirects, tag changes, or
+  editorial selection changes are introduced.
+- The What I bring section includes the existing current portrait (not AI-generated or
+  edited). Astro emits 160/320px derivatives with explicit 160x200 display dimensions;
+  desktop places it beside the existing paragraph, mobile above it. The top hero is intact.
+- /work/ offers an honest sponsored test or build, linked from the homepage contact panel.
+  No public prices or reach claims are invented. Scope, rights, budget and factual review
+  are explicit; no positive-review promise or automated Digest placement is sold.
+- Only the Digest lead image becomes eager/high priority; its dimensions and responsive
+  sources remain. Ken rejected reordering the disclosure, image or headline. Inline images
+  retain their lazy-loading behavior.
+- Email service selection and press highlights are still pending. No signup provider,
+  mailing list, sponsor outreach, or press strip is configured by this change.

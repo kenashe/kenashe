@@ -47,3 +47,30 @@ test('stale Substack link is removed and social prompt is present', () => {
   assert.ok(prompt.includes('https://www.youtube.com/@KenAshe'));
   assert.ok(read('src/layouts/BaseLayout.astro').includes('{showFollow && <FollowNote />}'));
 });
+
+
+test('portrait stays below the unchanged homepage hero', () => {
+  const home = read('src/pages/index.astro');
+  const hero = home.slice(home.indexOf('<header class="hero">'), home.indexOf('</header>'));
+  assert.ok(!hero.includes('bring-portrait'));
+  assert.ok(home.indexOf('class="bring-intro"') > home.indexOf('id="bring-heading"'));
+  assert.ok(home.includes('width={160}'));
+  assert.ok(home.includes('loading="lazy"'));
+});
+
+test('only the Digest hero loads eagerly; layout order stays unchanged', () => {
+  const post = read('src/layouts/BlogPost.astro');
+  assert.ok(post.includes('loading="eager"'));
+  assert.ok(post.includes('fetchpriority="high"'));
+  assert.ok(post.indexOf('<aside class="auto-note"') < post.indexOf('<figure class="hero-image"'));
+  assert.ok(post.indexOf('<figure class="hero-image"') < post.indexOf('<header class="post-header"'));
+});
+
+test('sponsored offer is linked and makes no promise of a positive review', () => {
+  assert.ok(read('src/pages/index.astro').includes('href="/work/"'));
+  const work = read('src/pages/work.astro');
+  assert.ok(work.includes('Payment covers the agreed work, not a positive review.'));
+  assert.ok(work.replace(/\s+/g, ' ').includes('not a placement in the automated Digest'));
+  assert.ok(work.includes('budget'));
+  assert.ok(work.includes('mailto:hello@kenashe.ai'));
+});
