@@ -1,0 +1,42 @@
+---
+// Build write-ups are static articles, not a content collection. Reuse visible page
+// metadata and canonical entity nodes; never infer publication dates from ship months.
+import type { ComponentProps } from 'astro/types';
+import BaseLayout from './BaseLayout.astro';
+import JsonLd from '../components/JsonLd.astro';
+import { personKenAshe, websiteKenAshe } from '../data/schema';
+import { SITE_URL } from '../consts';
+
+type Props = ComponentProps<typeof BaseLayout> & { title: string; description: string };
+const { title, description, image } = Astro.props;
+const url = new URL(Astro.url.pathname, SITE_URL).toString();
+const schema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Article',
+      '@id': `${url}#article`,
+      headline: title,
+      description,
+      url,
+      mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+      author: { '@id': personKenAshe['@id'] },
+      publisher: { '@id': personKenAshe['@id'] },
+      isPartOf: { '@id': websiteKenAshe['@id'] },
+      articleSection: 'Building',
+      inLanguage: 'en-US',
+      ...(image ? { image: new URL(image, SITE_URL).toString() } : {}),
+    },
+    websiteKenAshe,
+    personKenAshe,
+  ],
+};
+---
+
+<BaseLayout {...Astro.props} ogType="article">
+  <Fragment slot="jsonld">
+    <JsonLd data={schema} />
+    <slot name="jsonld" />
+  </Fragment>
+  <slot />
+</BaseLayout>
