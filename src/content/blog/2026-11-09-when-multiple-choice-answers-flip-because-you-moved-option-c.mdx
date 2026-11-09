@@ -1,0 +1,60 @@
+---
+title: "When Multiple-Choice Answers Flip Because You Moved Option C"
+description: "A 421M non-autoregressive model changes its answer on a quarter of questions just from reordering the options, and the fix tells you something practical about how to evaluate and train any model that scores choices in parallel."
+pubDate: 2026-11-09
+tags: ["evals", "model-reliability", "benchmarks", "post-training", "ai-research"]
+draft: true
+image:
+  src: ../../assets/blog/2026-11-09-when-multiple-choice-answers-flip-because-you-moved-option-c/hero.webp
+  alt: "When Multiple-Choice Answers Flip Because You Moved Option C"
+sources:
+  - title: "Maya a1: Do the Options Read the Model, or Does Their Position? Order Sensitivity in a Non-Autoregressive Decision Model"
+    url: "http://arxiv.org/abs/2611.09803v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A small decision model called Laya changes its multiple-choice answer on 25.8% of questions when you just rotate the order of the options, and the paper shows the flips cluster where the model is least confident and mostly disappear when you train with option shuffling.
+
+I keep a mental list of eval failure modes that look like capability but are actually artifacts. Position bias in multiple choice is near the top. The paper "Maya a1: Do the Options Read the Model, or Does Their Position? Order Sensitivity in a Non-Autoregressive Decision Model" (arXiv cs.AI / cs.CL) is one of the cleaner demonstrations I have seen, because it isolates the effect in a model that was supposed to be immune to it.
+
+## What exactly did Laya get wrong?
+
+Laya is a 421M-parameter model that answers typed multiple-choice questions in a single forward pass. Instead of generating "A" or "B" token by token, it places a `[MASK]` marker at each option and scores the hidden state there. One pass, one score per option, pick the highest. The design intent is obvious: no autoregressive decoding means no chance for the model to anchor on whatever it saw first, and the option head carries no positional tensor at all. On paper, order should not matter.
+
+It matters a lot. The authors took 951 Qwen-verified questions and presented each one under every cyclic rotation of its options (six random permutations for the 12-option cases). The released checkpoint flipped its answer on 25.8% of questions, with a confidence interval of 22.9 to 28.7. On the 605 English-only items it was 19.7%, so some of the effect is language mix, but the core problem survives the cleaner subset.
+
+The accuracy gap is the part that should bother anyone publishing a leaderboard number. When the correct answer sat in the first position, accuracy was 10.1 points higher than when the same correct answer sat last. Same question, same options, same model. Move the gold answer to the bottom of the list and you lose ten points.
+
+![a single question shown four times with its answer choices rotated into different positions, each version producing a di](../../assets/blog/2026-11-09-when-multiple-choice-answers-flip-because-you-moved-option-c/inline-1.webp)
+
+## Why does a model with no position tensor still have position bias?
+
+This is the interesting part, and it is where the paper earns its title. The option head has no positional tensor. There is a documented but unused parallel layout in the checkpoint that would score all options symmetrically. So the bias is not coming from an explicit "I know option C is in slot 3" signal.
+
+It is coming from the shared context. Every option gets scored against the same hidden representation of the question and the preceding options, and that representation is built sequentially. The earlier an option appears, the more of the rest of the prompt gets conditioned on it. Position leaks in through the context even when the scoring head itself is position-blind. That is a useful mental correction: "non-autoregressive" does not mean "order-invariant." You can remove the obvious mechanism for position bias and still inherit it through the layout of the input.
+
+The confidence breakdown nails this down. The flips concentrate where the model is least sure: 54% flip rate in the lowest confidence tercile versus 8% in the highest. When the model actually knows the answer, moving the option around does not shake it loose. When it is guessing, position becomes the tiebreaker. So a lot of what looks like knowledge on a leaderboard is the model's prior about where answers tend to live, dressed up as accuracy.
+
+## Does training it away actually work?
+
+Yes, and the ablation is clean enough to trust. The authors fine-tuned on 2,818 teacher-verified rows using Laya's own trainer. With option shuffling during training, the flip rate dropped from 25.8% to 7.2%. The identical rows without shuffling gave 11.4%. So shuffling specifically is responsible for 4.2 points of the improvement, with the rest coming from the fine-tuning itself.
+
+![two training pipelines side by side, one feeding fixed-order examples and one feeding the same examples in scrambled ord](../../assets/blog/2026-11-09-when-multiple-choice-answers-flip-because-you-moved-option-c/inline-2.webp)
+
+There is a second result that is almost funny. When they fine-tuned using the authors' own parallel layout, the one documented in the checkpoint but never switched on, the flip rate fell to 0.5%. The fix was partly sitting in the model the whole time. That is a reminder worth keeping: sometimes the robustness you want is an architectural toggle someone already built and never flipped, not a research project.
+
+The one honest caveat the authors flag themselves: the labels are LLM-made (Qwen-verified) and the test sets are teacher-filtered. So the ceiling here is a teacher model's judgment, not ground truth. The relative numbers, flip rates and order gaps, are the trustworthy part. The absolute accuracy figures carry whatever bias the teacher model carries.
+
+## Is voting over orderings worth the compute?
+
+The paper tries the obvious brute-force defense: run the question under multiple orderings and take a confidence-weighted vote. It gives 69.7% accuracy against 69.1% for a single base pass. That is 0.6 points for 4.1x the compute.
+
+I want to be blunt about this number because it matters for how you spend inference budget. Voting over orderings is a great diagnostic and a terrible production strategy here. The flips are real, but averaging them out buys you almost nothing in accuracy because the correct answer is not reliably the one that survives rotation. If the model is guessing in the low-confidence tercile, voting over orderings is voting over noise. Fix the training, do not pay 4x at inference to paper over it.
+
+## The practitioner's take
+
+If you evaluate models on multiple choice, or you build anything that scores options in parallel, test order sensitivity before you trust a single accuracy number. The cheap version: take a sample of your eval questions, rotate the options, and measure how often the predicted answer changes. A flip rate in the double digits means your leaderboard number is partly measuring position, not knowledge, and the gap between gold-first and gold-last tells you how much headroom is artifact.
+
+The fix order is: first check whether your architecture has a symmetric scoring layout already available (the 0.5% result), then add option shuffling to your fine-tuning data (worth about 4 points here), and only then, if you still care, consider ordering-averaged inference as a diagnostic rather than a production path. The catch most people miss is that removing the obvious cause of position bias, like autoregressive decoding, does not remove the bias. It leaks through the shared context, and the only way you find out is to actually permute the options and watch what moves.
