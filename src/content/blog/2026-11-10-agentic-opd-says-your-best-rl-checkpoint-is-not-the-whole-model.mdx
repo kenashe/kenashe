@@ -1,0 +1,54 @@
+---
+title: "Agentic-OPD says your best RL checkpoint is not the whole model"
+description: "Agentic-OPD argues that discarded RL checkpoints contain capabilities the final checkpoint forgot, and shows a practical distillation method for recovering them without rerunning training. The useful idea is simple: treat an RL run as a policy library, not a winner-take-all race."
+pubDate: 2026-11-10
+tags: ["ai-agents", "reinforcement-learning", "distillation", "agent-evaluation", "post-training"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-10-agentic-opd-says-your-best-rl-checkpoint-is-not-the-whole-model/hero.webp
+  alt: "Agentic-OPD says your best RL checkpoint is not the whole model"
+sources:
+  - title: "Agentic-OPD: Recovering Forgotten Agent Capabilities via On-Policy Distillation for Agentic Tasks"
+    url: "http://arxiv.org/abs/2611.12799v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Agentic-OPD makes a strong practical point: the “best” RL checkpoint may be worse than the training run you already paid for, because earlier checkpoints often solved tasks the final one forgot.
+
+## What did Agentic-OPD actually find?
+
+The primary source is the arXiv paper **“Agentic-OPD: Recovering Forgotten Agent Capabilities via On-Policy Distillation for Agentic Tasks.”** The central claim is not subtle, and that is why it matters.
+
+In GRPO training for LLM agents, standard practice usually saves multiple checkpoints, evaluates them, keeps the best-validation checkpoint, then throws the rest away. Agentic-OPD argues that this discards real capability. Earlier checkpoints from the same run solved problems that the final selected checkpoint later failed. Even more important, no single checkpoint dominated. The union of solved problems across checkpoints was much larger than the solved set of any one model.
+
+That is a different way to think about RL training. Not as a march toward one best policy, but as a messy search through many partially useful policies.
+
+The paper’s method treats the best-validation checkpoint as the student and the discarded checkpoints as frozen teacher candidates. Then it uses on-policy distillation to recover missing behavior. The paper reports improvements of up to 7.4 points across five agentic task domains and 24 benchmarks or task subsets. It also reports that a 4B student surpassed GPT-5.6 and DeepSeek-V4.1 on deep search.
+
+That last claim is the kind I would handle carefully. Benchmark wins in narrow domains are useful, but they are not the same as broad model superiority. The more durable takeaway is smaller and better: saved checkpoints are cheap teachers.
+
+![several branching paths from one training run, with discarded side paths flowing back into a final compact model](../../assets/blog/2026-11-10-agentic-opd-says-your-best-rl-checkpoint-is-not-the-whole-model/inline-1.webp)
+
+## Why does the best checkpoint forget things?
+
+Agent training is not a clean accumulation of skills. A model can get better on the validation mix while losing local behaviors that mattered for particular tasks. This is especially plausible in agentic settings, where success depends on tool use, search behavior, planning habits, retries, and partial strategies that may not show up evenly across the eval set.
+
+Agentic-OPD names two problems that come with trying to mine the old checkpoints.
+
+First, which teacher should the student learn from? Since no checkpoint dominates, the right teacher is problem-specific. A checkpoint that is weak overall may still be strong on the exact tasks the student currently misses.
+
+Second, where should distillation be trusted? If you distill from old checkpoints indiscriminately, you risk overwriting behavior the student already learned. That is the old distillation trap: averaging behavior can make the model smoother, but not necessarily better.
+
+The paper’s answer has two pieces. HCN, or Highest Coverage Next, picks teachers based on weighted coverage of the student’s unsolved problems. LAD, or Locality-Aware Distillation, limits supervision to failed student rollouts where the teacher performs better. In plain English: pick old models that cover current gaps, and only copy them where they are actually ahead.
+
+That is a useful design pattern beyond this exact paper.
+
+## What should builders take from this?
+
+If you are training agents, this is a storage and evaluation lesson as much as a modeling lesson. Do not treat intermediate checkpoints as disposable artifacts until you have measured complementarity. The model that loses on average may still contain a search tactic, tool-use pattern, or recovery behavior your final model dropped.
+
+This also argues for richer eval bookkeeping. A single validation score hides the shape of capability. You want per-task, per-scenario, and per-failure records across checkpoints. Not just “checkpoint 18 is best,” but “checkpoint 11 solves these hard retrieval cases, checkpoint 14 handles long-horizon retries, checkpoint 18 is strongest overall.” Once you have that map, post-RL recovery becomes a real stage, not a vibes-based rescue mission.
+
+The catch: Agentic-OPD depends on being able to identify where the teacher is locally better. Bad evals make bad teachers look useful. For a builder, I would try this first on a contained agent workflow with clear pass/fail tasks: deep research, code repair, browser tasks, or tool-calling pipelines. Save the checkpoints, track solved-task overlap, and run a small distillation pass only on cases the final model fails and an earlier checkpoint passes. The missed detail is operational, not theoretical: the value is already sitting in artifacts most teams delete.

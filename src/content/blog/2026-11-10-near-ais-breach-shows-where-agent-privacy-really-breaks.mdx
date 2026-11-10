@@ -1,0 +1,49 @@
+---
+title: "Near AI’s breach shows where agent privacy really breaks"
+description: "Decrypt reported that an SGLang flaw exposed Near AI user details and data from 18 agents, a useful reminder that privacy claims fail at the weakest operational layer, not the most impressive cryptographic one."
+pubDate: 2026-11-10
+tags: ["ai-security", "privacy", "ai-agents", "ai-infrastructure", "digital-assets", "crypto"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-10-near-ais-breach-shows-where-agent-privacy-really-breaks/hero.webp
+  alt: "Near AI’s breach shows where agent privacy really breaks"
+sources:
+  - title: "Near AI Breach Exposes User Details and Data From 18 AI Agents"
+    url: "https://decrypt.co/382965/near-ai-breach-exposes-user-details-data-ai-agents"
+---
+
+TL;DR: Hardware-backed privacy does not save an AI agent system if the serving stack, internal access paths, or request handling layer can still expose user data.
+
+## What actually failed?
+
+Decrypt’s report, “Near AI Breach Exposes User Details and Data From 18 AI Agents,” says an SGLang flaw let an attacker reach internal systems and potentially view confidential AI requests. Decrypt also reported that user details and data from 18 AI agents were exposed.
+
+That is the important part. Not “AI got hacked” in the abstract. Not a vague privacy scare. A flaw in the model-serving layer gave an attacker a path into places they should not have reached.
+
+SGLang is part of the infrastructure category that most users never see. It sits closer to the runtime, routing, and model request layer than to the app interface. That is exactly why this kind of issue matters. Agent systems are not one model call. They are chains of prompts, tool calls, memory reads, retrieved documents, API keys, logs, and sometimes user identity data. A bug in the wrong layer can turn “private AI” into “private until the request path leaks.”
+
+Decrypt’s wording matters too: “potentially view confidential AI requests.” That is not the same as confirmed theft of every secret. But for builders, potential visibility is already a serious incident. Prompts can contain credentials, customer records, strategy docs, medical notes, internal code, and pasted email threads. AI requests are not disposable metadata. They are often the payload.
+
+![secure vault with one side door open, streams of agent activity passing nearby](../../assets/blog/2026-11-10-near-ais-breach-shows-where-agent-privacy-really-breaks/inline-1.webp)
+
+## Why did hardware-backed privacy not prevent it?
+
+The useful lesson here is that hardware-backed privacy is not a blanket. It protects a specific boundary under specific assumptions. If the rest of the system is reachable through a vulnerable service, bad auth, exposed logs, unsafe request routing, or overbroad internal permissions, the fancy protected zone becomes one control among many.
+
+This is where AI privacy marketing often gets mushy. Vendors talk about confidential compute, enclaves, local execution, encrypted inference, or hardware protections as if those words settle the privacy question. They do not. They answer one narrow question: what happens to data inside that protected computation path?
+
+The bigger questions are less glamorous. Who can reach the inference server? Are agent traces logged? Are prompts stored with user identifiers? Can internal services query prior requests? Are tool outputs isolated per user and per agent? Do support systems have read access? Does the framework expose debugging endpoints? Are secrets available to the same process handling untrusted input?
+
+Decrypt’s report is a reminder that AI security is now infrastructure security plus application security plus data governance. Agents make the blast radius wider because they move between tools. A normal chatbot leak might expose prompts. An agent leak can expose prompts, retrieved files, tool outputs, task state, credentials passed into tools, and the intermediate reasoning-like work product a system stores for itself.
+
+## What should builders change after this?
+
+The wrong response is to say “never trust hosted agents.” The more useful response is to treat agent requests as sensitive production data from day one.
+
+That means minimizing what gets sent into the agent, not just securing where it runs. It means separating user identity from request content where possible. It means short retention by default. It means redacting secrets before logging. It means making internal traces harder to reach than the public app. It means testing the serving stack, not only the model behavior.
+
+For agent teams, the hard part is that observability and privacy fight each other. Developers want traces because agents fail in strange ways. Security teams want fewer traces because traces are concentrated risk. The compromise cannot be “log everything and hope access control works.” A better default is tiered logging: safe metadata for normal debugging, sampled redacted traces for quality work, and tightly controlled full traces only when a user or enterprise policy allows it.
+
+The breach also makes evals look incomplete if they stop at output quality. A serious agent evaluation should include security paths: prompt injection, tool permission boundaries, memory isolation, request replay, log exposure, and access from internal services. The model can pass every reasoning benchmark and still sit inside a system that leaks.
+
+If I were shipping an agent product this week, I would run a quick data-flow map before adding another feature: what enters, where it is stored, who can read it, how long it lasts, and what internal service can touch it. Then I would attack the boring layers first: serving endpoints, logs, traces, admin tools, and permissions between agents. The catch most readers miss is that “private AI” is not one technology choice. It is a chain, and the weakest link is often the plain old web service next to the model.
