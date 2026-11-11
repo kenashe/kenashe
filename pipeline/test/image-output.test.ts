@@ -8,7 +8,10 @@ import {
   checkImageAssets,
   validateGeneratedImage,
   probeImage,
+  generateWithFallback,
   IMAGE_MODEL,
+  IMAGE_MODELS,
+  IMAGE_FALLBACK_MODELS,
   IMAGE_FORMAT,
   IMAGE_COMPRESSION,
   IMAGE_QUALITY,
@@ -20,10 +23,10 @@ import {
   MAX_SINGLE_IMAGE_BYTES,
 } from '../src/image-output.ts';
 
-test('the Images API request asks gpt-image-2 for 1200x800 compressed WebP, never the default lossless PNG', () => {
+test('the Images API request asks GPT-Image-2.6 Sunburst for 1200x800 compressed WebP, never the default lossless PNG', () => {
   const body = imageRequestBody('a hero illustration');
-  assert.equal(body.model, 'gpt-image-2');
-  assert.equal(IMAGE_MODEL, 'gpt-image-2');
+  assert.equal(body.model, 'gpt-image-2.6-sunburst');
+  assert.equal(IMAGE_MODEL, 'gpt-image-2.6-sunburst');
   assert.equal(body.size, '1200x800');
   assert.equal(body.size, IMAGE_SIZE);
   assert.equal(body.n, 1);
@@ -198,4 +201,47 @@ test('one oversized file fails even when the total is fine', () => {
 
 test('an image-less day passes trivially', () => {
   assert.equal(checkImageBudget([]).ok, true);
+});
+
+// --- D20: Sunburst primary, gpt-image-2 fallback ---------------------------------------
+
+test('models are tried Sunburst first, then the gpt-image-2 fallback, with the same request otherwise', () => {
+  assert.deepEqual([...IMAGE_MODELS], ['gpt-image-2.6-sunburst', 'gpt-image-2']);
+  assert.deepEqual([...IMAGE_FALLBACK_MODELS], ['gpt-image-2']);
+  const a = imageRequestBody('p', IMAGE_SIZE, 'gpt-image-2');
+  const b = imageRequestBody('p');
+  assert.equal(a.model, 'gpt-image-2');
+  assert.deepEqual({ ...a, model: b.model }, b);
+});
+
+test('a valid primary response is used and the fallback is never called', async () => {
+  const good = await synth(1200, 800);
+  const calls: string[] = [];
+  const r = await generateWithFallback(async (m) => { calls.push(m); return good; });
+  assert.equal(r?.model, 'gpt-image-2.6-sunburst');
+  assert.deepEqual(calls, ['gpt-image-2.6-sunburst']);
+});
+
+test('a primary HTTP error falls back to gpt-image-2', async () => {
+  const good = await synth(1200, 800);
+  const calls: string[] = [];
+  const r = await generateWithFallback(async (m) => { calls.push(m); return m === 'gpt-image-2' ? good : null; });
+  assert.equal(r?.model, 'gpt-image-2');
+  assert.deepEqual(calls, ['gpt-image-2.6-sunburst', 'gpt-image-2']);
+});
+
+test('an off-standard primary response falls back instead of being resized', async () => {
+  const wrong = await synth(1024, 1024);
+  const good = await synth(1200, 800);
+  const r = await generateWithFallback(async (m) => (m === 'gpt-image-2' ? good : wrong));
+  assert.equal(r?.model, 'gpt-image-2');
+});
+
+test('still fails closed (D18) when no model returns a valid image', async () => {
+  const wrong = await synth(1536, 1024, 'png');
+  await assert.rejects(generateWithFallback(async (m) => (m === 'gpt-image-2' ? null : wrong)), /expected webp 1200x800/);
+});
+
+test('every model erroring yields no image, as before', async () => {
+  assert.equal(await generateWithFallback(async () => null), null);
 });

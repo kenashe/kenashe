@@ -19,8 +19,21 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import sharp from 'sharp';
 
-/** gpt-image-1 is deprecated; gpt-image-2 supports arbitrary output sizes, so we ask for the stored size directly. */
-export const IMAGE_MODEL = 'gpt-image-2';
+/**
+ * Primary Images API model (D20). OpenAI deprecated `gpt-image-2` (shutdown 2027-02-10);
+ * GPT-Image-2.6 Sunburst is the quality-first successor at the same token rates as Flare.
+ * Like gpt-image-2 it is asked for the stored size directly.
+ */
+export const IMAGE_MODEL = 'gpt-image-2.6-sunburst';
+/**
+ * Tried only when IMAGE_MODEL errors or returns bytes that fail `validateGeneratedImage` (D20).
+ * Sunburst could not be piloted before the switch, so the proven model stays as a safety net.
+ * After 2027-02-10 this request simply fails and is skipped; remove it once Sunburst has run
+ * clean in production (see D20's removal note).
+ */
+export const IMAGE_FALLBACK_MODELS: readonly string[] = ['gpt-image-2'];
+/** Models tried, in order, for each image. */
+export const IMAGE_MODELS: readonly string[] = [IMAGE_MODEL, ...IMAGE_FALLBACK_MODELS];
 /** Standard stored dimensions for hero and inline artwork (3:2). Requested from the API as-is. */
 export const IMAGE_WIDTH = 1200;
 export const IMAGE_HEIGHT = 800;
@@ -52,9 +65,9 @@ export const IMAGE_ASSET_EXEMPTIONS: Record<string, string> = {
 };
 
 /** Request body for the Images API. Kept as a function so a test can pin the format fields. */
-export function imageRequestBody(prompt: string, size: string = IMAGE_SIZE) {
+export function imageRequestBody(prompt: string, size: string = IMAGE_SIZE, model: string = IMAGE_MODEL) {
   return {
-    model: IMAGE_MODEL,
+    model,
     prompt,
     size,
     n: 1,
@@ -100,10 +113,38 @@ export async function validateGeneratedImage(buf: Buffer, label = 'image'): Prom
   if (p.format !== IMAGE_FORMAT || p.width !== IMAGE_WIDTH || p.height !== IMAGE_HEIGHT) {
     throw new Error(
       `[images] ${label}: API returned ${got}, expected ${IMAGE_FORMAT} ${IMAGE_SIZE}. ` +
-        `Not written. Check the ${IMAGE_MODEL} request (size/output_format) in image-output.ts.`,
+        `Not written. Check the Images API request (size/output_format) in image-output.ts.`,
     );
   }
   return buf;
+}
+
+/**
+ * Try each model in order (D20) and return the first response that passes
+ * `validateGeneratedImage`. `fetchImage` returns null for an HTTP error or an empty response,
+ * which moves on to the next model. Still fails closed (D18): if any model returned bytes and
+ * none were valid, the last validation error is thrown so the story is recorded as an error;
+ * if every model simply errored, the result is null (no image, as before).
+ */
+export async function generateWithFallback(
+  fetchImage: (model: string) => Promise<Buffer | null>,
+  models: readonly string[] = IMAGE_MODELS,
+): Promise<{ buf: Buffer; model: string } | null> {
+  let rejected: unknown = null;
+  for (const model of models) {
+    const raw = await fetchImage(model);
+    if (!raw) continue;
+    try {
+      const buf = await validateGeneratedImage(raw, `${model} response`);
+      if (model !== models[0]) console.warn(`[images] ${models[0]} failed; used fallback ${model}`);
+      return { buf, model };
+    } catch (e) {
+      rejected = e;
+      console.warn((e as Error).message);
+    }
+  }
+  if (rejected) throw rejected;
+  return null;
 }
 
 // --- Size budget --------------------------------------------------------------------

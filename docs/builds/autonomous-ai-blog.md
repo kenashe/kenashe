@@ -2,7 +2,7 @@
 
 **Status**: LIVE / SHIPPED  
 **Date**: June 2026  
-**Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, gpt-image-1, Postgres, pgvector, Vercel, Telegram
+**Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, GPT-Image-2.6 Sunburst, Postgres, pgvector, Vercel, Telegram
 
 A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
 
