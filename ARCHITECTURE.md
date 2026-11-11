@@ -141,7 +141,7 @@ Entry point `pipeline/src/run.ts`. One pass, in order:
 | 6 | **select** | `run.ts` | See "Selection" below. Logs `[select] reserved -> ...`. |
 | 7 | **synthesize** | `synthesize.ts`, `prompts.ts` | Tier-appropriate model writes MDX. Records `sources` + detected `entities` into frontmatter. |
 | 8 | **gate** | `gate.ts` | A *different* model scores the draft 0–40 and lists critical fails. Pass → `draft:false`; fail → `draft:true` (auto-drafted, never deleted). |
-| 9 | **images** | `images.ts` | Hero + inline images; art direction rotates per slug. Skipped unless `IMAGES_ENABLED=1`. Output is `gpt-image-2` compressed WebP requested at exactly 1200×800 (`image-output.ts`: `size`/`output_format`/`output_compression`), not PNG; `validateGeneratedImage` refuses to write anything else ([D18](DECISIONS.md#d18)). `assertImageBudget` fails the run before commit if a day's images exceed 15 MB ([D16](DECISIONS.md#d16)) or any new asset is not WebP, is wider than 1200px, or (unless listed in `IMAGE_ASSET_EXEMPTIONS`) is not 1200×800. |
+| 9 | **images** | `images.ts` | Hero + inline images; art direction rotates per slug. Skipped unless `IMAGES_ENABLED=1`. Output is GPT-Image-2.6 Sunburst (`gpt-image-2.6-sunburst`, falling back to `gpt-image-2`, [D20](DECISIONS.md#d20)) compressed WebP requested at exactly 1200×800 (`image-output.ts`: `size`/`output_format`/`output_compression`), not PNG; `validateGeneratedImage` refuses to write anything else ([D18](DECISIONS.md#d18)). `assertImageBudget` fails the run before commit if a day's images exceed 15 MB ([D16](DECISIONS.md#d16)) or any new asset is not WebP, is wider than 1200px, or (unless listed in `IMAGE_ASSET_EXEMPTIONS`) is not 1200×800. |
 | 10 | **publish** | `publish.ts` | Writes MDX, regenerates `related.json`, commits, pushes, pings the Vercel deploy hook. |
 | 11 | **digest** | `run.ts` | Telegram summary. A hard failure sends a plain-text error ping. |
 
@@ -277,10 +277,10 @@ so the review is independent.
 | gate | `gpt-5.5` (OpenAI) |
 | triage / alt-text | `deepseek-chat` |
 | embeddings | `text-embedding-3-small` |
-| images | OpenAI `gpt-image-2` (`IMAGE_MODEL` in `image-output.ts`; 1200×800 WebP, [D18](DECISIONS.md#d18)) |
+| images | OpenAI `gpt-image-2.6-sunburst`, fallback `gpt-image-2` until its 2027-02-10 shutdown (`IMAGE_MODELS` in `image-output.ts`; 1200×800 WebP, [D18](DECISIONS.md#d18), [D20](DECISIONS.md#d20)) |
 
 ⚠️ **Known wart:** `MODELS.image` says `gemini-3-pro-image`, but `images.ts` calls OpenAI
-`gpt-image-2` directly and ignores that config. Likewise `config.IMAGES` is unused —
+`IMAGE_MODELS` (Sunburst, then `gpt-image-2`) directly and ignores that config. Likewise `config.IMAGES` is unused —
 image count is driven by `{{IMAGE:inline:...}}` placeholders in the prompt output. Harmless
 but misleading; fix or delete if you touch that area.
 

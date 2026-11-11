@@ -412,3 +412,33 @@ that still names the publisher in the third person (a critical fail). A quoted p
 **Not changed.** Essays, Building pages and the Newsroom are hand-written and may use either
 voice; this decision covers the automated Digest only.
 
+## <a id="d20"></a>D20 — Digest images move to GPT-Image-2.6 Sunburst, with `gpt-image-2` as a fallback
+
+**Context (2026-11-11).** OpenAI deprecated `gpt-image-2`; access shuts off on 2027-02-10.
+Without a change, every image request after that date fails, `images.ts` logs a warning and
+drops the images, and the Digest keeps publishing without artwork. OpenAI's successors are
+GPT-Image-2.6 Sunburst (quality-first) and Flare (speed-first). Both list the same API token
+rates ($5/M text input, $8/M image input, $30/M image output), so price does not decide it,
+and latency does not matter for a once-a-day batch.
+
+**Decision.** `IMAGE_MODEL` is **`gpt-image-2.6-sunburst`**. The request is otherwise unchanged
+(D18: `1200x800`, `quality: low`, `webp`, compression 80), and `validateGeneratedImage` still
+requires exactly 1200×800 WebP. Sunburst could not be piloted first (agents have no OpenAI key
+and no Actions scope), so `generateWithFallback` tries `IMAGE_MODELS` in order, Sunburst then
+`gpt-image-2`, and takes the first response that validates. An HTTP error or an off-standard
+response from Sunburst moves on to the fallback and logs
+`[images] gpt-image-2.6-sunburst failed; used fallback gpt-image-2`; nothing is resized into
+place. Fail-closed is preserved: if any model returned bytes and none validated, the last
+validation error is thrown and the story is recorded as an error. If every model errors, there
+is no image, as before.
+
+**Removal.** Once the run logs show Sunburst images passing (`[images] N new image(s) are
+1200x800 webp` with no fallback line), delete `gpt-image-2` from `IMAGE_FALLBACK_MODELS`. Do
+it no later than 2027-02-10; after that the fallback request only fails and is skipped.
+If Sunburst keeps falling back, check its response size/format before raising `quality` or
+changing the stored standard.
+
+**Not changed.** Prompts, art direction, file names, the size budget (D16), existing images,
+and the dead `MODELS.image` config. The public Building page stack for the autonomous blog now
+names the image model correctly (it still said `gpt-image-1`).
+

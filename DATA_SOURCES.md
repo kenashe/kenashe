@@ -71,7 +71,7 @@ Sam Witteveen, bycloud.
 
 | Service | Used for | Credential | Failure mode |
 |---|---|---|---|
-| **OpenAI** | notes prose, the gate, embeddings, images (`gpt-image-1`) | `OPENAI_API_KEY` | no key → lexical embedder + no images (dev still runs) |
+| **OpenAI** | notes prose, the gate, embeddings, images (`gpt-image-2.6-sunburst`, fallback `gpt-image-2`) | `OPENAI_API_KEY` | no key → lexical embedder + no images (dev still runs) |
 | **Anthropic** | flagship + deep-dive prose (`claude-opus-4-8`) | `ANTHROPIC_API_KEY` | synthesis throws; story recorded in `report.errors` |
 | **DeepSeek** | triage, alt text | `DEEPSEEK_API_KEY` | alt text falls back to the intent string |
 | **Google Gemini** | configured but **not currently called** (see ARCHITECTURE "known wart") | `GOOGLE_API_KEY` | n/a |
