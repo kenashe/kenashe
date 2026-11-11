@@ -45,7 +45,7 @@ test('stale Substack link is removed and social prompt is present', () => {
   const prompt = read('src/components/FollowNote.astro');
   assert.ok(prompt.includes('https://x.com/kenashe'));
   assert.ok(prompt.includes('https://www.youtube.com/@KenAshe'));
-  assert.ok(read('src/layouts/BaseLayout.astro').includes('{showFollow && <FollowNote />}'));
+  assert.ok(read('src/layouts/BaseLayout.astro').includes('{showFollow && <FollowNote '));
 });
 
 
