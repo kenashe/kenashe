@@ -22,6 +22,14 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'AI agent economy on Ethereum',
+    status: 'SHIPPED',
+    dek: 'Two autonomous AI agents with their own Ethereum wallets. The seller advertised services through ENS; the buyer found the catalog, paid in ETH, and received the work in a second mainnet transaction.',
+    stack: ['AI Agents', 'Ethereum', 'ENS', 'Ollama'],
+    shippedAt: 'Nov 2026',
+    link: '/building/ai-agent-economy/',
+  },
+  {
     title: 'AI explainer producer',
     status: 'SHIPPED',
     dek: 'Built an AI agent that researches, fact-checks, scripts, and produces educational videos using a virtual presenter. Tested it with a published ENSv2 explainer.',
