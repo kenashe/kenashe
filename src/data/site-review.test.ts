@@ -18,7 +18,7 @@ test('every writing thumbnail has reviewed alt, including alternate compositions
 
 test('all existing build write-ups use the shared Article layout', () => {
   const pages = readdirSync(new URL('../pages/building/', import.meta.url)).filter(p => p.endsWith('.astro'));
-  assert.equal(pages.length, 9);
+  assert.equal(pages.length, 10);
   for (const page of pages) {
     const source = read(`src/pages/building/${page}`);
     assert.ok(source.includes("from '../../layouts/BuildLayout.astro'"), page);
