@@ -1,0 +1,60 @@
+---
+title: "Cheaper context attribution for long prompts"
+description: "The arXiv paper Sketching Language Models for Context Attribution proposes a way to estimate which prompt tokens matter without rerunning the model once per token, but the win depends on a stability assumption that builders should test before trusting it."
+pubDate: 2026-11-13
+tags: ["interpretability", "model-reliability", "rag", "long-context", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-13-cheaper-context-attribution-for-long-prompts/hero.webp
+  alt: "Cheaper context attribution for long prompts"
+sources:
+  - title: "Sketching Language Models for Context Attribution"
+    url: "http://arxiv.org/abs/2611.17313v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Context attribution may get much cheaper if a prompt behaves “stably,” but this is a practical debugging tool, not a magic explanation layer for every model response.
+
+## What problem does context attribution solve?
+
+The primary source here is the arXiv paper titled “Sketching Language Models for Context Attribution,” listed under cs.AI and cs.LG. The paper studies a simple but expensive question: if I remove one token from the prompt, how much does the model’s output change?
+
+That is leave-one-out attribution. For a prompt with `n` tokens, the direct method takes `n` model evaluations. Remove token 1, run the model. Put it back. Remove token 2, run the model. Keep going.
+
+This matters because long-context systems are now normal. RAG pipelines stuff retrieved chunks into prompts. Agents carry scratchpads, tool traces, policies, examples, and prior state. Enterprise assistants often have giant prompts with a small number of tokens doing the real work and a lot of tokens just along for the ride.
+
+If attribution is too expensive, teams skip it. They stare at outputs, tweak prompts, rerank documents, and hope. That works until it does not.
+
+The paper’s claim is that, under a stability assumption, all leave-one-out values can be estimated with `O(√log(1/ε)/ε)` model evaluation calls, with error proportional to `ε` and constant probability. The key point: the call count does not scale with prompt length `n` in the usual direct way.
+
+That is the interesting part. Not because asymptotic notation ships products by itself. Because prompt length is exactly where these systems are getting ugly.
+
+![a dense bundle of prompt fragments feeding into a small sketching funnel, which then branches into highlighted influence](../../assets/blog/2026-11-13-cheaper-context-attribution-for-long-prompts/inline-1.webp)
+
+## Why is the sketching result interesting?
+
+“Sketching Language Models for Context Attribution” builds on sketching algorithms for arithmetic circuits with Taylor coefficients that satisfy a stability condition introduced by Gunn [Gun26]. A more direct adaptation of forward differentiation sketches would need about `Õ(log(n)/ε²)` evaluation calls, according to the paper.
+
+The paper’s move is to apply forward differentiation to the backpropagation circuit instead. That reduces sketch variance and gets the improved evaluation bound. The paper also gives a matching lower bound of `Ω(√log(1/ε)/ε)` in an oracle model, building on techniques from Amsel, Chen, Duman Keles, Halikias, Musco, and Musco for lower bounding matrix-vector query complexity.
+
+That lower bound matters. It says the result is not just “we found a neat trick.” In the paper’s formal setting, this is close to the best you can do.
+
+For builders, the useful translation is narrower: if your measurement function is fixed, and your prompt/model setup satisfies the stability behavior, you may be able to estimate token influence with far fewer model calls than brute force.
+
+This is not the same as an attention map. It is also not a full causal story about why a model “believed” something. It asks a more operational question: when I remove this part of the context, does my measured output change?
+
+That is often the right question.
+
+## What is the catch?
+
+The catch is the assumption. The paper depends on stability, and the empirical section verifies coefficient decay consistent with that assumption plus tests the algorithm on a small language-model retrieval task.
+
+Small retrieval task is not the same as a messy production agent with tool calls, retries, dynamic memory, and multiple hidden prompts. The paper is promising, but it does not prove that every RAG stack or agent loop will behave nicely.
+
+The measurement function also matters. You need to decide what output change you care about. Is it log probability of a target answer? Exact match? A refusal score? A citation behavior? A hallucination flag? Context attribution is only as useful as the thing you measure.
+
+That is where I see the practical line. This work is not a replacement for evals. It is a way to make some eval-driven debugging cheaper. If a retrieval answer fails, you can ask which chunk or token region actually moved the output. If a policy prompt causes over-refusal, you can test which sentence contributes. If a long context agent ignores a key instruction, you can measure whether that instruction had any effect at all.
+
+A builder should try this first on a frozen workflow: fixed prompt template, fixed model, fixed measurement, repeated examples. Compare brute-force leave-one-out on short prompts against a sketching implementation, then check whether the estimated influential regions match. The miss most readers will make is treating attribution as truth. It is not. It is a cheaper instrument panel. Useful if calibrated, dangerous if worshipped.

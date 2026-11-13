@@ -1,0 +1,62 @@
+---
+title: "What 'Goal Encoding in LLMs' Says About How Agents Actually Hold a Plan"
+description: "A new interpretability paper localizes how LLMs encode sub-goals in a handful of attention heads, and argues models re-read the goal instead of carrying state forward. Here is what that means for anyone building coding agents that have to stay on task."
+pubDate: 2026-11-13
+tags: ["interpretability", "ai-agents", "coding-agents", "ai-research", "language-models"]
+draft: true
+image:
+  src: ../../assets/blog/2026-11-13-what-goal-encoding-in-llms-says-about-how-agents-actually-hold-a-plan/hero.webp
+  alt: "What 'Goal Encoding in LLMs' Says About How Agents Actually Hold a Plan"
+sources:
+  - title: "Goal Encoding in LLMs"
+    url: "http://arxiv.org/abs/2611.17297v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A new paper called "Goal Encoding in LLMs" finds that models store the next sub-goal in a small set of attention heads, and argues they stay on task not by holding state in memory but by repeatedly re-reading the goal from the context, which is both reassuring and a direct warning for how you write agent prompts.
+
+I spend a lot of time watching coding agents drift. They start strong, hold the plan for a few steps, then quietly lose the thread somewhere around the fourth file edit. The usual explanation is hand-wavy: "context got too long," "it forgot." The paper "Goal Encoding in LLMs," posted to arXiv across cs.AI, cs.CL, and cs.LG, gives a much more concrete picture of what is actually happening inside the model when it tries to pursue a goal, and the answer reframes how I think about agent design.
+
+## What did the paper actually find?
+
+The authors built a coding setting with multiple sub-tasks, which let them watch goal-seeking behavior directly: does the model pick the right sub-goal, and does it follow through. Inside that setting they localized an encoding of the next sub-goal in the outputs of a sparse set of attention heads. Not spread diffusely across the whole network. A small, findable set of heads.
+
+Two results stand out. First, those same heads can be decoded into natural language that describes the model's future action, something like "I'm checking if a word is a palindrome." So there is a readable representation of intent sitting in the activations before the model writes the code. Second, that encoding is causal. The authors confirm with targeted interventions that it drives the next action, not just correlates with it.
+
+The part I keep coming back to is plasticity. The paper reports that transplanting the goal encoding into a different environment, for example another programming language, triggers the same operation realized with a completely different sequence of tokens. The goal "check for a palindrome" survives the move; the tokens that express it do not. That is a clean separation between what the model wants to do and how it writes it out.
+
+![a single abstract intention shape branching into two different winding paths that both arrive at the same endpoint](../../assets/blog/2026-11-13-what-goal-encoding-in-llms-says-about-how-agents-actually-hold-a-plan/inline-1.webp)
+
+## How does a transformer hold a goal with no memory?
+
+Here is the puzzle the authors raise, and it is a good one. A transformer language model has no recurrence. It cannot carry a hidden state forward indefinitely. It has a fixed number of layers, so any state it computes at a given token can only propagate for as many tokens as it has layers left before that computation runs out of room. Yet the model sustains a goal across executions far longer than that budget allows. If it cannot physically carry the state forward, how does it stay on task?
+
+Their answer is the non-recurrent goal-seeking account, or NRGS. The claim is that the model does not need to carry anything forward. Instead it frequently re-reads the goal from the task specification, compares that goal against the progress already visible in the growing context, and then pursues whatever remains. The goal is not held in some internal register. It is re-derived, over and over, by looking back at the prompt and at the work done so far.
+
+That is a subtle but important shift. It means the model's sense of "what am I doing" is not a persistent internal thing you can trust to survive. It is a lookup, repeated at each step, against whatever is currently in the window.
+
+![a figure repeatedly glancing back at a fixed written note while taking each new step of a long path](../../assets/blog/2026-11-13-what-goal-encoding-in-llms-says-about-how-agents-actually-hold-a-plan/inline-2.webp)
+
+## Why this matters for anyone building agents
+
+If the NRGS account holds, and the authors back it with causal interventions rather than just storytelling, then a lot of agent failure modes stop being mysterious.
+
+Think about what re-reading implies. The goal has to stay legible in the context. If the original task specification gets pushed out, buried under tool output, or paraphrased into something vaguer, the model has nothing clean to re-read. It will re-derive the goal from whatever is left, which might be a half-finished mess of logs and partial edits. That is drift, mechanistically. Not forgetting in the human sense, but re-reading a corrupted copy.
+
+It also explains why restating the goal periodically works so well in practice, something plenty of agent builders already do by instinct. We were treating it as a prompting superstition. The paper suggests it is load-bearing. If the model re-reads the goal at each step, then keeping a fresh, verbatim copy of that goal near the active end of the context is not redundant. It is feeding the exact mechanism the model uses to stay oriented.
+
+And the plasticity finding cuts a useful way too. Because the goal encoding is separable from the tokens, the same intent carries across languages and environments. That is part of why coding agents generalize across stacks at all. The model is not memorizing "how to check a palindrome in Python." It holds a more abstract operation and re-realizes it in whatever syntax the context calls for.
+
+I want to be careful about the scope here. This is one coding-focused setting, and the heads were localized in that setting. The authors do not claim they have mapped goal encoding for every task or every model size. The strong version of NRGS, that models essentially never carry state and always re-read, is a proposed account they test, not a law of nature. Treat it as a strong, well-probed hypothesis about the mechanism, not a closed case. But it is a hypothesis with causal evidence behind it, which is more than most explanations of agent drift can claim.
+
+![a clean written note staying crisp at the front of a line versus the same note fading and smearing behind a pile of clut](../../assets/blog/2026-11-13-what-goal-encoding-in-llms-says-about-how-agents-actually-hold-a-plan/inline-3.webp)
+
+## What should you change in practice?
+
+The practical move is simple and the paper gives it teeth. Treat the goal as something the model reads, not something it remembers.
+
+Keep the task specification verbatim and keep it close. If your agent loop injects a short, unchanged restatement of the objective at each turn, you are supporting the re-read directly. Do not paraphrase the goal as the run goes on; paraphrase is exactly how a clean target turns into a fuzzy one. Watch your context budget with re-reading in mind: when tool output or prior edits threaten to crowd out the original spec, that is the moment drift becomes likely, so that is the moment to re-anchor. And when you debug an agent that wandered, stop asking "what did it forget" and start asking "what did it re-read." Look at what the goal actually looked like in the window at the step where it went wrong. That reframe alone has changed how I read my own agent traces.
+
+The catch most people will miss: this does not mean stuffing the whole goal into the system prompt once and walking away. A system prompt at token zero is far from the working end of a long trace, which is precisely the regime where the layer budget runs out and re-reading from nearby context takes over. Position matters. The goal needs to be legible where the model is actually looking, which is near the active edge, not parked at the top and slowly buried.
