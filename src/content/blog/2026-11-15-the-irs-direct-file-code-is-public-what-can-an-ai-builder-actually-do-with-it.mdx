@@ -1,0 +1,63 @@
+---
+title: "The IRS Direct File Code Is Public. What Can an AI Builder Actually Do With It?"
+description: "The IRS open-sourced its free Direct File tax tool, and the repo surfaced again on Hacker News. Here is what is actually in it, what it means for anyone building compliance software, and where the hype outruns the reality."
+pubDate: 2026-11-15
+tags: ["open-source-ai", "building-with-ai", "ai-policy", "developer-tools"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-15-the-irs-direct-file-code-is-public-what-can-an-ai-builder-actually-do-with-it/hero.webp
+  alt: "The IRS Direct File Code Is Public. What Can an AI Builder Actually Do With It?"
+sources:
+  - title: "US IRS free online tax filing open source repo (2025)"
+    url: "https://github.com/IRS-Public/direct-file"
+---
+
+TL;DR: The IRS published the source code for Direct File, its free online tax filing tool, and the useful part is not a free tax engine you can deploy but a rare, legible reference for how a government encoded tax law as testable rules.
+
+The repo resurfaced on Hacker News under the plain title "US IRS free online tax filing open source repo (2025)." That is the primary source here, and I want to be careful about what it is and is not, because the gap between the two is where most people will waste a weekend.
+
+## What is actually in the Direct File repo?
+
+Direct File was the IRS pilot that let eligible taxpayers file federal returns directly with the government, for free, without a third-party service in the middle. The thing that made it to Hacker News is the published source behind that tool.
+
+The interesting artifact is not the web frontend. It is the fact that a tax authority took sections of the Internal Revenue Code and expressed them as structured, machine-readable logic. Eligibility checks, income categories, the decision tree a return walks through: these exist in the repo as rules you can read rather than as a PDF you have to interpret.
+
+That is unusual. Most tax software treats its rule encoding as the crown jewels. The commercial filing industry has spent years and a lot of lobbying money making sure free direct filing stayed hard to build. So a public repo where you can see how the government itself modeled the rules is worth more as documentation than as runnable code.
+
+![a dense legal document on one side transforming into a branching decision tree on the other](../../assets/blog/2026-11-15-the-irs-direct-file-code-is-public-what-can-an-ai-builder-actually-do-with-it/inline-1.webp)
+
+A caveat up front, and it matters: the Hacker News title says "2025," and the political status of Direct File has been contested. Whether the program itself is still operating, funded, or expanding is a policy question I am not going to assert from a single forum link. What the source supports is narrow and solid: the code is public. Treat anything about the program's current operational status as something you should confirm against the IRS directly, not infer from a repo being visible.
+
+## Can you just run it to file your taxes?
+
+No, and this is the first place enthusiasm crashes into reality.
+
+A government filing system is not a weekend deploy. Direct File talks to IRS backend systems for authentication, submission, and acceptance. You cannot stand up the public code and start transmitting real returns, because the thing on the other end is the actual IRS, and you are not authorized to connect to it. The parts that make it a filing tool, as opposed to a tax calculator, are exactly the parts you cannot replicate.
+
+So the mental model to drop is "free TurboTax clone I can host." The model to pick up is "an audited, real-world example of turning statute into code." If you have ever tried to build anything that implements a regulation, you know how rare it is to see a working reference that a large institution actually shipped and stood behind.
+
+## Why does this matter for AI builders specifically?
+
+Because the hardest problem in applied AI for regulated domains is not the model. It is the ground truth.
+
+Everyone wants to point a language model at tax questions, benefits eligibility, healthcare rules, immigration forms. The models will happily generate confident answers. The problem is that confident and correct are different things, and in a compliance domain the cost of wrong is not a bad vibe, it is a penalty or a denied claim. You cannot build a reliable system on top of a model that is improvising its way through the tax code.
+
+A structured, government-authored encoding of the rules changes the shape of the problem. Instead of asking a model to be the source of truth, you use the model for what it is genuinely good at, understanding messy human input, and you route the actual determinations through deterministic rules you can test and trace. The model reads the taxpayer's plain-English situation and maps it to inputs. The rules engine produces the answer. Every output has a provenance.
+
+![a language model funneling messy handwritten notes into a clean set of switches and gates that produce a single verified](../../assets/blog/2026-11-15-the-irs-direct-file-code-is-public-what-can-an-ai-builder-actually-do-with-it/inline-2.webp)
+
+That pattern, LLM at the edges for natural language, deterministic logic in the middle for the stuff that has to be right, is the correct architecture for most serious compliance work. The Direct File repo is a concrete example of the deterministic middle, written by people who had to defend it. The value is studying how they decomposed the law, not lifting their code wholesale.
+
+There is also an evals angle that is easy to miss. If you are building any kind of tax or benefits assistant, a published set of government logic gives you something to check your system against. You can construct test cases where you know the correct outcome because the official rules produce it, then measure where your model-plus-logic pipeline agrees and where it drifts. Most people building in these domains have no trustworthy answer key. Here is a piece of one.
+
+## What should you actually do with it this week?
+
+Read it before you fork it. Spend an hour understanding how they modeled eligibility and income categories, and notice what they chose to make explicit versus what they punted on. That tour teaches you more about building compliance software than any tutorial.
+
+![a person tracing a single path through a large branching flowchart with a highlighted line](../../assets/blog/2026-11-15-the-irs-direct-file-code-is-public-what-can-an-ai-builder-actually-do-with-it/inline-3.webp)
+
+If you are building a user-facing assistant in a regulated domain, use this as the template for separation of concerns. Natural language in, structured inputs, deterministic rules, traceable output. Do not let the model be the judge. Let it be the translator.
+
+And if you are tempted to ship a "free filing" product off this code, stop and read the license and the connection requirements first. The repo being public does not make the IRS backend public. Open code is not an open API.
+
+Practitioner's Take: the move is to mine the repo for its rule encoding and its test logic, not to deploy it. Build a small harness that takes a handful of simple taxpayer scenarios, feeds them through the government's own logic, and uses those known-correct outcomes as an eval set for whatever model pipeline you are building. That gives you something almost nobody in regulated-domain AI has: a real answer key authored by the institution that enforces the rules. The catch most readers miss is that the code's real scarcity is not the tax math, it is the legibility. Someone turned law into testable logic and published it. Study that skill. It is the one you will actually need, and no model will hand it to you.
