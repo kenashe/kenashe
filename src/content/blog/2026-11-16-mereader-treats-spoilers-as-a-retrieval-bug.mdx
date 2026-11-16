@@ -1,0 +1,52 @@
+---
+title: "MeReader treats spoilers as a retrieval bug"
+description: "MeReader points to a useful pattern for local AI products: constrain the assistant to what the user has actually seen, then make privacy and latency part of the product design instead of afterthoughts."
+pubDate: 2026-11-16
+tags: ["local-ai", "rag", "privacy", "ai-products", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-16-mereader-treats-spoilers-as-a-retrieval-bug/hero.webp
+  alt: "MeReader treats spoilers as a retrieval bug"
+sources:
+  - title: "MeReader: An Offline, Privacy-Preserving, Progress-Aware AI Assistant for Narrative eBook Reading"
+    url: "http://arxiv.org/abs/2611.18513v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: MeReader’s useful idea is not “AI for ebooks,” it is progress-aware retrieval: the assistant only sees what the reader has reached, which makes spoilers, privacy, and local latency engineering problems instead of vague product promises.
+
+## What problem is MeReader actually solving?
+
+The arXiv paper “MeReader: An Offline, Privacy-Preserving, Progress-Aware AI Assistant for Narrative eBook Reading” describes an offline AI reading companion for narrative ebooks. The important word is not “assistant.” It is “progress-aware.”
+
+Most document chat systems treat the whole file as fair game. That works fine for contracts, manuals, and research PDFs. It is terrible for fiction. Ask who a character is in chapter three, and a normal full-book RAG system may retrieve a passage from chapter twenty-two. Technically relevant. Experientially broken.
+
+MeReader’s boundary is simple: retrieval and generation are limited to the reader’s current position in the book. The system is designed to answer from the pages already read, not from the whole text. That turns spoilers into a system failure, not a social nicety.
+
+That framing matters beyond ebooks. A lot of AI product design still assumes more context is always better. MeReader is a clean counterexample. Sometimes the right context is a smaller context with a hard gate around it.
+
+## Why does the retrieval design matter?
+
+MeReader combines vector similarity, BM25, and summary embeddings. That is a practical choice. Dense retrieval is good at semantic matches. BM25 still catches exact names, phrases, and odd wording. Summaries help when a reader asks a higher-level question that does not map neatly to one paragraph.
+
+The paper reports evaluation across classical English books using quantitative comprehension metrics and qualitative LLM-based independent judging. It also reports a quality-latency frontier where mid-sized local models in the 2B to 4B range can reach comprehension parity with larger 5B-plus models while keeping response quality acceptable.
+
+I would not overread that as “small models are enough for every reading assistant.” The paper’s domain is bounded: narrative ebooks, classical English books, book-constrained questions, and a system that can retrieve carefully. But that boundedness is the point. If you narrow the product and retrieval problem, you do not always need the largest cloud model.
+
+![an open book with a bookmark acting as a barrier, past pages flowing into a small assistant orb while future pages remai](../../assets/blog/2026-11-16-mereader-treats-spoilers-as-a-retrieval-bug/inline-1.webp)
+
+The privacy angle is also more concrete than the usual “your data stays yours” copy. MeReader is offline by design. The book and the reader’s queries do not need to be shipped to a cloud service for inference. That is useful for reading habits, annotations, and potentially sensitive texts. It also changes the economics. Local inference means latency, battery, storage, and model size become first-class constraints.
+
+## Where else does progress-aware AI apply?
+
+Reading is the easy example because spoilers are obvious. But the pattern travels.
+
+Training software should not answer using lessons the learner has not reached. Medical intake tools should not expose interpretations before required inputs are collected. Internal knowledge assistants may need to respect project phase, clearance level, or workflow state. Coding agents may need to avoid touching files outside an assigned scope. In each case, “more context” can mean more leakage, more confusion, or more risk.
+
+The catch is that progress awareness has to be enforced below the prompt layer. You cannot just tell the model, “Do not spoil anything.” The retriever has to exclude future content. The summaries have to be generated in a way that does not smuggle future facts backward. The UI has to track position. The eval has to test leakage directly, not just answer quality.
+
+That is the product lesson I like here. MeReader treats user state as part of the retrieval contract. Not metadata sprinkled on top.
+
+For builders, I would try this pattern anywhere the user has a legitimate partial view of a larger corpus. Start with a hard boundary, then add hybrid retrieval inside that boundary, then measure both answer usefulness and leakage. The missed catch: summaries are context too. If your “safe” summary was produced from the full document, your assistant may already know the ending.

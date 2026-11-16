@@ -1,0 +1,60 @@
+---
+title: "The Case for Letting a Coding Agent Pick Its Own Examples"
+description: "A new arXiv paper reframes program induction as a Bayesian query problem: let the model choose which inputs to ask about instead of guessing from whatever examples you happen to give it. The gain on CodeARC is real, and the lesson transfers to everyday agent work."
+pubDate: 2026-11-16
+tags: ["coding-agents", "ai-agents", "ai-research", "language-models", "prompt-engineering"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-16-the-case-for-letting-a-coding-agent-pick-its-own-examples/hero.webp
+  alt: "The Case for Letting a Coding Agent Pick Its Own Examples"
+sources:
+  - title: "Interactive Program Induction with Language Model Priors"
+    url: "http://arxiv.org/abs/2611.18485v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: When an agent has to infer a rule from examples, letting it choose which example to ask about next beats feeding it a fixed pile of examples, and "Interactive Program Induction with Language Model Priors" shows up to a 22 point accuracy jump on CodeARC while needing up to 10.5 fewer examples to get there.
+
+Most of how we use coding agents today is passive on the agent's side. You hand over a spec, a few test cases, maybe a sample input and output, and ask it to write the function. The agent takes what it gets. If your examples happen to pin down the behavior you want, great. If they don't, the agent guesses, and you find out later when it does the wrong thing on an input you never showed it.
+
+That gap is the whole subject of "Interactive Program Induction with Language Model Priors," posted to arXiv across cs.AI, cs.CL, and cs.LG. The paper's framing is simple and, I think, undersold: the problem isn't just that the model is weak at guessing the rule. The problem is that the examples themselves are ambiguous, and no amount of model horsepower fixes an underspecified problem. So instead of making the model guess harder, let it ask better questions.
+
+## What problem is this paper actually solving?
+
+Program induction means recovering a program from input-output examples. You show the system a handful of pairs, say input 3 gives output 9, input 4 gives output 16, and it tries to produce the rule, here "square the input." The appeal is obvious for non-programmers: demonstrate what you want on a few cases, get a reusable function, skip writing code.
+
+The catch is math, not engineering. A finite set of examples is consistent with infinitely many programs that agree on those cases and then diverge everywhere else. "Square it" fits 3 to 9 and 4 to 16. So does a lookup table that returns 9 and 16 for exactly those two inputs and nonsense otherwise. So does a cubic that happens to pass through both points. From the examples alone, you cannot tell which one the user meant.
+
+![many diverging curves all passing through the same two fixed points, then spreading apart beyond them](../../assets/blog/2026-11-16-the-case-for-letting-a-coding-agent-pick-its-own-examples/inline-1.webp)
+
+The authors treat this as a Bayesian problem. You start with a prior over possible programs, call it p-zero. Each new input-output example you observe shifts probability mass toward programs consistent with it and away from the rest. Identifying the right program means concentrating enough posterior mass on it. The interesting move is who picks the next input. In the interactive setting, the learner chooses the input that will be maximally informative, then queries an oracle, which in practice means the user, for the output.
+
+## Why does letting the model choose the input matter?
+
+Here is the operator-level insight. Not all examples are equally useful. If you already know the rule squares positive numbers, testing another positive number teaches you nothing. Testing a negative number, or zero, or a huge number, splits the remaining candidate programs apart. A well-chosen question collapses ambiguity fast.
+
+The paper derives a greedy query-selection algorithm that picks exactly those splitting inputs. The headline guarantee: it terminates after roughly order (1/gamma) times log(1 / p-zero of f-star) informative oracle queries, and returns the target program up to approximate equivalence as long as no competing class of programs outweighs it under the prior. Translating the notation: the better your prior already ranks the true program, the fewer questions you need. And a good language model, used as the prior, ranks plausible programs well.
+
+That is the clever part. They use a language model as the prior p-zero, under what they call a PAC-style relaxation of program equivalence, and estimate the query-selection objective with importance sampling. The LM supplies informed guesses about which programs are likely. The query algorithm supplies the discipline of asking the question that best separates those guesses. Neither alone is enough. The LM alone will confidently commit to a plausible wrong rule. The query algorithm without a good prior would waste questions exploring absurd programs.
+
+![a wide cloud of candidate programs narrowing into a single point as a sequence of targeted questions filters it](../../assets/blog/2026-11-16-the-case-for-letting-a-coding-agent-pick-its-own-examples/inline-2.webp)
+
+## How big is the gain, and against what?
+
+On CodeARC, the algorithm improves accuracy over the LM-only agent by up to 22 percentage points while observing up to 10.5 fewer input-output examples. Read that twice, because it's unusual. More accurate *and* cheaper in examples. Normally you buy accuracy with more data. Here the data gets smarter, not just bigger.
+
+I want to be careful about the "up to" in both numbers. Those are best-case figures on one benchmark, and the paper's own guarantee has a condition baked in: it holds when no other class of programs outweighs the target under the prior. If your true program is something the model's prior finds deeply unlikely, the theory doesn't promise you a cheap win, and I'd expect the real-world gap to narrow on messy, out-of-distribution tasks. CodeARC is a structured induction benchmark, not your production codebase. Treat the 22 points as a demonstration of the mechanism, not a number you'll reproduce on arbitrary work.
+
+Still, the direction is the point. The field has spent two years scaling the prior, bigger models, better pretraining. This paper scales the questioning instead, and gets a result that scaling alone wasn't buying.
+
+## Where does this actually show up for a builder?
+
+The narrow application is program synthesis from examples, which matters for anyone building no-code transformation tools, data-cleaning rules, spreadsheet automation, or "show me three examples and I'll handle the rest" features. If that's your product, the active-query loop is directly usable: when the examples are ambiguous, have the system generate the one input most likely to resolve the ambiguity and ask the user for its output, rather than silently guessing.
+
+The broader lesson is about how we run agents in general. Most agent failures I see in practice aren't reasoning failures. They're specification failures. The user never pinned down the behavior, the agent filled the gap with a confident assumption, and the assumption was wrong on exactly the case nobody tested. The fix this paper formalizes is one humans already know: a good collaborator asks the clarifying question that matters, not ten questions that don't.
+
+![two work paths side by side, one person handing over a stack and waiting, the other in a short back-and-forth exchange](../../assets/blog/2026-11-16-the-case-for-letting-a-coding-agent-pick-its-own-examples/inline-3.webp)
+
+Practitioner's take: if you're building any tool that infers intent from a few examples, add a cheap version of this before you add a bigger model. Have the agent enumerate two or three candidate interpretations of the user's examples, find an input where those interpretations disagree, and ask the user for just that one output. You don't need the full importance-sampling machinery to capture most of the value, you need the habit of asking the splitting question. The catch most people miss: this only pays off if your model's prior is already decent, because the guarantee leans on the true answer being plausible to the model in the first place. If your task is genuinely out of distribution, active querying makes the loop more sample-efficient but won't conjure a right answer the prior never considered. Measure your prior's top-k hit rate before you assume the questioning will save you.
