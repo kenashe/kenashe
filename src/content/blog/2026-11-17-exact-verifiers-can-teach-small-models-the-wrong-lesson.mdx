@@ -1,0 +1,56 @@
+---
+title: "Exact verifiers can teach small models the wrong lesson"
+description: "An arXiv paper on policy-explanation agents shows a useful trap: perfect feedback can make training effects measurable without making the trained model generalize. The win was procedure, not judgment."
+pubDate: 2026-11-17
+tags: ["agent-evaluation", "model-reliability", "fine-tuning", "ai-safety"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-17-exact-verifiers-can-teach-small-models-the-wrong-lesson/hero.webp
+  alt: "Exact verifiers can teach small models the wrong lesson"
+sources:
+  - title: "Procedure without Judgment: What Small Language Models Learn under an Exact Verifier"
+    url: "http://arxiv.org/abs/2611.21529v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A perfect verifier can make agent training look clean while still teaching a small model a brittle routine that fails off-distribution.
+
+## What does an “exact verifier” actually test?
+
+The primary source here is the arXiv paper “Procedure without Judgment: What Small Language Models Learn under an Exact Verifier,” listed under cs.AI and cs.CL.
+
+The setup is refreshingly concrete. An agent tries to explain why an authorization policy blocked a tool call. The audit log should name the facts that forced the denial, and nothing extra. If the policy is executable and the context space is enumerable, the minimal sufficient reason can be computed exactly.
+
+That matters because most AI evaluation is full of squishy scoring. Here, the target is not vibes. The paper’s explainer gets one request and one decision. It never sees the policy. It has 30 turns to query altered requests and ask whether a candidate set of facts is sufficient.
+
+So the task is not “can the model sound reasonable?” It is “can the model identify the smallest fact set that truly forced the decision?”
+
+That is a good test for agentic systems because the desired behavior is narrow, auditable, and operational. A blocked tool call in a real system should not produce a long speculative story. It should produce the minimum facts needed for review, debugging, or compliance.
+
+![a small agent probing a hidden decision machine, with many candidate fact fragments narrowing into one compact explanati](../../assets/blog/2026-11-17-exact-verifiers-can-teach-small-models-the-wrong-lesson/inline-1.webp)
+
+## Did fine-tuning the small model work?
+
+Yes, on the training policy. Also, that is the catch.
+
+The paper reports that frontier models find the exact reason about half the time using the tools alone. A one-sentence instruction to shrink the answer lifts Haiku 4.5 from 58% to 75%. That is the kind of prompt result I like because it is small, legible, and plausible: the model already has the ability, and the instruction nudges it toward minimality.
+
+Then the fine-tuning result looks stronger. A 4B model trained on 2,000 traces of the deletion algorithm reaches 92% on the policy it was trained on. The paper also reports that teacher kind matters: at matched data size, the algorithm-taught student beats the frontier-taught student in all three training seeds, with no overlap between the arms.
+
+That sounds like a clean win for synthetic procedural traces. But the generalization result flips the mood.
+
+On three public policies the model never saw, its answers remain sufficient 94% of the time, but minimal only 48% of the time. In other words, it often finds an explanation that works, but not the smallest one. Haiku, given the same one-sentence shrink instruction, is exact on all 47 episodes.
+
+My read: the small model learned a schedule, not the underlying judgment. It learned when to run sufficiency checks. It did not learn enough about why those checks matter across new policy structures.
+
+## Why didn’t exact reward fix it?
+
+The most interesting result is the reinforcement learning one. The paper reports that RL from the exact reward leaves held-out accuracy where it was and changes the strategy in the wrong direction. The model shifts from probing the policy to spending the whole budget on sufficiency checks.
+
+That is a useful warning for agent evals. A perfect reward is not the same as a good training signal. If the model can improve its local odds by gaming the interaction pattern, it may do that instead of learning the transferable skill.
+
+This is especially relevant for builders training small agents on narrow workflows. Exact verifiers are valuable. They give you ground truth. They make failure visible. They let you compare teacher data, prompts, and RL without arguing about judge quality. But they do not magically create general reasoning.
+
+If I were applying this, I would use exact verifiers as diagnostic equipment first, training machinery second. Build small policy tasks where the minimal answer is computable. Track sufficiency and minimality separately. Test on policies with different structure, not just held-out examples from the same generator. Try the boring prompt before fine-tuning. The catch most teams miss: a model that reliably follows a winning procedure in your sandbox may still be bad at deciding when that procedure no longer fits.

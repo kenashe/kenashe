@@ -1,0 +1,58 @@
+---
+title: "A true denial reason is not the same as useful recourse"
+description: "The arXiv paper Right Reason, Wrong Advice shows why LLM-written denial explanations can be factually correct and still useless. For builders, the evaluation target should shift from reason accuracy to whether following the advice would actually change the decision."
+pubDate: 2026-11-17
+tags: ["evals", "model-reliability", "ai-policy", "applied-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-17-a-true-denial-reason-is-not-the-same-as-useful-recourse/hero.webp
+  alt: "A true denial reason is not the same as useful recourse"
+sources:
+  - title: "Right Reason, Wrong Advice: Evaluating Recourse in LLM Explanations of Denied Requests"
+    url: "http://arxiv.org/abs/2611.21545v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If an AI explains why a request was denied, the key test is not whether the reason is true, it is whether fixing that reason would actually get the user approved.
+
+## What does “right reason, wrong advice” mean?
+
+The primary source here is the arXiv paper “Right Reason, Wrong Advice: Evaluating Recourse in LLM Explanations of Denied Requests,” posted under cs.AI and cs.CL. The paper names a problem that shows up anywhere models explain rule-based denials: benefits, access control, eligibility checks, internal approvals, account reviews.
+
+The problem is simple. A system denies a request because several independent rules failed. The LLM explanation names one of those failed rules. That reason is true. But if the person fixes only that issue, the request still gets denied because the other failed rules remain.
+
+That is a bad explanation, even if it is factually accurate.
+
+The paper calls the missing property “recourse validity.” An explanation has recourse validity if changing what the explanation cites, while keeping the request itself the same, can flip the decision. In plain English: would following the advice work?
+
+That is the practical line. A denied applicant does not need a factually defensible sentence that sounds reasonable. They need to know what change would matter.
+
+![one blocked request facing several locked gates, while a single spotlight points at only one gate](../../assets/blog/2026-11-17-a-true-denial-reason-is-not-the-same-as-useful-recourse/inline-1.webp)
+
+## Why are normal explanation checks too weak?
+
+The paper’s result is uncomfortable because it hits a common eval shortcut. Across 20 LLMs, checking whether cited reasons are correct, either computed directly or judged by another LLM, was close to chance at detecting the recourse failure.
+
+That makes sense. “Is this reason true?” and “Would fixing this reason change the outcome?” are different questions.
+
+The paper also reports that in six of seven rule systems ported from access control and US benefit eligibility, a single correct reason almost never gives recourse when multiple reasons apply. That is the key operational point. The more independent blockers a policy has, the less useful a single-reason explanation becomes.
+
+Stronger models and reasoning models did better, according to the paper, but still failed on many denials with four or more independent reasons. That matters because many real policies are exactly like that. Eligibility is rarely one gate. It is a pile of gates.
+
+One useful detail: a strong judge asked whether acting on the explanation would work did spot the issue. So the failure is not that models can never reason about recourse. The failure is that most explanation pipelines ask the wrong question.
+
+## How should builders change the product?
+
+Do not let the model invent the structure of the denial. Build the explanation from the decision function.
+
+If the policy engine denied the request, it already has the rules, thresholds, missing fields, failed checks, and sometimes the dependency graph. Use that. The LLM can translate the machine result into human language, but it should not be the source of truth for what blocked the request.
+
+The paper’s most actionable suggestion is also the least glamorous: ask for every rule. That helped every open model with room to improve. In product terms, this means a denial explanation should cover all independent blockers, not just the first plausible one.
+
+There is a UX catch. Listing every failed rule can feel harsh, confusing, or legally risky. But hiding blockers behind a nicer single sentence is worse if the user wastes time fixing something that cannot change the outcome. The better pattern is tiered explanation: show the required blockers first, then optional detail, then exact next steps where the policy allows it.
+
+This also changes evals. A denial explainer should not be graded mainly on tone, faithfulness, or whether a judge agrees that the cited reason appears in the policy. Those are table stakes. The core eval should rerun the decision after applying the explanation’s advised changes. If the decision does not flip when the explanation implies it should, the explanation failed.
+
+Practitioner’s take: if you are building AI around approvals, denials, moderation, benefits, compliance, or internal access requests, add a recourse-validity test before launch. Generate the explanation, simulate the user fixing exactly what it names, rerun the same decision function, and score whether the denial changes. Use the model for language, not policy discovery. The catch most teams miss: a true explanation can still create bad user action.
