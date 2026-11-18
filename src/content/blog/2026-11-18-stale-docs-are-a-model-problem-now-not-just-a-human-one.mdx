@@ -1,0 +1,66 @@
+---
+title: "Stale Docs Are a Model Problem Now, Not Just a Human One"
+description: "A deployed multi-agent system called TriAgent mines support tickets and code to find documentation drift, and the numbers suggest docs maintenance is becoming agent-first work. Here is what the results actually show and where the human still wins."
+pubDate: 2026-11-18
+tags: ["ai-agents", "ai-workflows", "building-with-ai", "agent-evaluation", "rag"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-18-stale-docs-are-a-model-problem-now-not-just-a-human-one/hero.webp
+  alt: "Stale Docs Are a Model Problem Now, Not Just a Human One"
+sources:
+  - title: "Mind the Gap: A Deployed Multi-Agent System for Documentation Maintenance"
+    url: "http://arxiv.org/abs/2611.23142v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A deployed system called TriAgent turns support tickets and code-doc mismatches into documentation fixes, and over 43 days it beat human engineers in blinded judging on most comparable replies, but the humans still caught things no agent surfaced, so the real pattern is complementary, not replacement.
+
+The paper is "Mind the Gap: A Deployed Multi-Agent System for Documentation Maintenance," posted to arXiv under both cs.AI and cs.CL. What makes it worth reading is the word "deployed." This is not a benchmark run on a toy corpus. The team ran the system in shadow mode against real support traffic for 43 days, triaged 499 tickets, and surfaced 92 documentation gaps. That is a small-but-real production footprint, and the measurement discipline is better than most agent papers I see.
+
+## Why does documentation drift matter more now than it used to?
+
+The old answer: stale docs annoy users who read them. The new answer is sharper. Agents read your docs now, and they treat whatever they find as authoritative. A human skimming a help page can smell when something looks outdated. An LLM pulling that same page into a retrieval step has no such instinct. It ingests the stale line, repeats it with confidence, and the error propagates downstream to every user who trusts the agent.
+
+So documentation is quietly becoming an input to model behavior, not just human reading material. If your docs say the API returns a field that was renamed six months ago, a support bot built on those docs will keep telling customers about a field that no longer exists. The drift compounds.
+
+![a river of information branching, one branch clear and one branch clouded, feeding into a single downstream pool](../../assets/blog/2026-11-18-stale-docs-are-a-model-problem-now-not-just-a-human-one/inline-1.webp)
+
+That framing is the real contribution here. The authors are arguing that doc maintenance has crossed from a content-quality concern into a model-reliability concern. I think that is correct, and it reframes who should care. If you run a RAG system or a support agent on top of your own docs, your documentation gap is now a reliability bug in your product.
+
+## How does TriAgent actually find the gaps?
+
+The system leans on signals that already exist, which is the smart part. It splits them into two buckets. Explicit signals are things like resolved support tickets, where a human engineer already answered a question the docs failed to answer. Implicit signals are code-documentation discrepancies that automated loops can detect, where the code moved and the docs did not.
+
+A triage agent, TriAgent, continuously extracts these signals and routes them toward repairs. The loop is the interesting bit: a resolved ticket is evidence that the docs were insufficient for that question. Instead of letting that evidence evaporate, the system captures it, proposes a fix, and (after human review) closes the gap.
+
+This is a better foundation than "point an agent at your docs and ask it to improve them," which produces plausible-sounding churn with no grounding. Grounding the agent in real failure signals, actual tickets, actual code diffs, is what keeps it honest. The gap has to be demonstrated before it gets repaired.
+
+## What do the numbers actually say, and where do they stop?
+
+Here is where I want to be careful, because the headline is strong and the caveats matter.
+
+On verifiable assertions, a panel of LLM judges from independent model families rated 81.1% of TriAgent's assertions correct, 245 of 302 assertions that the human resolution also addressed, by majority of three judges. On length-comparable pairs, the same panel preferred TriAgent's response in 70.5% of pairs and the human engineer's in 23.2%, with the rest split. And when a gap was repaired and the agent re-answered the same ticket, blinded judges preferred the post-repair answer 71.4% of the time, though on a small sample of 35.
+
+Read quickly, that sounds like agents beating humans at support. Read carefully, three things stand out.
+
+First, the judges are LLMs. The authors used a panel from independent model families and ran a blinded human audit that confirmed strong alignment on the self-improvement result, which is more rigor than usual. But LLM judges carry known biases, including a tendency to favor longer, more structured answers. The length-comparable filtering helps control for that, and I credit them for it, but "a panel of models preferred the model's output" is not the same as "users were better served." Those can diverge.
+
+Second, the human comparison is narrower than the win rate implies. The paper is explicit that agent and human replies were complementary. Humans often surfaced insights that were buried in existing docs or missing entirely, the kind of institutional knowledge that does not live in any retrievable artifact. The system's actual move is to turn those human insights into documented gaps. So the human is not losing. The human is generating the raw material the agent then packages. That is a very different story than replacement.
+
+Third, the scale is modest and the setting is one company's docs and tickets. 92 gaps over 43 days is a real signal, not a universal law. Different doc bases, different ticket quality, different code hygiene will all move these numbers.
+
+![two hands assembling a single structure, each placing pieces the other cannot reach](../../assets/blog/2026-11-18-stale-docs-are-a-model-problem-now-not-just-a-human-one/inline-2.webp)
+
+None of this undercuts the result. It sharpens it. The honest summary is: an agent grounded in real failure signals can draft documentation fixes that hold up well under blinded review, and repairing those fixes measurably improves the agent's own later answers. That self-improvement loop, fix the doc, the agent answers better next time, is the most durable finding here because it is mechanical and checkable rather than a matter of judge taste.
+
+## What should a builder actually do with this?
+
+Start with the signal layer, not the agent. The reason this system works is that it feeds on evidence you already generate. Before you build any doc-maintenance agent, make sure your resolved support tickets are structured and queryable, and that you have some automated way to detect code-doc mismatches. If those signals are messy, no agent will save you.
+
+Run it in shadow mode first, exactly as the authors did. Do not let an agent write to your live docs on day one. Have it propose gaps and fixes, route them to a human reviewer, and measure acceptance. The paper's whole credibility comes from the human-in-the-loop gate plus blinded evaluation, and you should copy both.
+
+Build the re-answer check into your own eval. The strongest metric in the paper is not the human-vs-agent win rate, it is whether fixing a gap improved the agent's next answer to the same question. That is a closed loop you can run cheaply: snapshot the agent's answer to a ticket, apply the doc fix, re-ask, and compare blind. If the post-fix answer is not better, the fix was theater.
+
+The catch most readers will miss: this only pays off if your docs are the thing your agents actually read. If your support bot is pulling from a vector store that is out of sync with your published docs, you now have two drift problems instead of one. Fix the pipeline before you celebrate the repairs. And if you are building a site whose docs or content are meant to rank and to feed assistants, the same discipline applies, which is the kind of search-visibility work I do through Lucky Domains (SEO services): the content an agent retrieves is only as good as the freshness of the source it points at. Stale is stale whether a human or a model reads it. The difference now is that the model reads it with total confidence.

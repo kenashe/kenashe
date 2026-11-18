@@ -1,0 +1,52 @@
+---
+title: "Stratified Policies Make Best-of-k Sampling Less Wasteful"
+description: "A new arXiv paper argues that inference-time scaling can get more useful answers from the same sample budget by spreading attempts across complementary LoRA policies instead of resampling one model policy repeatedly."
+pubDate: 2026-11-18
+tags: ["inference", "fine-tuning", "reasoning-models", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-18-stratified-policies-make-best-of-k-sampling-less-wasteful/hero.webp
+  alt: "Stratified Policies Make Best-of-k Sampling Less Wasteful"
+sources:
+  - title: "Learning Stratified Policies for Inference-Time Objectives"
+    url: "http://arxiv.org/abs/2611.23154v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For best-of-k reasoning, it may be better to sample once from several intentionally different policies than to ask the same policy for k tries.
+
+## What changes when sampling comes from multiple policies?
+
+The primary source here is the arXiv cs.AI/cs.LG paper titled “Learning Stratified Policies for Inference-Time Objectives.” Its core claim is simple: inference-time scaling usually spends a sample budget by drawing multiple answers from one policy, but that budget can be split across a learned population of policies instead.
+
+That matters because best-of-k only works when the set of candidate answers has useful variety. If five samples all fail in the same way, the verifier, judge, or test harness has nothing good to pick. Temperature can add surface-level variation, but it does not guarantee complementary reasoning strategies.
+
+“Learning Stratified Policies for Inference-Time Objectives” proposes stratified policies: k learned policies, each contributing one response to a k-sample objective. The paper implements this with separate LoRA adapters on a shared language model backbone. Same base model. Different lightweight policy heads, in practical terms.
+
+The target metric is pass@k. Not “make every answer better.” More specifically: make the set of k answers more likely to contain at least one correct answer.
+
+![one shared central model branching into several distinct adapter paths that reconverge into a single selection point](../../assets/blog/2026-11-18-stratified-policies-make-best-of-k-sampling-less-wasteful/inline-1.webp)
+
+## Why use multiple LoRAs instead of one stronger policy?
+
+The interesting part is not just “ensemble models work.” That is old news. The useful operator question is cost and shape.
+
+Separate full models are expensive to train, serve, and manage. Separate LoRA adapters are much cheaper. They let the system keep one shared backbone while training multiple small adaptations that specialize differently. If the adapters learn complementary error patterns, the total sample budget gets more coverage.
+
+The paper gives a theoretical motivation in a linear setting: a population of LoRAs can reach zero best-of-k approximation error in cases where every single LoRA still has positive prediction error. That is a narrow statement, not a universal guarantee. But it frames the bet cleanly. The population does not need each policy to be perfect. It needs the policies to be wrong in different places.
+
+Empirically, “Learning Stratified Policies for Inference-Time Objectives” reports consistent pass@k improvements over a single-policy baseline across multiple reasoning tasks. The abstract does not give task names, model sizes, or effect sizes in the material here, so I would not overread it. The useful takeaway is directional: repeated independent sampling from one policy may be a lazy default, not the ceiling.
+
+This also fits what many builders already see with agent workflows. The first answer is often not the problem. The problem is correlated failure. Same prompt shape. Same blind spot. Same false assumption dressed in different wording. A population approach tries to make diversity trainable instead of hoping temperature creates it.
+
+## What would make this actually useful in production?
+
+The catch is selection. Best-of-k assumes some way to choose the best candidate. In code, that can be tests. In math, maybe a verifier. In customer support or strategy writing, selection is fuzzier and easier to game. If your evaluator is weak, more candidates can mean more convincing wrong answers.
+
+The other catch is maintenance. A fleet of LoRAs is still a fleet. You need training data, evals, routing rules, versioning, rollback, and a reason to believe the adapters are complementary rather than duplicated. “Many policies” is not automatically better than one policy with better data or a stronger verifier.
+
+But the architecture is appealing because it matches a real production pattern: spend more compute only when the task is worth it. For cheap requests, sample once. For hard requests, sample across specialized adapters and let a task-specific checker pick. That is cleaner than turning up temperature and praying.
+
+My practitioner’s take: if you already use best-of-n sampling for coding, math, structured extraction, or agent planning, test this idea without rebuilding your stack. Train or fine-tune two or three small adapters on intentionally different slices of failures, then compare pass@k against k samples from your current single policy. The thing to measure is not average answer quality. Measure whether the candidate set contains a correct answer more often, and whether your selector can reliably find it. The missed catch is that diversity only pays when you can recognize the winner.
