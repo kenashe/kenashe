@@ -1,0 +1,58 @@
+---
+title: "Data filtering looks like a delay, not a capability lock"
+description: "An arXiv paper on withheld training signals suggests models can regain filtered-out skills with much less data after general training progress, which changes how builders should think about safety filtering, release controls, and post-training evaluations."
+pubDate: 2026-11-19
+tags: ["model-training", "ai-safety", "language-models", "model-reliability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-19-data-filtering-looks-like-a-delay-not-a-capability-lock/hero.webp
+  alt: "Data filtering looks like a delay, not a capability lock"
+sources:
+  - title: "General progress substitutes for specific training data in language models"
+    url: "http://arxiv.org/abs/2611.24844v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Withholding specific training data can delay a model capability, but the arXiv paper “General progress substitutes for specific training data in language models” argues it may not prevent the capability from emerging later.
+
+## Can you remove a capability by removing its data?
+
+The primary source here is the arXiv paper “General progress substitutes for specific training data in language models.” Its claim is simple and uncomfortable: as a language model improves on the rest of its training distribution, that general progress can stand in for the specific examples you held back.
+
+That matters because data filtering is one of the cleaner ideas in AI safety. If you do not want a model to learn a dangerous or unwanted skill, you remove the relevant data before training. Less recipe, less capability. Reasonable.
+
+The paper says that is only partly true.
+
+The researchers withheld training signals for specific skills across chess, Othello, molecular strings, bracket languages, and web text. In one chess setup, a model that was never explicitly trained to respond to check still ranked legal responses almost as well as a model that had received that signal. When withheld data was later introduced, models picked up the missing skill with a small fraction of the data needed from scratch. That fraction got smaller as the models made more general progress.
+
+So the sharper framing is not “did filtering work?” It is “how much time did filtering buy?”
+
+That is a very different safety story.
+
+![a wide river of training examples flowing around a blocked channel, then rejoining downstream as a smaller stream comple](../../assets/blog/2026-11-19-data-filtering-looks-like-a-delay-not-a-capability-lock/inline-1.webp)
+
+## Why does general progress transfer to the missing skill?
+
+The paper’s core idea is substitution. A model trained on everything except one target skill still learns related structure. It learns syntax, planning patterns, board-state regularities, molecular grammar, token relationships, and whatever else sits near the withheld skill. Later, the missing capability is not learned from zero. It is attached to scaffolding the model already built.
+
+The control result is important. The paper says a control rule of equal difficulty was learned much more slowly. That suggests the effect is not just “the model learns anything quickly once it is big.” It is more specific: nearby general competence can reduce the amount of target data needed.
+
+The web-text result is the one builders will care about. The paper reports that a programming language withheld from the training text of a 7-billion-parameter model was regained in the same way. No magic. No claim that every filtered skill will reappear automatically. But it points in the direction many practitioners already suspect: once the base model has enough adjacent knowledge, small amounts of later data, fine-tuning, or interaction can fill gaps fast.
+
+This is also a warning against treating dataset absence as proof of capability absence. If a model was not trained on X, that does not mean it cannot do X. It may have learned enough from Y and Z to infer most of X.
+
+## What changes for safety and product teams?
+
+The first change is language. Data filtering should be described as a delay mechanism, not a guarantee. That is still useful. Delays matter. If you can slow acquisition of a harmful capability, you create time for evaluations, access controls, monitoring, and policy decisions.
+
+But a filtered pretraining set cannot be the whole control plan.
+
+The second change is evaluation timing. If a capability is withheld during pretraining, teams should not only test for it immediately after pretraining. They should test after post-training, tool use, user interaction, retrieval, and domain fine-tunes. The paper’s point is that later exposure can require much less signal than expected.
+
+The third change is release design. Open weights, API-only access, fine-tuning permissions, retrieval connectors, and tool access all become part of the capability story. A model missing a skill at release can regain it through a small amount of downstream data if the surrounding competence is already there.
+
+I do not read this as an argument against filtering. I read it as an argument against over-selling filtering. It is one layer. Useful, measurable, incomplete.
+
+For builders, the practical move is to test “regainability,” not just current behavior. Hold out a target capability, train or fine-tune on a tiny controlled slice later, and measure how quickly the model catches up. Do this before assuming a filtered model is safe for a sensitive deployment. The catch most teams miss: the danger may not be what the model knows today, but how little new data it needs tomorrow.

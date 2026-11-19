@@ -1,0 +1,54 @@
+---
+title: "LLMs can audit black-box clinical models, but the alerts still need auditing"
+description: "A blinded arXiv test found GPT-6 Astra could reconstruct clinical prediction models and catch nearly all planted flaws through queries alone, while also producing many claims that failed pre-set checks. The useful pattern is not trust, it is LLM-assisted auditing with verification."
+pubDate: 2026-11-19
+tags: ["medical-ai", "evals", "model-reliability", "interpretability"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-19-llms-can-audit-black-box-clinical-models-but-the-alerts-still-need-auditing/hero.webp
+  alt: "LLMs can audit black-box clinical models, but the alerts still need auditing"
+sources:
+  - title: "Auditing black-box clinical prediction models with a large language model through queries alone: a blinded test with planted flaws"
+    url: "http://arxiv.org/abs/2611.24877v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: LLMs are now useful black-box model auditors, but only when every finding is checked against the target model and real data.
+
+## What did the clinical model audit actually test?
+
+The primary source here is the arXiv paper “Auditing black-box clinical prediction models with a large language model through queries alone: a blinded test with planted flaws,” listed under cs.AI and cs.LG.
+
+The setup is refreshingly hard to hand-wave. The researchers used data from the International Stroke Trial, trained four kinds of clinical prediction models, then planted specific flaws into 24 model copies. The flaw types were practical, not toy examples: an under-predicted subgroup, a reversed risk factor, or an implausible step. They mixed those with 8 clean models.
+
+GPT-6 Astra did not get weights, code, or training data. It only got a tool that returned model predictions. That matters. A lot of real model audits look like this from the outside: you can query the system, but you cannot inspect the internals.
+
+The paper reports that GPT-6 Astra built surrogate models with a median of 128 terms and reproduced audited model log-odds with a mean R² of 0.976. That is close enough to be useful. For comparison, an analyst-fit additive surrogate with 42 terms reached 0.959.
+
+On the planted flaw task, GPT-6 Astra found the flaw in 69 of 72 runs, or 96%, with a 95% confidence interval from 80% to 99%. Strong result. But a purpose-written script found all 24 planted flaws. That comparison is the whole story in miniature: the LLM is powerful and general, but not automatically better than a focused test harness.
+
+![a dark clinical prediction box receiving many curved query arrows, producing a clean simple replica beside it, with a fe](../../assets/blog/2026-11-19-llms-can-audit-black-box-clinical-models-but-the-alerts-still-need-auditing/inline-1.webp)
+
+## Where did the LLM overreach?
+
+The paper’s most useful number may be the ugly one. GPT-6 Astra also reported many extra problems. Of 1,089 checkable reports, 60% failed the pre-specified check against the model’s average behavior.
+
+That does not mean all of those were pure hallucinations. The researchers say that post hoc, most were real but small steps. Still, 15% of the checkable reports were not found in the model at all.
+
+That is the trap for builders. An LLM audit feels authoritative because it can explain patterns in plain English. In medicine, that plain English can make a weak claim sound stronger than it is. The danger is not only that the model misses a serious flaw. It is also that it generates a long queue of “findings” that pull clinicians, compliance teams, and ML engineers into checking noise.
+
+The discovery task was even thinner. Of 601 unexpected relationships GPT-6 Astra read out of the clean models, 11% held in patients randomized later. Random pairs hit 6%. A regression scan’s shorter list of strongest candidates hit 28%. After checking on the training data, GPT-6 Astra was at 33% versus 30%.
+
+So yes, the LLM surfaced signal. But no, I would not treat it as a discovery engine. It is better described as a broad hypothesis generator with a high cleanup cost.
+
+## What changes for model governance?
+
+This points to a sane pattern for regulated AI: use LLMs to propose audits, not to certify systems.
+
+The useful workflow is query-first. Ask the target model many controlled questions. Let an LLM build a readable surrogate. Have it propose likely failure modes. Then run programmatic checks that were defined before the audit, not after someone sees an interesting story. That last part is where this paper earns trust. The judging rules were committed before any run and applied by program.
+
+The result is neither “LLMs explain black boxes now” nor “LLMs are too flaky for clinical use.” The better take is narrower: LLMs can make black-box auditing faster and more legible, especially when the auditor only has query access. But their natural-language reports need the same skepticism we apply to any statistical screen.
+
+If I were building with this, I would start by wrapping every black-box model with an audit harness: structured query generation, surrogate fitting, LLM-generated hypotheses, and automatic verification against held-out behavior. The catch most readers miss is cost of attention. The LLM may find the real flaw, but it may also hand you 100 plausible side quests. The product work is deciding which claims get escalated, which get auto-checked, and which never reach a human until the numbers back them up.
