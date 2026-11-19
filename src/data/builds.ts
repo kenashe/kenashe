@@ -22,6 +22,16 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'Returning Your Things',
+    status: 'SHIPPED',
+    dek: 'On a snowy winter night, a man crosses the city to return his ex’s belongings. A dialogue-free short film about love, memory, and letting go.',
+    stack: ['Short Film', 'AI-generated imagery'],
+    shippedAt: 'Nov 2026',
+    metric: '1:54 runtime',
+    link: '/building/returning-your-things/',
+    cta: 'Watch the short film',
+  },
+  {
     title: 'AI agent economy on Ethereum',
     status: 'SHIPPED',
     dek: 'Two autonomous AI agents with their own Ethereum wallets. The seller advertised services through ENS; the buyer found the catalog, paid in ETH, and received the work in a second mainnet transaction.',
