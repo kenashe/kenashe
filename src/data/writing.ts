@@ -34,6 +34,19 @@ export interface Essay {
 
 export const essays: Essay[] = [
   {
+    slug: '4-tips-for-making-ai-videos-that-feel-like-films',
+    title: '4 Tips for Making AI Videos That Feel Like Films',
+    date: 'November 20, 2026',
+    published: '2026-11-20',
+    dek: 'A mug that broke in the wrong place, a reach that changed the story, and a piano performance that worked where sound effects didn’t. Four lessons from making Returning Your Things.',
+    authorship: 'Human-directed, AI-assisted',
+    image: {
+      file: '4-tips-for-making-ai-videos-that-feel-like-films.jpg',
+      alt: 'Two film details: a cream mug with a blue flower beside the handle, and a hand holding the broken handle and flower in the snow.',
+      caption: 'I moved the flower on the intact mug. Now the handle and flower can break off together.',
+    },
+  },
+  {
     slug: 'bambu-lab-burr-puzzle-solution',
     title: 'How to Solve the Bambu Lab Burr Puzzle (Step-by-Step Assembly Guide)',
     date: 'November 6, 2026',
