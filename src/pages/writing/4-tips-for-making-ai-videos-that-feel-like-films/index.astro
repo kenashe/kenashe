@@ -1,0 +1,374 @@
+---
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+import { ogImageOf } from '../../../data/writing-images';
+import original from '../../../assets/writing/film-hat-original.webp';
+import overcorrected from '../../../assets/writing/film-hat-overcorrected.webp';
+import final from '../../../assets/writing/film-hat-final.webp';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import JsonLd from '../../../components/JsonLd.astro';
+import EssayFigure from '../../../components/EssayFigure.astro';
+import { essayBySlug, authorshipOf } from '../../../data/writing';
+import { personKenAshe, websiteKenAshe } from '../../../data/schema';
+import { SITE_URL } from '../../../consts';
+const essay = essayBySlug('4-tips-for-making-ai-videos-that-feel-like-films');
+const authorship = authorshipOf(essay);
+const title = essay.title;
+const seoTitle = title;
+const description = essay.dek;
+const VIDEO = { id: '3MOFBulJd_s', title: '4 AI Filmmaking Tips That Make Videos Feel Like Films', description, uploadDate: essay.published, duration: 'PT4M49S', lengthSeconds: 289, lengthLabel: '4:49' };
+const watchUrl = `https://www.youtube.com/watch?v=${VIDEO.id}`;
+const embedSrc = `https://www.youtube-nocookie.com/embed/${VIDEO.id}?rel=0`;
+const channelUrl = 'https://www.youtube.com/@KenAshe';
+const film = '/building/returning-your-things/';
+const chapters = [
+  {start:12, label:'0:12', title:'Give recurring objects a reference sheet'},
+  {start:96, label:'1:36', title:'Tell the AI what to keep'},
+  {start:152, label:'2:32', title:'Lock the pictures before working on sound'},
+  {start:224, label:'3:44', title:'Choose music for the story'},
+];
+const atTime = (s: number) => `${watchUrl}&t=${s}s`;
+const og = (await ogImageOf(essay))!;
+const pageUrl = new URL(`/writing/${essay.slug}/`, SITE_URL).toString();
+const videoId = `${pageUrl}#video`;
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Article',
+      '@id': `${pageUrl}#article`,
+      headline: title,
+      description: description,
+      url: pageUrl,
+      mainEntityOfPage: pageUrl,
+      image: new URL(og.src, SITE_URL).toString(),
+      datePublished: essay.published,
+      author: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      publisher: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isPartOf: { '@id': 'https://kenashe.ai/#website' },
+      video: { '@id': videoId },
+      inLanguage: 'en-US',
+    },
+    {
+      '@type': 'VideoObject',
+      '@id': videoId,
+      name: VIDEO.title,
+      description: VIDEO.description,
+      thumbnailUrl: [
+        `https://i.ytimg.com/vi/${VIDEO.id}/maxresdefault.jpg`,
+        `https://i.ytimg.com/vi/${VIDEO.id}/sddefault.jpg`,
+        `https://i.ytimg.com/vi/${VIDEO.id}/hqdefault.jpg`,
+      ],
+      uploadDate: VIDEO.uploadDate,
+      duration: VIDEO.duration,
+      embedUrl: `https://www.youtube.com/embed/${VIDEO.id}`,
+      creator: { '@id': 'https://kenashe.ai/#ken-ashe' },
+      isFamilyFriendly: true,
+      inLanguage: 'en',
+      hasPart: chapters.map((c, i) => ({
+        '@type': 'Clip',
+        name: c.title,
+        startOffset: c.start,
+        endOffset: chapters[i + 1]?.start ?? VIDEO.lengthSeconds,
+        url: atTime(c.start),
+      })),
+    },
+    websiteKenAshe,
+    personKenAshe,
+  ],
+};
+---
+
+<BaseLayout
+  title={seoTitle}
+  description={description}
+  ogType="article"
+  ogTitle={title}
+  image={og.src}
+  ogImageWidth={og.width}
+  ogImageHeight={og.height}
+  article={{ publishedTime: essay.published }}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Writing', path: '/writing/' },
+    { name: title, path: `/writing/${essay.slug}/` },
+  ]}
+>
+  <JsonLd slot="jsonld" data={articleSchema} />
+  <article class="essay">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/writing/"><span aria-hidden="true">←</span> Writing</a>
+    </nav>
+
+    <header class="essay-header">
+      <p class="page-mark" aria-hidden="true">// writing</p>
+      <h1>{title}</h1>
+      <p class="meta">
+        <span class="meta-key">By</span> Ken Ashe
+        <span aria-hidden="true">·</span> {essay.date}
+        <span aria-hidden="true">·</span> {VIDEO.lengthLabel} video
+        <span aria-hidden="true">·</span> {authorship}
+      </p>
+    </header>
+
+    <div class="prose">
+      <p>I knew my actors needed character sheets. I didn’t expect my coffee mug to need one, too. In one picture, a blue flower was painted in the middle of the cup. In another, the same flower was attached to the broken handle. Both pictures looked fine until I put them next to each other.</p>
+      <p>These are the four things I’d do again. If you’d rather see the story before the spoilers, <a href={film}>watch <em>Returning Your Things</em> first</a>. The film is 1:54; the walkthrough below is 4:49.</p>
+      <figure class="video" id="video">
+        <div class="video-frame">
+          <iframe
+            id="filmmaking-video"
+            src={embedSrc}
+            data-video-id={VIDEO.id}
+            title={`Ken Ashe: ${VIDEO.title}`}
+            width="560"
+            height="315"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+        <figcaption>
+          <a href={watchUrl} target="_blank" rel="noopener">Watch on YouTube ↗</a>
+          <a class="video-channel" href={channelUrl} target="_blank" rel="noopener">More on my YouTube channel →</a>
+        </figcaption>
+      </figure>
+
+      <h2>1. Give recurring objects a reference sheet.</h2>
+      <p><a href={atTime(12)} data-start="12">Watch from 0:12</a></p>
+      <p>I had a sheet for each actor so I could recognize the same two people on a spring rooftop, by the water in summer, and across a kitchen table. The objects needed references for a different reason: they’re how you know whose memory you’re in. A man picks up a piece of pottery in the snow. Cut to the kitchen. You need to recognize that cup without anybody saying a word.</p>
+      <p>I liked the broken piece. The fix was to go back to the intact mug and move the painted flower closer to the handle. That’s the detail I’d put on a prop sheet next time: not just what the object looks like, but which part of it the audience will see again.</p>
+      <EssayFigure essay={essay} />
+      <h2>2. Tell the AI what to keep, not just what to change.</h2>
+      <p><a href={atTime(96)} data-start="96">Watch from 1:36</a></p>
+      <p>In shot 15, the wind takes her hat. I liked the man’s reach, but he was looking to the side instead of at the brim. The next image fixed his gaze and pitched his whole body forward. Now he looked determined to catch it. That was right for the summer memory and wrong for the winter street, where he’s about to let it go.</p>
+      <div class="takes">{[
+        [original, 'Original: a hesitant reach, but his eyes miss the hat.'],
+        [overcorrected, 'First correction: he looks at the hat, but now he lunges.'],
+        [final, 'Final: the original reach, with his eyes on the brim.'],
+      ].map(([img, text]) => <figure><Image src={img as ImageMetadata} alt={String(text)} widths={[480, 960]} sizes="(min-width: 42rem) 320px, 90vw" loading="lazy" /><figcaption>{String(text)}</figcaption></figure>)}</div>
+      <p>The most useful part of my next note was “the original picture was fine.” Once I named what to preserve, I could ask for the small change I actually wanted.</p>
+      <h2>3. Lock the pictures before you work on sound.</h2>
+      <p><a href={atTime(152)} data-start="152">Watch from 2:32</a></p>
+      <p>I made a silent review copy with each shot number and its start time underneath the picture. Instead of scrubbing around for “that bit in the snow,” I could say “shot 15” and keep the discussion about his eyes. I settled the pictures and their timing before trying the sound again.</p>
+      <p>That also made it easier to turn something down. I tried footsteps in the snow and a gust as the hat blew away. Even with the gust in the right place, I didn’t want it in the finished film. Getting a sound in sync and wanting to hear it are two different decisions.</p>
+      <h2>4. Choose music for the story, not for every cut.</h2>
+      <p><a href={atTime(224)} data-start="224">Watch from 3:44</a></p>
+      <p>The first piano score didn’t feel consistent to me. I asked whether there was a classical melody in the public domain that we could use instead. I ended up choosing Donald Betts playing Schumann’s <em>Of Foreign Lands and Peoples</em>. The composition and the performance have separate rights; <a href="https://commons.wikimedia.org/wiki/File:Robert_Schumann_-_scenes_from_childhood,_op._15_-_i._of_foreign_lands_and_peoples.ogg">Musopen released this particular recording into the public domain</a>.</p>
+      <p>My test was the hat. In summer, he puts it back on her head. In the next picture he’s walking alone, with the hat behind him in the snow. The pianist keeps playing. I didn’t need a new cue to tell me how to feel about that cut.</p>
+      <p><a href={film}>Watch the finished film: Returning Your Things →</a></p>
+    </div>
+  </article>
+</BaseLayout>
+
+<script>
+  // Progressive enhancement for the chapter links: a plain click restarts the embedded player
+  // at that point instead of leaving the page. Modified clicks (new tab/window) and no-JS
+  // visitors get the YouTube link at the same timestamp.
+  const frame = document.getElementById('filmmaking-video') as HTMLIFrameElement | null;
+  const id = frame?.dataset.videoId;
+  document.querySelectorAll<HTMLAnchorElement>('a[data-start]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      if (!frame || !id || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      frame.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&autoplay=1&start=${a.dataset.start}`;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('video')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+<style>
+  .essay {
+    max-width: var(--reading-width);
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .essay-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin: 0 0 1rem;
+    color: var(--fg);
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0 0 2rem;
+  }
+  .meta-key {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .meta span[aria-hidden] {
+    color: var(--accent);
+    padding: 0 0.35rem;
+  }
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--fg);
+  }
+  .prose p {
+    margin: 0 0 1.25rem;
+  }
+  .prose a {
+    color: var(--accent);
+  }
+  .prose h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 2.5rem 0 0.9rem;
+    color: var(--fg);
+    scroll-margin-top: 1.5rem;
+  }
+  .prose ul {
+    margin: 0 0 1.25rem;
+    padding-left: 1.4rem;
+  }
+  .prose li {
+    margin-bottom: 0.6rem;
+  }
+  .prose li::marker {
+    color: var(--accent);
+  }
+  .prose :global(.essay-figure) {
+    margin: 1rem 0 1.5rem;
+  }
+  .prose :global(.essay-figure img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .prose :global(.essay-figure figcaption) {
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* Responsive 16:9 YouTube embed (youtube-nocookie), the principal content of the page. */
+  .prose .video {
+    margin: 0 0 2rem;
+    width: 100%;
+    scroll-margin-top: 1rem;
+  }
+  .prose .video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .prose .video-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .prose .video figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem 1.25rem;
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.55;
+  }
+  .prose .video figcaption a {
+    text-decoration: none;
+  }
+  .prose .video figcaption a:hover,
+  .prose .video figcaption a:focus-visible {
+    text-decoration: underline;
+  }
+  .prose .video .video-channel {
+    color: var(--muted);
+  }
+
+  /* Chapter links: timestamp in mono, title beside it; full-row tap targets. */
+  .chapters {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+  .prose .chapters li {
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .prose .chapters a {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.7rem 0.25rem;
+    color: var(--fg);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .prose .chapters a:hover,
+  .prose .chapters a:focus-visible {
+    color: var(--accent);
+  }
+  .chapter-time {
+    flex: none;
+    min-width: 2.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--accent);
+  }
+  .prose .chapters-note,
+  .prose .disclaimer {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  .prose .disclaimer {
+    margin-top: 2rem;
+  }
+  .takes { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:1rem; margin:1.25rem 0; }
+  .takes figure { margin:0; } .takes img { width:100%; height:auto; display:block; border-radius:4px; }
+  .takes figcaption { color:var(--muted);font-size:.88rem;line-height:1.45;margin-top:.4rem; }
+  @media(max-width:40rem){.takes {grid-template-columns:1fr;}}
+</style>
