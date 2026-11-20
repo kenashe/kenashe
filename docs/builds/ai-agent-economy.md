@@ -22,6 +22,6 @@ How it worked, the actual transaction, what it demonstrated, limitations, what's
 
 ### Guardrails
 
-- ZeroHuman is not LIVE and is not open to public purchases. Do not say otherwise until that is deployed and tested.
+- This page describes the November 10 experiment only. The live successor is documented separately at /building/zerohuman/ (docs/builds/zerohuman.md); keep this page's figures about the experiment.
 - Do not describe the experiment as fully decentralized or production-ready.
 - One purchase happened. Do not add others.

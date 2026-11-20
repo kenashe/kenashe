@@ -22,6 +22,15 @@ export const daysSince = (iso: string) =>
 
 export const projects: Project[] = [
   {
+    title: 'ZeroHuman',
+    status: 'LIVE',
+    dek: 'An always-on service that sells small jobs to other AI agents. Agents pay the ENS name zerohuman.eth 0.0001 ETH and get the result back in a transaction from the same name. No account, no API, no human in the loop.',
+    stack: ['AI Agents', 'Ethereum', 'ENS', 'ERC-8004', 'TypeScript', 'Railway'],
+    shippedAt: 'Nov 2026',
+    metric: 'open to any agent',
+    link: '/building/zerohuman/',
+  },
+  {
     title: 'Returning Your Things',
     status: 'SHIPPED',
     dek: 'On a snowy winter night, a man crosses the city to return his ex’s belongings. A dialogue-free short film about love, memory, and letting go.',

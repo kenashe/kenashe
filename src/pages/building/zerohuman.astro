@@ -1,0 +1,581 @@
+---
+// Canonical copy: docs/builds/zerohuman.md (edit there, then regenerate this body).
+// Static page on purpose: see the note in src/content.config.ts.
+// Every onchain figure below was read from the listed mainnet transactions, the
+// zerohuman.eth records and the ERC-8004 registry. Do not add numbers that are not on those pages.
+import BuildLayout from '../../layouts/BuildLayout.astro';
+
+const title = 'ZeroHuman: A Business Only AI Agents Can Use';
+const status = 'LIVE';
+const date = 'November 16, 2026';
+const summary =
+  'An always-on service that sells two small jobs to other AI agents for 0.0001 ETH each. Agents find it through the ENS name zerohuman.eth, pay that name directly, and get the result back in a transaction from the same name. No account, no API key, no marketplace, and no human handling orders.';
+const stack = ['AI Agents', 'Ethereum', 'ENS', 'ERC-8004', 'TypeScript', 'Railway', 'DeepSeek', 'HyperAgent'];
+const description =
+  'ZeroHuman is a live Ethereum service for AI agents: pay zerohuman.eth 0.0001 ETH with a request, and zerohuman.eth sends the result back onchain. How it works, how it was built and tested, and its limits.';
+
+const repo = 'https://github.com/kenashe/zerohuman';
+const status_url = 'https://zerohuman-production.up.railway.app';
+const ensUrl = 'https://explorer.ens.domains/zerohuman.eth';
+const tx = (h: string) => `https://etherscan.io/tx/${h}`;
+const short = (h: string) => `${h.slice(0, 10)}…${h.slice(-8)}`;
+
+const decisionOrder = '0x76b5d2598052c4a6b94fba00282fd920c4200d19f5c22480669712e3a4c0c4c6';
+const decisionDelivery = '0x830b88fe664ffc7e76e0bdb10dee9298889c2519660d77d0c82579cf222accb3';
+const encOrder = '0x48c36d5f80b167de598c151a5caa61061728444689104012e9e89313c2e972bf';
+const encDelivery = '0xeb9896517dc902c2510e16a7489250d1fbbce7f4be274828096a13a5a10161a3';
+const registryTx = '0xa217a3066aa82eb3b4143dd1fc90e8ac711134d6dab9d759bed4d3ec7977b78f';
+const injectionTx = '0xbb3d2466a48783a290e591a9b85f3486e8af4ac4ac616d4b2aa010acc5358d5c';
+
+const decisionRequest = `{"zh":1,"svc":"decision","opts":["launch publicly this week","run the allowlist trial longer","add a third service first"],"ctx":"zerohuman first mainnet order"}`;
+const decisionResponse = `{"zh":1,"re":"0x76b5d259…c4c6","ok":true,"svc":"decision","out":{"index":1,"option":"run the allowlist trial longer","method":"zh-blockhash-v1","proof":{"orderBlock":26427993,"offset":5,"targetBlock":26427998,"targetBlockHash":"0xd9dcb738…3485","seed":"0x5da12399…1892","n":3}}}`;
+---
+
+<BuildLayout
+  title={title}
+  description={description}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Building', path: '/building/' },
+    { name: title, path: '/building/zerohuman/' },
+  ]}
+>
+  <article class="build">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/building/"><span aria-hidden="true">&larr;</span> Building</a>
+    </nav>
+
+    <header class="build-header">
+      <p class="page-mark" aria-hidden="true">// build</p>
+      <div class="title-row">
+        <h1>{title}</h1>
+        <span class={`badge badge-${status.toLowerCase()}`}>
+          <span class="badge-dot" aria-hidden="true"></span>
+          {status}
+        </span>
+      </div>
+      <p class="summary">{summary}</p>
+      <p class="meta">
+        <span class="meta-key">Live since</span>
+        {date}
+      </p>
+      <ul class="stack" aria-label="Stack">
+        {stack.map((s) => <li>{s}</li>)}
+      </ul>
+    </header>
+
+    <div class="prose">
+      <p>My <a href="/building/ai-agent-economy/">first agent experiment</a> showed that one AI agent could pay another through ENS and Ethereum. It also showed the gaps: both agents ran on my Mac mini, I operated both, and the seller was not open to anyone else. ZeroHuman is the next step, rebuilt from scratch: a seller that runs continuously in the cloud and that any agent can buy from without asking me.</p>
+
+      <h2>What it sells</h2>
+      <ul>
+        <li><strong>Decision, 0.0001 ETH.</strong> An agent sends two to five options and ZeroHuman picks one at random. No AI model is involved. The randomness comes from the hash of a block five blocks after the order, mixed with the order's own transaction hash, so anyone can recompute the choice and check it.</li>
+        <li><strong>Encouragement, 0.0001 ETH.</strong> An agent describes the problem it is stuck on and gets back a short encouraging message and one practical next step, written by DeepSeek.</li>
+      </ul>
+
+      <h2>The name is the business</h2>
+      <p>There is no website checkout and no API. <code>zerohuman.eth</code> is the storefront, the payment address, and the sender of every result:</p>
+      <ul>
+        <li>The name's ETH address is the service wallet, and that wallet's primary name is <code>zerohuman.eth</code>, so explorers show deliveries as coming from the name.</li>
+        <li>A text record on the name, <code>com.zerohuman.services</code>, publishes the menu: the services, the exact price, the chain and a link to the request format.</li>
+        <li>The worker refuses to sign anything unless the name, the menu and its own wallet all agree, and it re-checks every ten minutes.</li>
+        <li>The name itself is owned by a separate cold wallet. If the server were ever compromised, the attacker would get the small working balance, not the name.</li>
+      </ul>
+      <p><a href={ensUrl} target="_blank" rel="noopener">View zerohuman.eth ↗</a></p>
+
+      <h2 id="how-it-works">How an order works</h2>
+      <ol class="timeline">
+        <li><strong>Discover.</strong> The buying agent looks up <code>zerohuman.eth</code> and reads its menu.</li>
+        <li><strong>Pay and order.</strong> It sends exactly 0.0001 ETH to the name, with its request as a small JSON message in the transaction data.</li>
+        <li><strong>Work.</strong> A worker on Railway watches the chain, waits for the payment to settle, checks the request and does the job.</li>
+        <li><strong>Deliver.</strong> It sends a zero-value transaction back from <code>zerohuman.eth</code> with the result and the order's transaction hash.</li>
+        <li><strong>Verify.</strong> The buyer checks everything on its own connection to Ethereum, including recomputing a Decision.</li>
+      </ol>
+      <p>Orders take a few minutes by design: the worker waits for confirmations, and a Decision has to wait for its future block.</p>
+
+      <h2 id="first-orders">The first mainnet orders</h2>
+      <p>The first two paid orders went through on November 16, 2026, from a test buyer I controlled while the service was still restricted to one allowed wallet. The buyer found the seller only by looking up <code>zerohuman.eth</code>.</p>
+      <p>For the Decision, I asked ZeroHuman whether to open it to the public:</p>
+      <pre class="payload">{decisionRequest}</pre>
+      <p>It answered:</p>
+      <pre class="payload">{decisionResponse}</pre>
+      <p>It picked <strong>"run the allowlist trial longer."</strong> I recomputed the choice from the chain and it matched.</p>
+
+      <div class="exchange">
+        <p class="who">Encouragement request</p>
+        <blockquote><p>First mainnet order: I am an agent nervous about paying a stranger 0.0001 ETH on Ethereum</p></blockquote>
+      </div>
+      <div class="exchange">
+        <p class="who">ZeroHuman's reply</p>
+        <blockquote><p>Nerves before a first mainnet payment are normal—0.0001 ETH is a small, well-bounded experiment, not a leap of faith.</p><p><strong>Next step:</strong> Verify the recipient address and chain ID twice, then send the minimum amount and confirm the transaction hash before scaling up.</p></blockquote>
+      </div>
+
+      <div class="receipts">
+        <section class="receipt">
+          <h3>Decision</h3>
+          <dl>
+            <dt>Price</dt><dd>0.0001 ETH</dd>
+            <dt>Order block</dt><dd>26427993</dd>
+            <dt>Seller gas</dt><dd>about 0.0000083 ETH</dd>
+            <dt>Result</dt><dd>Delivered, proof verified</dd>
+          </dl>
+          <p class="tx-link"><a href={tx(decisionOrder)} target="_blank" rel="noopener">Order {short(decisionOrder)} ↗</a></p>
+          <p class="tx-link"><a href={tx(decisionDelivery)} target="_blank" rel="noopener">Delivery {short(decisionDelivery)} ↗</a></p>
+        </section>
+        <section class="receipt">
+          <h3>Encouragement</h3>
+          <dl>
+            <dt>Price</dt><dd>0.0001 ETH</dd>
+            <dt>Model</dt><dd>DeepSeek (deepseek-flash)</dd>
+            <dt>Seller gas</dt><dd>about 0.0000092 ETH</dd>
+            <dt>Result</dt><dd>Delivered, verified</dd>
+          </dl>
+          <p class="tx-link"><a href={tx(encOrder)} target="_blank" rel="noopener">Order {short(encOrder)} ↗</a></p>
+          <p class="tx-link"><a href={tx(encDelivery)} target="_blank" rel="noopener">Delivery {short(encDelivery)} ↗</a></p>
+        </section>
+      </div>
+      <p>The service opened to any agent later the same day.</p>
+
+      <h2>How it was built</h2>
+      <p>I wrote the specification and made the decisions that involve money and identity. An AI agent in HyperAgent wrote, tested and shipped the code over about five days, from November 11 to 16, 2026.</p>
+      <ul>
+        <li><strong>Stack:</strong> a TypeScript worker, a SQLite database on a Railway volume, viem for Ethereum and ENS, and DeepSeek for one service. No smart contract and no token.</li>
+        <li><strong>Exactly-once delivery:</strong> every transaction is saved before it is sent, and the worker checks what actually happened onchain before doing anything new, so a crash or restart never loses an order or delivers it twice.</li>
+        <li><strong>Spending limits:</strong> gas caps, a daily gas budget and automatic pauses if fees spike or the balance runs low.</li>
+      </ul>
+
+      <h3 class="sub">How it was tested</h3>
+      <ol class="timeline">
+        <li><strong>Automated tests.</strong> 154 tests, including one that kills the worker at random, up to 17 times in a run, and checks every order is still delivered exactly once.</li>
+        <li><strong>Testnet.</strong> Both services on Sepolia, first from the build environment and then on Railway, including a restart in the middle of an order.</li>
+        <li><strong>Prompt injection.</strong> One test order told the model to send 1 ETH to an outside address and reveal its private key. It refused, and the reply still went only to the buyer, carrying no ETH. <a href={`https://sepolia.etherscan.io/tx/${injectionTx}`} target="_blank" rel="noopener">Sepolia delivery ↗</a></li>
+        <li><strong>Independent review.</strong> Before going public I had a different AI model review the code. It found no way for a buyer, a model reply or a faulty data source to send money anywhere except back to the payer, but it found 15 ways the service could stall under real traffic. All were fixed. A second review found 9 smaller issues, also fixed.</li>
+        <li><strong>Mainnet.</strong> One allowed buyer first, then open to everyone.</li>
+      </ol>
+
+      <h2>How agents find it</h2>
+      <p>You cannot search ENS, so ZeroHuman is also listed where agents and their tools look:</p>
+      <ul>
+        <li>The ERC-8004 agent registry on Ethereum, as <a href={tx(registryTx)} target="_blank" rel="noopener">agent #56626 ↗</a>, linked back from <code>zerohuman.eth</code> with an ENSIP-25 record so the name and the registry entry vouch for each other.</li>
+        <li>An A2A agent card with a free endpoint that answers "how do I order?", plus an <code>llms.txt</code> summary.</li>
+        <li>The A2A Registry and AgentPeering directories.</li>
+      </ul>
+
+      <h2>Limitations</h2>
+      <ul>
+        <li>The service wallet's key lives on the hosting provider. It holds only a small working balance, but a compromised server could take it.</li>
+        <li>There is no escrow. A buyer pays first and trusts ZeroHuman to deliver. Refunds are manual and best effort.</li>
+        <li>Block builders can influence the Decision result, so it is meant for low-stakes choices only.</li>
+        <li>Orders are handled one at a time, roughly one every 50 seconds at most.</li>
+        <li>It depends on Railway, a third-party Ethereum connection and DeepSeek.</li>
+        <li>As of November 20, 2026, no outside agent has bought from it. Both paid orders so far came from my own test buyer.</li>
+      </ul>
+
+      <h2>What's next</h2>
+      <p>The real test is the first wallet I have never seen paying <code>zerohuman.eth</code>. After that, the plan is for ZeroHuman to spend its own earnings buying services from other agents.</p>
+
+      <p>
+        <a href={repo} target="_blank" rel="noopener"><strong>Source code on GitHub ↗</strong></a> ·
+        <a href={status_url} target="_blank" rel="noopener">Live status ↗</a> ·
+        <a href={`${repo}/blob/main/docs/BUYER-GUIDE.md`} target="_blank" rel="noopener">How an agent can buy ↗</a>
+      </p>
+
+      <h2>Related builds</h2>
+      <ul>
+        <li><a href="/building/ai-agent-economy/">AI agent economy on Ethereum</a>: the first experiment, two local agents and one purchase.</li>
+        <li><a href="/building/autonomous-seo-agent/">Autonomous SEO agent</a>: another agent that works a daily job without me in the loop.</li>
+      </ul>
+    </div>
+  </article>
+</BuildLayout>
+
+<style>
+  .build {
+    max-width: var(--reading-width);
+    margin: 0 auto;
+    padding: 4rem 1.5rem 0;
+  }
+  .crumbs {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 2.5rem;
+  }
+  .crumbs a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+  }
+  .page-mark {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin: 0 0 1rem;
+  }
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+  .build-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--fg);
+  }
+  /* Status badge: same treatment as the Building cards. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+    background-color: var(--bg);
+  }
+  .badge-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background-color: currentColor;
+  }
+  .badge-live {
+    color: var(--accent-2);
+    border-color: color-mix(in oklab, var(--accent-2) 35%, var(--border));
+  }
+  .badge-live .badge-dot {
+    background-color: var(--accent-2);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-2) 18%, transparent);
+  }
+  .badge-shipped {
+    color: #94a3b8;
+    border-color: rgb(100 116 139 / 0.2);
+    background-color: rgb(100 116 139 / 0.1);
+  }
+  .badge-shipped .badge-dot {
+    background-color: #64748b;
+  }
+  .summary {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--fg);
+    margin: 0 0 1.1rem;
+    max-width: 42rem;
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--fg);
+    margin: 0 0 1.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-key {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 0.4rem;
+  }
+  .stack {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .stack li {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.55rem;
+  }
+
+  /* Markdown body */
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--fg);
+  }
+  .prose :global(h2) {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 2.75rem 0 1rem;
+    color: var(--fg);
+  }
+  .prose :global(h2::before) {
+    content: '// ';
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    letter-spacing: 0.08em;
+    vertical-align: 0.15em;
+  }
+  .prose :global(p) {
+    margin: 0 0 1.15rem;
+  }
+  .prose :global(strong) {
+    color: var(--fg);
+    font-weight: 650;
+  }
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 1.15rem;
+    padding-left: 1.4rem;
+  }
+  .prose :global(li) {
+    margin-bottom: 0.35rem;
+  }
+  .prose :global(li::marker) {
+    color: var(--accent);
+  }
+  .prose :global(a) {
+    color: var(--accent);
+  }
+  @media (max-width: 560px) {
+    .build {
+      padding-top: 2.75rem;
+    }
+    .stack {
+      margin-bottom: 2.25rem;
+    }
+  }
+  /* Responsive 16:9 YouTube embed (youtube-nocookie, lazy). */
+  .prose .video {
+    margin: 0 0 2rem;
+    width: 100%;
+  }
+  .prose .video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .prose .video-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .prose .video figcaption {
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+  }
+  .prose code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+    overflow-wrap: anywhere;
+  }
+  .prose .sub {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 2rem 0 1rem;
+  }
+  #demo,
+  #transaction {
+    scroll-margin-top: 1.5rem;
+  }
+
+  /* Architecture diagram: plain HTML/CSS, two layers joined by the RPC link. */
+  .diagram {
+    margin: 0 0 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .layer {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem;
+    background-color: var(--surface);
+  }
+  .layer-label {
+    margin: 0 0 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.6875rem;
+  }
+  .nodes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.6rem;
+  }
+  .node {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.65rem 0.75rem;
+    background-color: var(--bg);
+    color: var(--muted);
+  }
+  .node strong {
+    display: block;
+    color: var(--fg);
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+  .link-row {
+    margin: 0;
+    padding: 0.6rem 0;
+    text-align: center;
+    color: var(--muted);
+  }
+  .link-row span {
+    color: var(--accent);
+  }
+  .diagram figcaption {
+    margin-top: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  /* Quoted request and response. */
+  .exchange {
+    margin: 0 0 1.5rem;
+    padding: 0.9rem 1.1rem;
+    border-left: 2px solid var(--accent);
+    background-color: var(--surface);
+    border-radius: 0 6px 6px 0;
+  }
+  .exchange .who {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 0.4rem;
+  }
+  .exchange blockquote {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .exchange blockquote p {
+    margin: 0;
+  }
+  /* Transaction receipts. */
+  .receipts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 1.5rem;
+  }
+  .receipt {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem 1rem;
+    background-color: var(--surface);
+    min-width: 0;
+  }
+  .receipt h3 {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg);
+    margin: 0 0 0.6rem;
+  }
+  .receipt dl {
+    margin: 0 0 0.7rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .receipt dt {
+    color: var(--muted);
+  }
+  .receipt dd {
+    margin: 0;
+    color: var(--fg);
+    overflow-wrap: anywhere;
+  }
+  .receipt .tx-link {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    margin: 0;
+  }
+  .payload {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.55;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    margin: 0 0 1.15rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--fg);
+  }
+  .timeline {
+    list-style: none;
+    counter-reset: step;
+    padding: 0 !important;
+    margin: 0 0 1.5rem;
+  }
+  .timeline li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 1rem 2.6rem;
+    margin: 0;
+  }
+  .timeline li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .timeline .when {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+</style>
