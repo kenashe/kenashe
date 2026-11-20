@@ -1,0 +1,72 @@
+---
+title: "The Self-Consistency Trap: When Sampling the Same Prompt Lies to You"
+description: "A new arXiv paper shows that repeated sampling to certify a model's answer proves something narrower than most builders think, and on hard problems the gap between realized and population reliability is large enough to break your confidence math."
+pubDate: 2026-11-20
+tags: ["model-reliability", "evals", "reasoning-models", "ai-research", "benchmarks"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-20-the-self-consistency-trap-when-sampling-the-same-prompt-lies-to-you/hero.webp
+  alt: "The Self-Consistency Trap: When Sampling the Same Prompt Lies to You"
+sources:
+  - title: "Realized versus Population Reliability: Anytime-Valid Self-Consistency Certification under Correlated Reasoning"
+    url: "http://arxiv.org/abs/2611.26592v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+  - name: "Claude"
+    sameAs: "https://www.wikidata.org/wiki/Q118876059"
+---
+
+TL;DR: When you sample a model many times to certify an answer, correlated reasoning means you are usually certifying "the belief this prompt happened to land on," not "how the model behaves on average," and on hard problems like AIME that distinction fires a false confidence on 24% of prompts.
+
+The paper is "Realized versus Population Reliability: Anytime-Valid Self-Consistency Certification under Correlated Reasoning," posted to arXiv under both cs.AI and cs.LG. It takes a method a lot of agent builders now rely on without naming it, self-consistency sampling, and shows the guarantee it offers is not the guarantee people think they are buying.
+
+## What does self-consistency certification actually claim?
+
+Here is the setup, in builder terms. You have a model. You ask it the same question several times, with sampling on, and you watch the answers. If enough rollouts agree, you declare the answer reliable and stop. The fancy version wraps this in an anytime-valid e-process: you treat each new sample as a piece of sequential evidence, you keep a running "betting" statistic, and you stop the moment it crosses a threshold. Ville's inequality gives you a clean promise that your false-positive rate stays under some nominal level, say 5%, no matter when you stop. That last part is the appeal. Normal statistical tests punish you for peeking. Anytime-valid procedures let you peek continuously and still hold the error bound.
+
+That math is correct. The paper does not dispute it. What it disputes is the assumption underneath: that your repeated rollouts are conditionally independent. They are not.
+
+![many branching paths splitting from one shared trunk, versus many fully separate paths starting from different points](../../assets/blog/2026-11-20-the-self-consistency-trap-when-sampling-the-same-prompt-lies-to-you/inline-1.webp)
+
+The samples share a prompt. They often share a reasoning prefix. The model is not rolling fresh dice each time, it is drawing from a correlated stream. The authors model this with a per-unit latent state, the classic random-effects or intraclass-correlation structure, and the result is exchangeable, equi-correlated increments with a correlation coefficient they call rho. Once rho is above zero, something breaks that nobody was watching for.
+
+## What is the difference between realized and population reliability?
+
+This is the whole paper in one idea, so slow down here.
+
+When answers are correlated, the single thing you thought you were testing splits into two different things. The authors call them the realized null and the population null.
+
+The realized null is a claim about the specific belief this prompt drew. On this question, given the reasoning direction the model happened to commit to, is the model consistently right? That is a statement about one draw from the model's behavior.
+
+The population null is the claim you actually care about as an operator. On average, across the whole distribution of how this model could reason about this kind of question, is it reliable? That is a statement about the model, not about one lucky or unlucky instance.
+
+When rho is zero, these coincide. No correlation, no gap, and the classic independence story holds. The moment rho is positive, they come apart. And the paper's first hard result is blunt: the standard betting e-process stays anytime-valid for the realized null, not the population null. You are certifying the belief you drew, not the model you have.
+
+That matters because the belief you drew can be a bad belief. If the model's reasoning prefix committed to a wrong approach early, every correlated rollout reinforces it, your consistency statistic climbs, and your certificate happily tells you the answer is reliable. You have certified a confident error.
+
+## Why can't you just sample more times to fix it?
+
+This is the result that should change how people spend their token budget.
+
+Intuition says: if I am worried about noise, take more samples. More rollouts, tighter estimate, problem solved. The paper shows that intuition fails under correlation. The within-unit mean's effective sample size saturates at 1 over rho. If rho is 0.48, your effective sample size caps out around two, no matter how many rollouts you run on that single prompt. You can sample a hundred times. You are still, in information terms, looking at roughly two independent observations of a correlated stream. Extra within-prompt rollouts cannot restore population validity. They just make you more confident about the realized belief, which is exactly the thing you did not need more confidence about.
+
+![a bucket filling with water but overflowing past a low fixed line no matter how much is poured in](../../assets/blog/2026-11-20-the-self-consistency-trap-when-sampling-the-same-prompt-lies-to-you/inline-2.webp)
+
+The fix is structural, not brute-force. The authors show a prompt-level e-process restores population validity, and under a pure rollout budget the optimal allocation is one rollout per prompt. Read that again. If your goal is to certify how the model behaves in general, the efficient move is to spread your budget across many prompts with one sample each, not to hammer a single prompt dozens of times. That is close to the opposite of what most self-consistency pipelines do.
+
+## How big is the gap in practice?
+
+This is where the paper earns its keep, because the effect is regime-dependent and they show both regimes.
+
+On GSM8K, the grade-school math benchmark, they measured rho at about 0.435 and a signal term theta at +0.96 using Claude Haiku 4.5 rollouts. The problems are easy enough that the model's drawn beliefs are reliably correct, so the gap between realized and population claims stays dormant. Everything looks fine. You would never notice the problem shipping on easy tasks.
+
+On AIME, the competition-math benchmark, rho was about 0.480 and theta was -0.15. Now the gap wakes up. The single-unit rule, the standard sample-the-same-prompt approach, crosses its certification threshold on 24% of prompts at a nominal error rate of 5%. Nominal 5%, realized 24%. The prompt-level procedure, by contrast, declined on essentially all of them, a crossing rate of 0.00. The difference between the two methods is the difference between a certificate that means something and one that is quietly lying to you on the hardest quarter of your inputs.
+
+![two gauges side by side, one reading low and calm, the other pinned high into a red zone](../../assets/blog/2026-11-20-the-self-consistency-trap-when-sampling-the-same-prompt-lies-to-you/inline-3.webp)
+
+The uncomfortable part is the pattern. Easy benchmark, problem hidden. Hard benchmark, problem exposed. The cases where you most want a reliability certificate, the genuinely difficult reasoning tasks, are exactly the cases where the naive certificate overstates your confidence by the most. That is not a corner case. That is the operating regime of every agent that routes hard problems through a "sample-and-vote" reliability gate.
+
+## Practitioner's take
+
+If you run any form of self-consistency, majority voting, best-of-N with a confidence stop, or an anytime-valid stopping rule to decide when an agent's answer is trustworthy, assume you are certifying the realized belief and not the model, until you prove otherwise. Two concrete moves. First, estimate rho on your own task before you trust a consistency gate. The paper's own numbers, around 0.44 to 0.48 on math, say correlation is not a rounding error, it is the dominant effect, and your effective sample size is capping out at two or three regardless of how many rollouts you pay for. Second, if what you actually care about is population behavior, which you almost always do when you are deciding whether to trust the model on a class of inputs, spread the budget: one rollout across many prompts beats many rollouts on one prompt. The catch most readers will miss is that this never shows up on your easy evals. GSM8K looked clean. The method fails precisely where your evals are too easy to catch it, so a green dashboard on simple tasks is not evidence your reliability gate works on the hard ones. Check the regime where it hurts, or you will ship confident errors and call them certified.

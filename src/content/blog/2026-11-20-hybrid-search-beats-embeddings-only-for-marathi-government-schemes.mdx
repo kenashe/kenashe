@@ -1,0 +1,60 @@
+---
+title: "Hybrid search beats embeddings-only for Marathi government schemes"
+description: "A bilingual government-scheme retrieval paper shows the practical shape of search in messy public-service domains: BM25 is hard to beat, dense retrieval alone underperforms, and hybrid fusion helps most when it respects exact administrative language."
+pubDate: 2026-11-20
+tags: ["ai-search", "rag", "benchmarks", "applied-ai"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-20-hybrid-search-beats-embeddings-only-for-marathi-government-schemes/hero.webp
+  alt: "Hybrid search beats embeddings-only for Marathi government schemes"
+sources:
+  - title: "Hybrid Retrieval for Government Scheme Search in English and Marathi"
+    url: "http://arxiv.org/abs/2611.26514v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: For bilingual public-service search, embeddings are not a replacement for keyword retrieval. The useful pattern is BM25 first, semantic retrieval second, fused and tested against real queries.
+
+## Does hybrid retrieval actually beat BM25 here?
+
+The primary source is the paper “Hybrid Retrieval for Government Scheme Search in English and Marathi,” listed on arXiv cs.CL and cs.LG. It is not a giant benchmark story. That is the point.
+
+The system targets Maharashtra government schemes and public services, where a citizen’s query may use everyday Marathi, English, mixed language, or translated terms, while the official scheme description may use administrative wording. That is exactly the kind of setting where people expect embeddings to shine.
+
+They did help. But not in the cartoon version.
+
+The paper reports that BM25, the old lexical workhorse, reached a mean reciprocal rank of 0.864 on manually curated bilingual queries. Hybrid retrieval, using equal-weight fusion between BM25 and sentence-embedding similarity, improved that to 0.872 with IndicSBERT and 0.879 with MahaSBERT. With MahaSBERT fusion, precision rose from 0.781 to 0.808 while recall matched BM25 at 0.946.
+
+That is a real gain. It is also modest.
+
+The bigger warning is dense-only retrieval. IndicSBERT dense-only scored 0.663 MRR. MahaSBERT dense-only scored 0.655. In this collection, replacing lexical search with embeddings would have made the system materially worse.
+
+![two streams of documents converging into a shared ranked result stack, one stream made of exact matching blocks and the ](../../assets/blog/2026-11-20-hybrid-search-beats-embeddings-only-for-marathi-government-schemes/inline-1.webp)
+
+## Why do embeddings underperform in a domain that seems made for semantics?
+
+Government scheme search is full of terms that behave like identifiers, not vibes.
+
+A scheme name, department name, benefit category, eligibility phrase, caste category, income threshold, region, document requirement, or application step can be the thing that matters. BM25 is good at that because it rewards exact overlap. It does not need to “understand” that a phrase is important. It just catches it.
+
+Embeddings help when the citizen does not use the official phrasing. A person may ask for “farmer loan help” while the scheme description uses a more formal phrase. In a multilingual setting, the mismatch gets worse. Marathi-focused and translation-mediated configurations are useful because the user’s language and the government’s language are not always aligned.
+
+But embeddings can blur boundaries that public-service retrieval cannot afford to blur. “Similar” schemes are not interchangeable if eligibility or benefits differ. A bad top result is not just a bad search result. It may send someone toward the wrong office, the wrong form, or the wrong assumption about what they qualify for.
+
+That is why the equal-weight fusion result is interesting. The paper does not show a magic model that solves government search. It shows a practical pattern: keep the high-precision lexical anchor, then add semantic matching where language mismatch hurts.
+
+## What should builders copy from this?
+
+Copy the evaluation posture before copying the architecture.
+
+The paper used manually curated bilingual queries and reported MRR, precision, and recall. That matters because hybrid search can look good in demos while hiding failure modes. A user asks a natural-language question, the system returns something plausible, and everyone nods. Then you test against known relevant schemes and discover that the semantic ranker is confidently pulling near misses.
+
+For RAG systems, this is the same lesson. If your corpus contains product SKUs, policy clauses, legal terms, medical codes, plan names, grant names, or government forms, do not assume vector search is the smart layer and keyword search is legacy baggage. In many applied systems, keyword retrieval is the safety rail.
+
+The most useful production pattern is boring: BM25 or another lexical retriever, plus a domain-appropriate embedding model, plus score fusion, plus a reranking or validation step if the cost of a wrong result is high. Then measure by query class. Head queries, translated queries, colloquial queries, exact-name queries, and eligibility queries may not behave the same.
+
+My take: the win in “Hybrid Retrieval for Government Scheme Search in English and Marathi” is not the 0.015 MRR lift from BM25 to MahaSBERT fusion. The win is the discipline. Dense retrieval lost badly on its own, and the paper says so plainly.
+
+A builder should try this on a small, labeled slice before touching the whole stack: 50 to 200 real queries, known good results, BM25 baseline, embeddings-only, then hybrid fusion. The catch most readers miss is that hybrid is not automatically better. It is only better when the semantic model adds recall or ranking lift without washing out the exact terms your users cannot afford to miss.

@@ -1,0 +1,60 @@
+---
+title: "Post-training can make models misread what they already know"
+description: "A paper on open-weight language models shows post-training can change the way models turn internal representations into answers, sometimes making outputs worse even when the signal is still present inside the model."
+pubDate: 2026-11-20
+tags: ["post-training", "interpretability", "model-reliability", "evals", "language-models"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-20-post-training-can-make-models-misread-what-they-already-know/hero.webp
+  alt: "Post-training can make models misread what they already know"
+sources:
+  - title: "Represented but misread: Post-training changes how language models read out what they represent"
+    url: "http://arxiv.org/abs/2611.26584v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: Post-training does not just add polish or alignment behavior, it can change how a model reads out information it already represents, which means output-only evals can miss the real failure mode.
+
+## What did the model know, and what did it say?
+
+The primary source here is the arXiv cs.CL/cs.LG paper titled **“Represented but misread: Post-training changes how language models read out what they represent.”** The core claim is narrow and useful: a model can internally represent the right signal, while its final answer uses that signal badly.
+
+That distinction matters.
+
+The paper compared linear probes against the models’ own answers across six open-weight base models and their post-trained versions. The task was judging whether German texts were written by a human or by AI. Probes and word n-gram classifiers separated the classes well. The models’ answers did not. In some cases, the answers ordered the texts backwards.
+
+That is the part that should make builders pause. If the probe can see the signal, the model has not simply “failed to understand.” Something downstream is going wrong. The information is represented, then misread during the answer process.
+
+The reported average effect was not tiny: post-training lowered answer sensitivity by Δd' = -0.34 across model families, and -0.29 across three prompts. The paper also found that post-training changed how models used a stated base rate. Base models shifted their log-odds by less than the stated prior odds change. Most post-trained models shifted by more.
+
+That sounds abstract, but the product version is simple: the chat-tuned model may sound more helpful and calibrated while making worse use of the evidence inside its own activations.
+
+![two layered model pathways, one showing an internal signal preserved and another showing the final answer bending away f](../../assets/blog/2026-11-20-post-training-can-make-models-misread-what-they-already-know/inline-1.webp)
+
+## Is post-training breaking representations or changing the readout?
+
+The paper’s answer is mostly readout.
+
+In two models with stage-wise checkpoints, the change appeared during supervised fine-tuning. Model stitching pointed to early layers, and from mid-depth onward, internal states at positions after the text transferred the change between checkpoints, not the states of the text itself.
+
+That is a weird but important detail. The model’s processing of the prompt after the evidence, the answer-forming area, seems to carry much of the behavioral shift. In other words, post-training may be teaching the model a new decision policy over existing internal features.
+
+The paper’s second case makes the point cleaner. For truth of negated statements, probes decoded truth at or near ceiling in every model. Several base models had the truth signal but did not use it well in answers. Post-training repaired that. Same mechanism class, opposite result.
+
+So post-training is not “good” or “bad” in the abstract. It can improve readout, or it can make readout worse. The direction depends on the training signal.
+
+The training experiment drives that home. Adding 2,000 correctly labeled authorship judgments of news texts improved answers on newspaper and textbook corpora. But it inverted answers on chats, where the model followed a news-trained probe of the base model. A small, specific training signal set the direction, then generalized in a brittle way.
+
+## What does this change for evals?
+
+It means “the model got the answer wrong” is an incomplete diagnosis.
+
+For production systems, especially classification, moderation, authorship detection, compliance checks, and agent routing, there are at least two different failures hiding under the same bad output. The model might lack the representation. Or it might represent the signal and read it out poorly after post-training.
+
+Those call for different fixes. If the representation is absent, you may need data, retrieval, tools, or a different model. If the representation exists but readout is wrong, better prompts may help at the margin, but targeted fine-tuning or post-training data can also steer the decision rule. The catch is that a small dataset can steer it the wrong way outside the slice it covers.
+
+I would not take this paper as a reason to distrust all post-trained models. That is too broad. I would take it as evidence that base-vs-instruct comparisons are still underused. If you only test the polished chat model, you may blame the wrong part of the stack.
+
+For builders, the practical move is to test three layers when the answer matters: base model behavior if available, post-trained model behavior, and an external probe or simpler classifier on the same inputs. If the simple classifier sees the signal and the chat model does not, do not keep prompt-tuning forever. Treat it as a readout problem. Try a small supervised dataset, test it hard across domains, and watch for the silent failure the paper surfaced: improvement on the training-shaped cases, inversion on the cases that merely look nearby.
