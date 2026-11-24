@@ -25,3 +25,4 @@ How it worked, the actual transaction, what it demonstrated, limitations, what's
 - This page describes the November 10 experiment only. The live successor is documented separately at /building/zerohuman/ (docs/builds/zerohuman.md); keep this page's figures about the experiment.
 - Do not describe the experiment as fully decentralized or production-ready.
 - One purchase happened. Do not add others.
+- The page links once, under Further reading, to the Lucky Domains research article at https://luckydomains.io/insights/domains-identity-for-ai-agents/. Lucky Domains does not sell agent identity. Do not describe this experiment as a Lucky Domains product or venture.
