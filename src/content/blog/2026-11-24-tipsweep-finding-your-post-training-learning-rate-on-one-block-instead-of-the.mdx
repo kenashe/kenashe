@@ -1,0 +1,66 @@
+---
+title: "TipSweep: Finding Your Post-Training Learning Rate on One Block Instead of the Whole Model"
+description: "A new arXiv method predicts the optimal learning rate for LLM post-training by tuning a single transformer block, with scaling rules that change depending on whether you keep FP32 master weights or update BF16 directly."
+pubDate: 2026-11-24
+tags: ["post-training", "fine-tuning", "model-training", "ai-research", "reinforcement-learning"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-24-tipsweep-finding-your-post-training-learning-rate-on-one-block-instead-of-the/hero.webp
+  alt: "TipSweep: Finding Your Post-Training Learning Rate on One Block Instead of the Whole Model"
+sources:
+  - title: "Precision-Aware Learning Rate Transfer Across Block Count in LLM Post-Training"
+    url: "http://arxiv.org/abs/2611.31166v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: A method called TipSweep finds the right learning rate for LLM post-training by tuning only the last transformer block, then uses a precision-dependent scaling rule to predict the rate for the full model, cutting a five-candidate search to about half the cost of one full-depth training run.
+
+Learning rate is the quiet tax on every fine-tune. You pick it wrong and your SFT run plateaus, your DPO run collapses, or your RLVR run just wobbles and burns GPU hours producing nothing you can ship. So people grid-search it. Train the whole model at 1e-5, train it again at 2e-5, again at 5e-6, compare, repeat. Each candidate is a full training run. On a 7B model that is expensive in both compute and memory, and it is the kind of cost that never shows up in a blog post but absolutely shows up on your bill.
+
+The paper "Precision-Aware Learning Rate Transfer Across Block Count in LLM Post-Training" (arXiv, cs.CL and cs.LG) proposes a cheaper path. The authors call it TipSweep. The core claim is narrow and testable: you can search for the learning rate while training only the last block of the transformer, then transfer that result to the full model using a scaling rule that depends on your numerical precision.
+
+## What is TipSweep actually doing?
+
+The setup is simple. Instead of running your learning rate sweep on all L transformer blocks, you freeze everything except the last k0 blocks. In their experiments k0 is usually just 1. That one block is cheap to train, so running five candidate learning rates over it is cheap too.
+
+Then comes the transfer. The paper gives scaling rules that predict the optimal learning rate for any number of trainable blocks k, including the full model where k equals L. So you tune on one block, plug k = L into the rule, and you get the learning rate you should use for the real run. No full-depth grid search required.
+
+![a single thin slice at the end of a long stack being tested, then an arrow projecting that result across the entire stac](../../assets/blog/2026-11-24-tipsweep-finding-your-post-training-learning-rate-on-one-block-instead-of-the/inline-1.webp)
+
+This only works if the relationship between "best rate on one block" and "best rate on the full model" is stable and predictable. The interesting part of the paper is that it is predictable, but not in one fixed way. It depends on how you store your weights.
+
+## Why does the scaling rule change with precision?
+
+This is the part worth slowing down for, because it is the actual finding, not just an engineering convenience.
+
+The authors report two different scaling behaviors depending on numerical precision. With FP32 master weights (the standard setup where you keep a high-precision copy of the weights for the optimizer), the optimal learning rate scales approximately as k^-1. Train one block versus L blocks and the rate scales inversely with the count.
+
+But when you drop the master copy and apply updates directly to BF16 weights, the optimal rate scales as k^-1/2 instead. Different exponent, different curve, same model family.
+
+They explain this with an analytical model built around update rounding. When you update BF16 weights directly, small updates can get rounded away because BF16 does not have the mantissa bits to represent them. That rounding changes how the effective update size behaves as you add more trainable blocks, and the math shakes out to the square-root rule instead of the linear one. They back the assumptions behind that model with profiling experiments rather than just asserting it, which is the right way to make a claim like this.
+
+![two different curves bending apart from a shared starting point, one steeper than the other, suggesting divergence drive](../../assets/blog/2026-11-24-tipsweep-finding-your-post-training-learning-rate-on-one-block-instead-of-the/inline-2.webp)
+
+The practical takeaway here is bigger than TipSweep itself. If you are doing BF16 updates without a master copy, which plenty of memory-constrained setups do, your learning rate intuition from FP32 training is wrong by a predictable amount. That is a trap people fall into without ever diagnosing it. They copy a learning rate from a reference recipe, get mushy results, and blame the data.
+
+## How much does this actually save?
+
+The paper builds two prototypes on a 6.7B model, and the numbers are the kind I like because they are concrete and modest rather than heroic.
+
+The first prototype fits the entire learning rate search on a single consumer GPU with 16 GiB of memory. That is the detail that matters for most people reading this. A 6.7B model's learning rate search on a card you can actually own, instead of a rented cluster, because you are only ever training one block at a time.
+
+The second prototype targets a high-end GPU and goes for speed. It evaluates all candidate learning rates in a single pass over the data, so a five-candidate search costs about half the GPU hours of one single full-depth run. Read that again: five candidates for half the price of one full run. The old way would have been five full runs. So the comparison is roughly five full runs versus half a run for the same information.
+
+I want to be careful about what is claimed and what is not. The reported range is 1B to 7B parameters. The prototype numbers are specifically for a 6.7B model. The scaling rules are "approximately" k^-1 and k^-1/2, not exact laws, and the explanation rests on an analytical model with stated assumptions. Nobody has shown this holds at 70B or that it survives every optimizer and schedule you might throw at it. Treat it as a strong, well-argued result on the scales they tested, not a universal constant.
+
+## Who should care, and what is the catch?
+
+If you post-train open models at all, SFT, DPO, or RLVR, this is directly in your lane. The learning rate sweep is one of the least glamorous and most expensive parts of the loop, and this attacks it head-on.
+
+The catch most readers will miss is the precision dependence, and it cuts both ways. On one hand it is the clever insight. On the other hand it means you cannot apply TipSweep blind. You have to know which regime you are in, FP32 master weights or direct BF16 updates, and use the matching rule. Use the FP32 rule in a BF16-direct setup and you will transfer the wrong rate with confidence, which is worse than not transferring at all. The method is precise, but it demands that you be precise about your own training config first.
+
+There is also the open question of how this interacts with learning rate schedules, warmup, and the specific dynamics of RLVR, where the "best" rate is entangled with reward signal quality in ways a short sweep on one block may not capture. The paper covers these post-training methods in its framing, but a reward-driven run has failure modes a single-block search may not surface.
+
+Practitioner's take: if you run your own post-training, add TipSweep to your pre-flight checklist and treat it as a cheap prior, not a final answer. Before committing to a full fine-tune, freeze all but the last block, sweep five learning rates over one pass of your data, and use the precision-matched scaling rule to project to full depth. First, write down whether you keep FP32 master weights or update BF16 directly, because that one fact decides which exponent you use. Then run one short full-model confirmation at the predicted rate rather than trusting the projection cold. You are not eliminating the sweep, you are shrinking it from five full runs to roughly half of one plus a sanity check. The people who get burned will be the ones who apply the rule without checking their precision regime, and the ones who assume a result validated up to 7B automatically holds at the frontier. It might. The paper does not claim it does.
