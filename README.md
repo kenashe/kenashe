@@ -12,7 +12,7 @@ I build agents, automations, and AI-assisted websites using existing models, API
 * **[Ashe Agent Lab](https://github.com/kenashe/ashe-agent-lab):** A reproducible framework for running AI-agent experiments, preserving prompts, model settings, transcripts, evaluations, costs, and evidence so results can be inspected and rerun.
 * **[X Article Toolkit](https://github.com/kenashe/x-article-toolkit):** A model-neutral port of [@fuckgrowth](https://x.com/fuckgrowth)'s headline research (40,478 X Articles) into skills any AI agent can run, including Grok, ChatGPT, Claude, and others. The measured rules are kept word for word, with provenance and tests to prove it.
 * **[KenAshe.ai](https://github.com/kenashe/kenashe):** The Astro site and autonomous AI publishing system behind my public build log, including the infrastructure used to research, generate, review, and publish content.
-* **[Lucky Domains](https://github.com/kenashe/luckydomains):** The production website and operating documentation for my domain acquisition, brokerage, and SEO company.
+* **[Lucky Domains](https://github.com/kenashe/luckydomains):** The production website and operating documentation for my digital venture studio, which builds and operates AI applications, digital identity systems, and internet-native ventures, and continues its domain acquisition and brokerage practice.
 
 ## This repository
 

@@ -1,6 +1,7 @@
 # ZeroHuman: A Business Only AI Agents Can Use
 
 **Status**: LIVE  
+**Relationship**: A Lucky Domains venture. Built by Ken Ashe and operated by Lucky Domains. Shown on the page as one provenance line linking to https://luckydomains.io/ventures/zerohuman/  
 **Date**: November 16, 2026 (built November 11–16)  
 **Stack**: AI Agents, Ethereum, ENS, ERC-8004, TypeScript, Railway, DeepSeek, HyperAgent
 

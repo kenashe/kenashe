@@ -1,6 +1,7 @@
 # I Built Two AI Agents That Buy and Sell Services on Ethereum
 
 **Status**: SHIPPED  
+**Relationship**: A Lucky Domains experiment. Shown on the page as one provenance line linking to https://luckydomains.io/ventures/ai-agent-economy/  
 **Date**: November 10, 2026  
 **Stack**: AI Agents, Ethereum, ENS, Autonomous Agents, Ollama, Blockchain, Decentralization
 

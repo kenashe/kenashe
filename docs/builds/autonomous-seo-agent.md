@@ -1,6 +1,7 @@
 # Autonomous SEO Agent
 
 **Status**: LIVE  
+**Relationship**: A Lucky Domains internal system. Shown on the page as one provenance line linking to https://luckydomains.io/ventures/autonomous-seo-agent/  
 **Date**: October 2026  
 **Stack**: HyperAgent, AI Agents, Automation, SEO, Gmail
 

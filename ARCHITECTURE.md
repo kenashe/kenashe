@@ -191,6 +191,20 @@ are deliberately not link targets from kenashe.ai.
    `thirdPersonPublisherRefs()` then reports anything left; `run.ts` records it as a
    critical fail so the post is drafted, not published. Tests: `test/voice.test.ts`.
 
+**Build-page provenance (since 2026-11-23).** Separate from the Digest rule above. Three
+build pages carry one provenance line under the header, rendered by
+`src/components/LuckyDomainsProvenance.astro`: ZeroHuman ("A Lucky Domains venture", built by
+Ken Ashe and operated by Lucky Domains), AI agent economy ("A Lucky Domains experiment"), and
+Autonomous SEO agent ("A Lucky Domains internal system"). Each links to that build's own page
+under `https://luckydomains.io/ventures/`. It is organizational context, not promotion: one
+line, no banner, and never a link to the Lucky Domains homepage, contact, or about page. Add
+the line to another build only when the owner classifies it as a Lucky Domains venture,
+experiment, or internal system, and record the label in `docs/builds/<slug>.md`. Lucky
+Domains is described as a founder-led digital venture studio that builds and operates AI
+applications, digital identity systems, and internet-native ventures, while continuing its
+original domain acquisition and brokerage practice. Dated pages (press releases, archived
+posts, older build write-ups) keep the description that was true when they were written.
+
 ### Topics vs tags (tag governance, since 2026-09-09)
 
 **Topics** are the four fixed hubs in `src/data/topics.ts` (`/topics/<slug>/`); each aggregates
