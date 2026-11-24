@@ -1,0 +1,52 @@
+---
+title: "World Models Need Dynamics, Not Just Pretty Rollouts"
+description: "The arXiv paper Beyond Visual Fidelity argues that categorical prediction can learn more faithful world dynamics than continuous frame prediction, especially over long rollouts. The useful lesson for builders is simple: evaluate what stays true over time, not only what looks sharp in the next frame."
+pubDate: 2026-11-24
+tags: ["world-models", "model-reliability", "simulation", "ai-research"]
+draft: false
+image:
+  src: ../../assets/blog/2026-11-24-world-models-need-dynamics-not-just-pretty-rollouts/hero.webp
+  alt: "World Models Need Dynamics, Not Just Pretty Rollouts"
+sources:
+  - title: "Beyond Visual Fidelity: Comparing Categorical and Continuous World Models"
+    url: "http://arxiv.org/abs/2611.27870v1"
+entities:
+  - name: "arXiv"
+    sameAs: "https://www.wikidata.org/wiki/Q118398"
+---
+
+TL;DR: If you are building with world models, visual quality is the wrong north star unless you also measure whether the simulated world keeps its rules over time.
+
+## What breaks when a world model looks good?
+
+The primary source here is the arXiv paper **“Beyond Visual Fidelity: Comparing Categorical and Continuous World Models”**, listed in cs.AI and cs.LG. Its central claim is practical: a model can produce convincing interactive video and still fail at the thing a world model is supposed to do, preserve dynamics.
+
+That matters because a lot of world-model excitement is driven by demos. A generated scene moves. It responds. It looks plausible. But plausibility is not validity. If a character vanishes, an object breaks conservation rules, or a stochastic entity behaves in a way that does not match the underlying process, the simulator may be beautiful and useless.
+
+“Beyond Visual Fidelity” tests this in controlled 2D and 3D environments where the real dynamics are known. That is the key design choice. In open-ended video, you can argue forever about whether a weird behavior is a model failure or just an unusual scene. In controlled environments, you can measure rollout validity, calibration, and visual quality separately.
+
+That separation is the whole story. Next-frame RGB accuracy is not the same as semantic accuracy. Short-term prettiness is not long-horizon reliability. And a model that wins on visual fidelity may lose on whether the world still makes sense after repeated prediction.
+
+![two simulated worlds splitting from the same starting scene, one staying structurally consistent over time while the oth](../../assets/blog/2026-11-24-world-models-need-dynamics-not-just-pretty-rollouts/inline-1.webp)
+
+## Why do categorical models do better here?
+
+The paper compares categorical prediction and continuous prediction across next-token generation and iterative whole-frame generation. Those choices often travel together in current systems: autoregressive token models on one side, whole-frame flow matching on the other. The paper tries to pull those factors apart.
+
+Its finding is pretty direct. In 2D environments with lossless visual encoding, categorical models achieved higher rollout validity with less training compute, especially for stochastic entities. In 3D, categorical models also showed stronger long-horizon performance with less training compute.
+
+That does not mean categorical models are magically better for every use case. It means the representation matters. If the task is to keep track of objects, states, entities, and transitions, forcing prediction through continuous pixels can make the model spend effort on surface detail while losing the underlying game state.
+
+The decoding detail is also useful. Among categorical models, greedy decoding produced the highest rollout validity. Sampling from a next-token model produced the best-calibrated stochastic predictions. That is a real tradeoff, not a vibe. If you need the most rule-following rollout, greedy may be better. If you need uncertainty that matches a stochastic process, sampling may be the right choice.
+
+One of the more operator-relevant points is that lossy tokenization was not fatal. The paper reports that models with lossy tokenization stayed competitive on semantic accuracy and FVD, even with lower next-frame RGB accuracy. Translation: giving up pixel-perfect reconstruction can be fine if the abstraction preserves the state that matters.
+
+## What should builders test before trusting a simulator?
+
+I would treat this paper as a warning against demo-driven evaluation. If your world model is meant to train agents, test plans, simulate users, prototype robotics behavior, or generate game worlds, the question is not “does it look real?” The question is “does the world keep its promises after 50, 100, or 500 steps?”
+
+That means building evals around invariants. Objects should persist unless something acts on them. Stochastic events should match expected frequencies. Hidden state should not drift just because the camera moved. The model should not quietly delete hard cases to make the frame easier to render.
+
+It also means choosing decoding based on the product. A creative tool may prefer calibrated variation. An agent-training environment may prefer valid rollouts. A planning simulator may need both, with different modes for exploration and verification.
+
+The catch most readers miss: better pixels can hide worse state. Before swapping in a prettier world model, run side-by-side rollouts on known dynamics and score semantic validity separately from image quality. Try categorical prediction or tokenized state representations when long-horizon consistency matters. The practical win is not a nicer video. It is a simulator you can actually trust enough to build on.
