@@ -87,6 +87,7 @@ export const personKenAshe = {
     'https://www.crunchbase.com/person/ken-ashe-42ad',
     'https://luckydomains.io/founder/ken-ashe/',
     'https://www.instagram.com/ken.ashe/',
+    'https://www.facebook.com/kenasheai/',
     'https://www.tiktok.com/@ken.ashe',
     'https://notablemen.com/connect/ken-ashe',
     'https://councils.forbes.com/profile/Ken-Ashe-Founder-Lucky-Domains/f9cc3b77-a7e7-4319-8314-a706bcaf85e8',
