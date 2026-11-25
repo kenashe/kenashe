@@ -30,7 +30,7 @@ The new pipeline runs every day on GitHub Actions at 13:00 UTC. It ingests rough
 
 Every item is embedded, clustered into distinct stories, and checked against a vector memory of everything already published. Only genuinely new stories move forward.
 
-The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. A separate reviewer model grades every draft against an editorial rubric, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.
+The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. GPT-5.5 then grades every draft against an editorial rubric in a separate review pass, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.
 
 Each published post also receives generated artwork in one of five rotating art directions, structured data for search engines and AI assistants, and semantically related-post links computed from the same embeddings. A Telegram digest tells me what happened each day. Most days, that digest is the only part I read.
 
@@ -52,7 +52,7 @@ The entire system is controlled by one repo variable, so I can pause publishing 
 
 ### Editorial Review
 
-Every draft is graded in a separate pass by a reviewer model that sees only the title and the draft.
+Every draft is graded in a separate pass by a reviewer that sees only the title and the draft. The reviewer is GPT-5.5. Flagship pieces and weekly deep dives are written by Claude Opus 4.8, so for those the reviewer is a different model from the writer. Daily notes are written by GPT-5.5, so for those the reviewer is the same model as the writer, running as a separate pass with its own instructions.
 
 The reviewer scores four things from 1 to 10: originality, voice match, factual defensibility, and reader value. A daily note needs 27 out of 40 to publish, a flagship needs 30, and a weekly deep dive needs 31.
 
@@ -76,6 +76,14 @@ I also measure whether any of this gets found. Once a month, 12 fixed, unbranded
 
 An AI-assisted news site has cited the Digest as a source. I wrote about what that does and does not prove in [My automated blog got cited](/writing/my-automated-blog-got-cited/).
 
+**Update, November 25, 2026: search visibility fell sharply.** Google Search Console recorded 4,460 impressions and 52 clicks for kenashe.ai from November 13 to 16. From November 20 to 23 it recorded 112 impressions and 3 clicks. That is about 97.5% fewer impressions and about 94.2% fewer clicks. The decline began on November 20, while Google’s November 2026 core update was rolling out.
+
+**What is confirmed.** Several automated articles that had been indexed, and one original tutorial, were later found to be no longer indexed. A technical investigation found no obvious technical fault that explains the decline. At the time, 2,086 of the 2,124 URLs in the sitemap, about 98%, were Digest posts and their tag pages.
+
+**What is not confirmed.** Google has not said why. My working hypothesis is that its systems reassessed the site as a whole, and that the volume of automated pages next to a small amount of original work was a factor. That is a hypothesis. I am not claiming that Google penalized the site for publishing AI-generated content, and I have no evidence that it did.
+
+**What I changed.** The automated content is preserved. Every post, URL, source reference and disclosure is where it was, and the archive is still public at [/blog/](/blog/). It is now excluded from search indexing and left out of the sitemap. I intend to monitor the results of this change.
+
 ### Limitations
 
 **Most posts respond to a single source.** Of the 1,143 published posts that record their sources, 1,043 cite exactly one. The gate rejects thin summaries, but a commentary on one paper or one announcement is still a commentary on one source.
@@ -96,7 +104,7 @@ Plenty broke. The recurring theme was that the model was almost never the proble
 
 **Quality is a selection problem before it is a writing problem.** Early deep dives kept failing the editorial gate for building confidently on rumors. No amount of prompt engineering fixed it, because the problem was upstream: the pipeline was choosing commentary-heavy stories to go deep on. Requiring a primary source before a pillar can even be attempted fixed in one change what three prompt revisions could not.
 
-**The gate has to be independent.** The reviewer is a different model than the writer, and it reads only the draft. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.
+**The gate has to be independent.** The reviewer runs as a separate pass and reads only the draft. For flagship pieces it is also a different model than the writer. For daily notes it is the same model, which is a weaker check. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.
 
 ### Outcome
 
