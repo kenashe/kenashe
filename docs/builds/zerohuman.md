@@ -30,3 +30,4 @@ What it sells, the name is the business, how an order works, the first mainnet o
 - Do not call it trustless or escrowed: there is no escrow, refunds are manual, and the service wallet key is on Railway.
 - Decision randomness can be influenced by block builders; keep the "low-stakes only" framing.
 - No video exists for this build (Ken decided not to make one).
+- The page links once, under Further reading, to the Lucky Domains research article at https://luckydomains.io/insights/domains-identity-for-ai-agents/. Lucky Domains does not sell agent identity. Do not describe ZeroHuman as a Lucky Domains product or venture.
