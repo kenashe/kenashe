@@ -1,14 +1,12 @@
 # Autonomous AI Blog
 
-**Status**: LIVE / SHIPPED  
+**Status**: shown on the project page based on the scheduled publishing workflow<br>
 **Date**: June 2026  
 **Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, GPT-Image-2.6 Sunburst, Postgres, pgvector, Vercel, Telegram
 
 An experiment in autonomous AI publishing: a daily pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
 
 **Update, August 2026:** the public feed this system publishes is now labeled as the machine-published Digest (/blog/) and is no longer the front door of the site. The system itself remains the exhibit. Publishing can be paused at any time with the `PIPELINE_ENABLED` repository variable.
-
-**Update, November 2026:** Digest posts, their tag pages and the topic hubs now carry a `noindex` directive and are left out of the sitemap. Nothing was deleted or moved: the full archive is still public at /blog/, with every post, source and disclosure where it was. This page is the record of the experiment that I ask search engines to index.
 
 ### The Goal
 
@@ -78,11 +76,11 @@ An AI-assisted news site has cited the Digest as a source. I wrote about what th
 
 **Update, November 25, 2026: search visibility fell sharply.** Google Search Console recorded 4,460 impressions and 52 clicks for kenashe.ai from November 13 to 16. From November 20 to 23 it recorded 112 impressions and 3 clicks. That is about 97.5% fewer impressions and about 94.2% fewer clicks. The decline began on November 20, while Google’s November 2026 core update was rolling out.
 
-**What is confirmed.** Several automated articles that had been indexed, and one original tutorial, were later found to be no longer indexed. A technical investigation found no obvious technical fault that explains the decline. At the time, 2,086 of the 2,124 URLs in the sitemap, about 98%, were Digest posts and their tag pages.
+**What is confirmed.** Several automated articles that had been indexed, and one original tutorial, were later found to be no longer indexed. A technical investigation found no obvious technical fault that explains the decline. The technical audit counted 2,086 of the 2,124 sitemap URLs, about 98%, as Digest posts or tag pages.
 
 **What is not confirmed.** Google has not said why. My working hypothesis is that its systems reassessed the site as a whole, and that the volume of automated pages next to a small amount of original work was a factor. That is a hypothesis. I am not claiming that Google penalized the site for publishing AI-generated content, and I have no evidence that it did.
 
-**What I changed.** The automated content is preserved. Every post, URL, source reference and disclosure is where it was, and the archive is still public at [/blog/](/blog/). It is now excluded from search indexing and left out of the sitemap. I intend to monitor the results of this change.
+**Indexing response.** In the production build that implements this policy, the Digest archive, posts, tags and topic hubs carry a `noindex` directive and are left out of the sitemap. Preview builds present this as a proposed change. Every historical post, URL, source reference and disclosure remains publicly accessible in the [Digest archive](/blog/), and the application is preserved. This project page remains eligible for indexing. I intend to monitor how original work is indexed after rollout.
 
 ### Limitations
 
@@ -90,7 +88,7 @@ An AI-assisted news site has cited the Digest as a source. I wrote about what th
 
 **The reviewer is a model.** It catches a lot. It is not a person reading the piece, and I do not read posts before they publish.
 
-**Volume outweighs everything else on the site.** About ten posts a day adds up to 1,399 machine-written posts next to nine essays I directed myself. That is why the Digest is presented as an experiment and kept out of search indexing, while the archive stays public for anyone who wants to inspect it.
+**Volume outweighs everything else on the site.** About ten posts a day adds up to 1,399 machine-written posts next to nine essays I directed myself. That is why I chose to present the Digest as an experiment rather than a search-driven publication.
 
 ### What Broke & What I Learned
 
@@ -108,9 +106,9 @@ Plenty broke. The recurring theme was that the model was almost never the proble
 
 ### Outcome
 
-The Autonomous AI Blog has been live since June 2026.
+The Autonomous AI Blog launched in June 2026. When scheduled publishing is paused, the historical archive remains publicly accessible and the underlying application and publishing pipeline are preserved.
 
-It publishes roughly ten posts per day, each one sourced, illustrated, deduplicated, and self-reviewed before going live. On most days, my involvement is limited to reviewing the Telegram digest. Failed pieces queue politely as drafts instead of publishing.
+During its daily run, the system typically published roughly ten posts, each sourced, illustrated, deduplicated and reviewed automatically. On most days, my involvement was limited to reviewing the Telegram digest. Pieces that did not pass were saved as drafts.
 
 The system has survived model outages, feed rate limits, a GitHub Actions outage, and its own bugs while keeping the daily cadence intact.
 
