@@ -4,9 +4,11 @@
 **Date**: June 2026  
 **Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, GPT-Image-2.6 Sunburst, Postgres, pgvector, Vercel, Telegram
 
-A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
+An experiment in autonomous AI publishing: a daily pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
 
 **Update, August 2026:** the public feed this system publishes is now labeled as the machine-published Digest (/blog/) and is no longer the front door of the site. The system itself remains the exhibit. Publishing can be paused at any time with the `PIPELINE_ENABLED` repository variable.
+
+**Update, November 2026:** Digest posts, their tag pages and the topic hubs now carry a `noindex` directive and are left out of the sitemap. Nothing was deleted or moved: the full archive is still public at /blog/, with every post, source and disclosure where it was. This page is the record of the experiment that I ask search engines to index.
 
 ### The Goal
 
@@ -47,6 +49,40 @@ Selection is not purely merit-based. A few beats I care about get one reserved s
 Once a week, the pipeline attempts a deep dive: a 2,000-plus-word pillar piece that is only allowed to anchor on primary sources, links out to its most related existing posts, and has to clear a higher bar than daily notes. If the week’s material is too thin, it skips rather than shipping filler.
 
 The entire system is controlled by one repo variable, so I can pause publishing with a settings change instead of a code revert.
+
+### Editorial Review
+
+Every draft is graded in a separate pass by a reviewer model that sees only the title and the draft.
+
+The reviewer scores four things from 1 to 10: originality, voice match, factual defensibility, and reader value. A daily note needs 27 out of 40 to publish, a flagship needs 30, and a weekly deep dive needs 31.
+
+The score is only half of the decision. The reviewer also lists critical fails, and a single one sends the piece to drafts whatever it scored. Examples: hiding the primary source, a thin summary of one source dressed up as analysis, fabricated statistics or claims, a title the body contradicts, or price predictions and investment advice in posts about crypto and digital assets.
+
+No person approves a post before it publishes. That is the experiment, and it is also its main limit.
+
+### Transparency
+
+The Digest is labeled as machine-published everywhere it appears.
+
+Every post opens with a note saying it was written and published by an autonomous system I built, that I am the publisher, and that I am accountable for it. The byline reads “KenAshe Digest (automated) · Ken Ashe, publisher.” The structured data says the same thing: the automated system is the author, and I am the publisher.
+
+Posts name the sources they are based on, and since July 2026 those sources are also recorded with each post and published in its structured data. The [disclosure page](/disclosure/) explains what is written by me, what is written by the system, and how corrections work.
+
+### Results So Far
+
+As of November 25, 2026, the repository holds 1,610 Digest posts dated from May 14, 2026. Of those, 1,399 are published and 211 were held back as drafts.
+
+I also measure whether any of this gets found. Once a month, 12 fixed, unbranded search queries are run against a retrieval engine, and the run records whether kenashe.ai appears in the top 25 results. It appeared for 1 of 12 queries in August, 1 in September, 2 in October, and 1 in November 2026. The queries are frozen so the trend cannot be flattered by rewording them.
+
+An AI-assisted news site has cited the Digest as a source. I wrote about what that does and does not prove in [My automated blog got cited](/writing/my-automated-blog-got-cited/).
+
+### Limitations
+
+**Most posts respond to a single source.** Of the 1,143 published posts that record their sources, 1,043 cite exactly one. The gate rejects thin summaries, but a commentary on one paper or one announcement is still a commentary on one source.
+
+**The reviewer is a model.** It catches a lot. It is not a person reading the piece, and I do not read posts before they publish.
+
+**Volume outweighs everything else on the site.** About ten posts a day adds up to 1,399 machine-written posts next to nine essays I directed myself. That is why the Digest is presented as an experiment and kept out of search indexing, while the archive stays public for anyone who wants to inspect it.
 
 ### What Broke & What I Learned
 
