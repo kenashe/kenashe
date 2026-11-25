@@ -1,10 +1,10 @@
 # Autonomous AI Blog
 
-**Status**: LIVE / SHIPPED  
+**Status**: shown on the project page based on the scheduled publishing workflow<br>
 **Date**: June 2026  
 **Stack**: GitHub Actions, TypeScript, Claude Opus 4.8, GPT-5.5, GPT-Image-2.6 Sunburst, Postgres, pgvector, Vercel, Telegram
 
-A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
+An experiment in autonomous AI publishing: a daily pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.
 
 **Update, August 2026:** the public feed this system publishes is now labeled as the machine-published Digest (/blog/) and is no longer the front door of the site. The system itself remains the exhibit. Publishing can be paused at any time with the `PIPELINE_ENABLED` repository variable.
 
@@ -28,7 +28,7 @@ The new pipeline runs every day on GitHub Actions at 13:00 UTC. It ingests rough
 
 Every item is embedded, clustered into distinct stories, and checked against a vector memory of everything already published. Only genuinely new stories move forward.
 
-The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. A separate reviewer model grades every draft against an editorial rubric, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.
+The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. GPT-5.5 then grades every draft against an editorial rubric in a separate review pass, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.
 
 Each published post also receives generated artwork in one of five rotating art directions, structured data for search engines and AI assistants, and semantically related-post links computed from the same embeddings. A Telegram digest tells me what happened each day. Most days, that digest is the only part I read.
 
@@ -48,6 +48,48 @@ Once a week, the pipeline attempts a deep dive: a 2,000-plus-word pillar piece t
 
 The entire system is controlled by one repo variable, so I can pause publishing with a settings change instead of a code revert.
 
+### Editorial Review
+
+Every draft is graded in a separate pass by a reviewer that sees only the title and the draft. The reviewer is GPT-5.5. Flagship pieces and weekly deep dives are written by Claude Opus 4.8, so for those the reviewer is a different model from the writer. Daily notes are written by GPT-5.5, so for those the reviewer is the same model as the writer, running as a separate pass with its own instructions.
+
+The reviewer scores four things from 1 to 10: originality, voice match, factual defensibility, and reader value. A daily note needs 27 out of 40 to publish, a flagship needs 30, and a weekly deep dive needs 31.
+
+The score is only half of the decision. The reviewer also lists critical fails, and a single one sends the piece to drafts whatever it scored. Examples: hiding the primary source, a thin summary of one source dressed up as analysis, fabricated statistics or claims, a title the body contradicts, or price predictions and investment advice in posts about crypto and digital assets.
+
+No person approves a post before it publishes. That is the experiment, and it is also its main limit.
+
+### Transparency
+
+The Digest is labeled as machine-published everywhere it appears.
+
+Every post opens with a note saying it was written and published by an autonomous system I built, that I am the publisher, and that I am accountable for it. The byline reads “KenAshe Digest (automated) · Ken Ashe, publisher.” The structured data says the same thing: the automated system is the author, and I am the publisher.
+
+Posts name the sources they are based on, and since July 2026 those sources are also recorded with each post and published in its structured data. The [disclosure page](/disclosure/) explains what is written by me, what is written by the system, and how corrections work.
+
+### Results So Far
+
+As of November 25, 2026, the repository holds 1,610 Digest posts dated from May 14, 2026. Of those, 1,399 are published and 211 were held back as drafts.
+
+I also measure whether any of this gets found. Once a month, 12 fixed, unbranded search queries are run against a retrieval engine, and the run records whether kenashe.ai appears in the top 25 results. It appeared for 1 of 12 queries in August, 1 in September, 2 in October, and 1 in November 2026. The queries are frozen so the trend cannot be flattered by rewording them.
+
+An AI-assisted news site has cited the Digest as a source. I wrote about what that does and does not prove in [My automated blog got cited](/writing/my-automated-blog-got-cited/).
+
+**Update, November 25, 2026: search visibility fell sharply.** Google Search Console recorded 4,460 impressions and 52 clicks for kenashe.ai from November 13 to 16. From November 20 to 23 it recorded 112 impressions and 3 clicks. That is about 97.5% fewer impressions and about 94.2% fewer clicks. The decline began on November 20, while Google’s November 2026 core update was rolling out.
+
+**What is confirmed.** Several automated articles that had been indexed, and one original tutorial, were later found to be no longer indexed. A technical investigation found no obvious technical fault that explains the decline. The technical audit counted 2,086 of the 2,124 sitemap URLs, about 98%, as Digest posts or tag pages.
+
+**What is not confirmed.** Google has not said why. My working hypothesis is that its systems reassessed the site as a whole, and that the volume of automated pages next to a small amount of original work was a factor. That is a hypothesis. I am not claiming that Google penalized the site for publishing AI-generated content, and I have no evidence that it did.
+
+**Indexing response.** In the production build that implements this policy, the Digest archive, posts, tags and topic hubs carry a `noindex` directive and are left out of the sitemap. Preview builds present this as a proposed change. Every historical post, URL, source reference and disclosure remains publicly accessible in the [Digest archive](/blog/), and the application is preserved. This project page remains eligible for indexing. I intend to monitor how original work is indexed after rollout.
+
+### Limitations
+
+**Most posts respond to a single source.** Of the 1,143 published posts that record their sources, 1,043 cite exactly one. The gate rejects thin summaries, but a commentary on one paper or one announcement is still a commentary on one source.
+
+**The reviewer is a model.** It catches a lot. It is not a person reading the piece, and I do not read posts before they publish.
+
+**Volume outweighs everything else on the site.** About ten posts a day adds up to 1,399 machine-written posts next to nine essays I directed myself. That is why I chose to present the Digest as an experiment rather than a search-driven publication.
+
 ### What Broke & What I Learned
 
 Plenty broke. The recurring theme was that the model was almost never the problem. The plumbing was.
@@ -60,13 +102,13 @@ Plenty broke. The recurring theme was that the model was almost never the proble
 
 **Quality is a selection problem before it is a writing problem.** Early deep dives kept failing the editorial gate for building confidently on rumors. No amount of prompt engineering fixed it, because the problem was upstream: the pipeline was choosing commentary-heavy stories to go deep on. Requiring a primary source before a pillar can even be attempted fixed in one change what three prompt revisions could not.
 
-**The gate has to be independent.** The reviewer is a different model than the writer, and it reads only the draft. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.
+**The gate has to be independent.** The reviewer runs as a separate pass and reads only the draft. For flagship pieces it is also a different model than the writer. For daily notes it is the same model, which is a weaker check. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.
 
 ### Outcome
 
-The Autonomous AI Blog has been live since June 2026.
+The Autonomous AI Blog launched in June 2026. When scheduled publishing is paused, the historical archive remains publicly accessible and the underlying application and publishing pipeline are preserved.
 
-It publishes roughly ten posts per day, each one sourced, illustrated, deduplicated, and self-reviewed before going live. On most days, my involvement is limited to reviewing the Telegram digest. Failed pieces queue politely as drafts instead of publishing.
+During its daily run, the system typically published roughly ten posts, each sourced, illustrated, deduplicated and reviewed automatically. On most days, my involvement was limited to reviewing the Telegram digest. Pieces that did not pass were saved as drafts.
 
 The system has survived model outages, feed rate limits, a GitHub Actions outage, and its own bugs while keeping the daily cadence intact.
 

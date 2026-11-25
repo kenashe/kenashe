@@ -3,11 +3,15 @@
 // Static page on purpose — see the note in src/content.config.ts (a content collection
 // here busted the build cache and blew Vercel's 45-minute Hobby build timeout).
 import BuildLayout from '../../layouts/BuildLayout.astro';
+import publishingWorkflow from '../../../.github/workflows/pipeline.yml?raw';
 
 const title = 'Autonomous AI Blog';
-const status = 'LIVE';
+// The pause PR removes the active schedule key without changing manual runs.
+const publishingPaused = !/^ {2}schedule:[ \t]*(?:#.*)?$/m.test(publishingWorkflow);
+const status = publishingPaused ? 'Publishing Paused' : 'LIVE';
+const isProduction = process.env.VERCEL_ENV === 'production';
 const date = 'June 2026';
-const summary = 'A daily autonomous publishing pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.';
+const summary = 'An experiment in autonomous AI publishing: a daily pipeline that reads AI sources, selects what is worth writing about, writes and reviews its own posts, then publishes only the drafts that pass.';
 const stack = ['GitHub Actions', 'TypeScript', 'Claude Opus 4.8', 'GPT-5.5', 'GPT-Image-2.6 Sunburst', 'Postgres', 'pgvector', 'Vercel', 'Telegram'];
 ---
 
@@ -29,14 +33,14 @@ const stack = ['GitHub Actions', 'TypeScript', 'Claude Opus 4.8', 'GPT-5.5', 'GP
       <p class="page-mark" aria-hidden="true">// build</p>
       <div class="title-row">
         <h1>{title}</h1>
-        <span class={`badge badge-${status.toLowerCase()}`}>
+        <span class:list={['badge', publishingPaused ? 'badge-shipped' : 'badge-live']}>
           <span class="badge-dot" aria-hidden="true"></span>
           {status}
         </span>
       </div>
       <p class="summary">{summary}</p>
       <p class="meta">
-        <span class="meta-key">{status === 'LIVE' ? 'Live since' : 'Shipped'}</span>
+        <span class="meta-key">Launched</span>
         {date}
       </p>
       <ul class="stack" aria-label="Stack">
@@ -46,6 +50,8 @@ const stack = ['GitHub Actions', 'TypeScript', 'Claude Opus 4.8', 'GPT-5.5', 'GP
 
     <nav class="build-links" aria-label="Related">
       <a href="/writing/the-digest-is-the-system/">Read the essay: The digest is the system. Building is the work. →</a>
+      <a href="/writing/my-automated-blog-got-cited/">Read the essay: My automated blog got cited →</a>
+      <a href="/blog/">Browse the Digest archive →</a>
     </nav>
 
     <div class="prose">
@@ -65,7 +71,7 @@ const stack = ['GitHub Actions', 'TypeScript', 'Claude Opus 4.8', 'GPT-5.5', 'GP
       <p>Version 2 was a ground-up rebuild in TypeScript.</p>
       <p>The new pipeline runs every day on GitHub Actions at 13:00 UTC. It ingests roughly 36 sources, including official lab blogs, arXiv, GitHub releases, Hacker News, Reddit, YouTube transcripts, and trade press for the niches I care about.</p>
       <p>Every item is embedded, clustered into distinct stories, and checked against a vector memory of everything already published. Only genuinely new stories move forward.</p>
-      <p>The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. A separate reviewer model grades every draft against an editorial rubric, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.</p>
+      <p>The strongest stories become long-form pieces written by Claude Opus 4.8. The rest become shorter notes written by GPT-5.5. GPT-5.5 then grades every draft against an editorial rubric in a separate review pass, and only passing drafts publish. Failed pieces are saved as drafts instead of being deleted or shipped.</p>
       <p>Each published post also receives generated artwork in one of five rotating art directions, structured data for search engines and AI assistants, and semantically related-post links computed from the same embeddings. A Telegram digest tells me what happened each day. Most days, that digest is the only part I read.</p>
       <h2>How It Works</h2>
       <p>The daily loop is:</p>
@@ -75,16 +81,49 @@ const stack = ['GitHub Actions', 'TypeScript', 'Claude Opus 4.8', 'GPT-5.5', 'GP
       <p>Selection is not purely merit-based. A few beats I care about get one reserved slot per day, because a tier-two trade story will never outrank an arXiv paper on raw signal. A reserved slot is still not a guaranteed publish. The editorial gate can reject it.</p>
       <p>Once a week, the pipeline attempts a deep dive: a 2,000-plus-word pillar piece that is only allowed to anchor on primary sources, links out to its most related existing posts, and has to clear a higher bar than daily notes. If the week’s material is too thin, it skips rather than shipping filler.</p>
       <p>The entire system is controlled by one repo variable, so I can pause publishing with a settings change instead of a code revert.</p>
+      <h2>Editorial Review</h2>
+      <p>Every draft is graded in a separate pass by a reviewer that sees only the title and the draft. The reviewer is GPT-5.5. Flagship pieces and weekly deep dives are written by Claude Opus 4.8, so for those the reviewer is a different model from the writer. Daily notes are written by GPT-5.5, so for those the reviewer is the same model as the writer, running as a separate pass with its own instructions.</p>
+      <p>The reviewer scores four things from 1 to 10: originality, voice match, factual defensibility, and reader value. A daily note needs 27 out of 40 to publish, a flagship needs 30, and a weekly deep dive needs 31.</p>
+      <p>The score is only half of the decision. The reviewer also lists critical fails, and a single one sends the piece to drafts whatever it scored. Examples: hiding the primary source, a thin summary of one source dressed up as analysis, fabricated statistics or claims, a title the body contradicts, or price predictions and investment advice in posts about crypto and digital assets.</p>
+      <p>No person approves a post before it publishes. That is the experiment, and it is also its main limit.</p>
+      <h2>Transparency</h2>
+      <p>The Digest is labeled as machine-published everywhere it appears.</p>
+      <p>Every post opens with a note saying it was written and published by an autonomous system I built, that I am the publisher, and that I am accountable for it. The byline reads “KenAshe Digest (automated) · Ken Ashe, publisher.” The structured data says the same thing: the automated system is the author, and I am the publisher.</p>
+      <p>Posts name the sources they are based on, and since July 2026 those sources are also recorded with each post and published in its structured data. The <a href="/disclosure/">disclosure page</a> explains what is written by me, what is written by the system, and how corrections work.</p>
+      <h2>Results So Far</h2>
+      <p>As of November 25, 2026, the repository holds 1,610 Digest posts dated from May 14, 2026. Of those, 1,399 are published and 211 were held back as drafts.</p>
+      <p>I also measure whether any of this gets found. Once a month, 12 fixed, unbranded search queries are run against a retrieval engine, and the run records whether kenashe.ai appears in the top 25 results. It appeared for 1 of 12 queries in August, 1 in September, 2 in October, and 1 in November 2026. The queries are frozen so the trend cannot be flattered by rewording them.</p>
+      <p>An AI-assisted news site has cited the Digest as a source. I wrote about what that does and does not prove in <a href="/writing/my-automated-blog-got-cited/">My automated blog got cited</a>.</p>
+      <p><strong>Update, November 25, 2026: search visibility fell sharply.</strong> Google Search Console recorded 4,460 impressions and 52 clicks for kenashe.ai from November 13 to 16. From November 20 to 23 it recorded 112 impressions and 3 clicks. That is about 97.5% fewer impressions and about 94.2% fewer clicks. The decline began on November 20, while Google’s November 2026 core update was rolling out.</p>
+      <p><strong>What is confirmed.</strong> Several automated articles that had been indexed, and one original tutorial, were later found to be no longer indexed. A technical investigation found no obvious technical fault that explains the decline. The technical audit counted 2,086 of the 2,124 sitemap URLs, about 98%, as Digest posts or tag pages.</p>
+      <p><strong>What is not confirmed.</strong> Google has not said why. My working hypothesis is that its systems reassessed the site as a whole, and that the volume of automated pages next to a small amount of original work was a factor. That is a hypothesis. I am not claiming that Google penalized the site for publishing AI-generated content, and I have no evidence that it did.</p>
+      <p>
+        <strong>Indexing response.</strong>{' '}
+        {isProduction
+          ? 'The Digest archive, posts, tags and topic hubs carry a noindex directive and are left out of the sitemap.'
+          : 'This preview shows the proposed indexing policy: the Digest archive, posts, tags and topic hubs carry a noindex directive and are left out of the sitemap in this build.'}
+        {' '}Every historical post, URL, source reference and disclosure remains publicly accessible in the <a href="/blog/">Digest archive</a>, and the application is preserved. This project page remains eligible for indexing. I intend to monitor how original work is indexed after rollout.
+      </p>
+      <h2>Limitations</h2>
+      <p><strong>Most posts respond to a single source.</strong> Of the 1,143 published posts that record their sources, 1,043 cite exactly one. The gate rejects thin summaries, but a commentary on one paper or one announcement is still a commentary on one source.</p>
+      <p><strong>The reviewer is a model.</strong> It catches a lot. It is not a person reading the piece, and I do not read posts before they publish.</p>
+      <p><strong>Volume outweighs everything else on the site.</strong> About ten posts a day adds up to 1,399 machine-written posts next to nine essays I directed myself. That is why I chose to present the Digest as an experiment rather than a search-driven publication.</p>
       <h2>What Broke &amp; What I Learned</h2>
       <p>Plenty broke. The recurring theme was that the model was almost never the problem. The plumbing was.</p>
       <p><strong>Feed text is hostile input.</strong> Titles from academic feeds carry LaTeX and characters that can break the formats they are written into. One post took the production site down at build time. Everything the pipeline ingests is now sanitized as untrusted input, and there are regression tests for the exact failures.</p>
       <p><strong>Silent failure is the dangerous kind.</strong> At one point the pipeline was committing posts successfully and the site simply never updated, because the hosting platform quietly skipped deploys from commit authors it did not recognize. Another time, a selection path skipped every week without explaining why. The fix both times was the same: log the inputs to every silent decision, and make the daily digest say what did not happen, not just what did.</p>
       <p><strong>Verify access, not existence.</strong> I once swapped in a newly released model whose ID was real and documented. My account did not have access yet. The next run published zero posts. Every risky change now goes through shadow mode, which runs the full pipeline and publishes nothing.</p>
       <p><strong>Quality is a selection problem before it is a writing problem.</strong> Early deep dives kept failing the editorial gate for building confidently on rumors. No amount of prompt engineering fixed it, because the problem was upstream: the pipeline was choosing commentary-heavy stories to go deep on. Requiring a primary source before a pillar can even be attempted fixed in one change what three prompt revisions could not.</p>
-      <p><strong>The gate has to be independent.</strong> The reviewer is a different model than the writer, and it reads only the draft. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.</p>
+      <p><strong>The gate has to be independent.</strong> The reviewer runs as a separate pass and reads only the draft. For flagship pieces it is also a different model than the writer. For daily notes it is the same model, which is a weaker check. When posts kept failing for vague sourcing, the durable fix was to tell the writer the standard it would be judged against. The pass rate nearly doubled, and every post now names its primary source.</p>
       <h2>Outcome</h2>
-      <p>The Autonomous AI Blog has been live since June 2026.</p>
-      <p>It publishes roughly ten posts per day, each one sourced, illustrated, deduplicated, and self-reviewed before going live. On most days, my involvement is limited to reviewing the Telegram digest. Failed pieces queue politely as drafts instead of publishing.</p>
+      <p>The Autonomous AI Blog launched in June 2026.</p>
+      {publishingPaused && (
+        <p>
+          {isProduction ? 'Scheduled publishing is paused.' : 'This build reflects the proposed publishing pause.'}
+          {' '}The <a href="/blog/">historical archive</a> remains publicly accessible, and the underlying application and publishing pipeline are preserved.
+        </p>
+      )}
+      <p>During its daily run, the system typically published roughly ten posts, each sourced, illustrated, deduplicated and reviewed automatically. On most days, my involvement was limited to reviewing the Telegram digest. Pieces that did not pass were saved as drafts.</p>
       <p>The system has survived model outages, feed rate limits, a GitHub Actions outage, and its own bugs while keeping the daily cadence intact.</p>
       <p>The repository contains the architecture and decision log needed to support a future handoff to another engineer or agent.</p>
     </div>

@@ -1,5 +1,6 @@
 ---
 import { SITE_TITLE, SITE_DESCRIPTION, AUTHOR, DEFAULT_OG_IMAGE } from '../consts';
+import { isSearchIndexable } from '../utils/indexing';
 import '../styles/global.css';
 
 interface Props {
@@ -36,6 +37,10 @@ const fullTitle = title ? `${title} – ${AUTHOR}` : SITE_TITLE;
 const socialTitle = ogTitle ?? fullTitle;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
 const ogImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
+// Search indexing policy (src/utils/indexing.ts): the Digest, its tag pages and its topic
+// hubs stay public and crawlable but carry noindex; everything else is indexable. Decided
+// by route, so this shared head can never mark original writing or build pages noindex.
+const indexable = isSearchIndexable(Astro.url.pathname);
 ---
 
 <meta charset="utf-8" />
@@ -46,6 +51,7 @@ const ogImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
 <meta name="description" content={description} />
 <meta name="author" content={AUTHOR} />
 <link rel="canonical" href={canonical} />
+{!indexable && <meta name="robots" content="noindex, follow" />}
 
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="alternate icon" href="/favicon.ico" />

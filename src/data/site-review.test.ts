@@ -6,7 +6,7 @@ import { essays } from './writing.ts';
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('every writing thumbnail has reviewed alt, including alternate compositions', () => {
-  assert.equal(essays.length, 8);
+  assert.equal(essays.length, 9);
   for (const essay of essays) {
     assert.ok(essay.image?.alt.trim(), essay.slug);
     if (essay.image?.thumbnail) assert.ok(essay.image.thumbnailAlt?.trim(), essay.slug);
@@ -18,7 +18,7 @@ test('every writing thumbnail has reviewed alt, including alternate compositions
 
 test('all existing build write-ups use the shared Article layout', () => {
   const pages = readdirSync(new URL('../pages/building/', import.meta.url)).filter(p => p.endsWith('.astro'));
-  assert.equal(pages.length, 11);
+  assert.equal(pages.length, 12);
   for (const page of pages) {
     const source = read(`src/pages/building/${page}`);
     assert.ok(source.includes("from '../../layouts/BuildLayout.astro'"), page);
