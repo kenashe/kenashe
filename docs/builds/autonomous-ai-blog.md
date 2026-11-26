@@ -80,7 +80,9 @@ An AI-assisted news site has cited the Digest as a source. I wrote about what th
 
 **What is not confirmed.** Google has not said why. My working hypothesis is that its systems reassessed the site as a whole, and that the volume of automated pages next to a small amount of original work was a factor. That is a hypothesis. I am not claiming that Google penalized the site for publishing AI-generated content, and I have no evidence that it did.
 
-**Indexing response.** In the production build that implements this policy, the Digest archive, posts, tags and topic hubs carry a `noindex` directive and are left out of the sitemap. Preview builds present this as a proposed change. Every historical post, URL, source reference and disclosure remains publicly accessible in the [Digest archive](/blog/), and the application is preserved. This project page remains eligible for indexing. I intend to monitor how original work is indexed after rollout.
+**November 25, 2026:** I initially excluded the Digest and its archives from search indexing. That was a response to the drop, not evidence that exclusion improves rankings.
+
+**November 26, 2026: discovery across platforms.** The revised policy restores eligibility for published articles, the blog landing page, the tag directory and topic hubs. Only individual tag listings with fewer than three published articles get `noindex, follow` and leave the sitemap. The cutoff measures archive breadth, not article quality. The project page describes this as a proposal in preview and as implemented on production. Search traffic and AI citations are separate outcomes; eligibility guarantees neither. The historical archive is public, and this decision does not restart publishing.
 
 ### Limitations
 

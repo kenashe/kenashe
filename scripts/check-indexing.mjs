@@ -3,7 +3,7 @@
 // Usage: npm run build && npm run check:indexing        (reads ./dist, changes nothing)
 //
 // Fails (exit 1) if any built page disagrees with the policy:
-//   - a Digest, tag or topic page without noindex, or an original page with it
+//   - a thin tag listing without noindex, or an eligible page with it
 //   - a noindex page listed in the sitemap, or an indexable page missing from it
 //   - a page whose canonical is not its own URL
 //   - robots.txt that disallows anything or omits the sitemap
@@ -13,16 +13,15 @@ import { join, relative, sep } from 'node:path';
 
 const SITE = 'https://kenashe.ai';
 const DIST = process.argv[2] ?? 'dist';
-const NOINDEX_PREFIXES = ['/blog', '/topics']; // keep equal to src/utils/indexing.ts (asserted below)
-const policySrc = readFileSync('src/utils/indexing.ts', 'utf8');
 const errors = [];
 const fail = (m) => errors.push(m);
-for (const p of NOINDEX_PREFIXES) if (!policySrc.includes(`'${p}'`)) fail(`policy drift: ${p} not in src/utils/indexing.ts`);
-if ((policySrc.match(/^\s+'\//gm) ?? []).length !== NOINDEX_PREFIXES.length) fail('policy drift: prefix count differs from src/utils/indexing.ts');
-
-const indexable = (path) => {
-  const p = '/' + path.replace(/^\/+|\/+$/g, '');
-  return !NOINDEX_PREFIXES.some((x) => p === x || p.startsWith(x + '/'));
+// Independently verify tag eligibility from actual linked articles in the rendered list.
+const indexable = (path, html) => {
+  if (!/^\/blog\/tags\/[^/]+\/$/.test(path)) return true;
+  const list = html.match(/<ul class="tag-posts"[^>]*>([\s\S]*?)<\/ul>/)?.[1];
+  if (list === undefined) { fail(`missing tag article list: ${path}`); return false; }
+  const urls = new Set(Array.from(list.matchAll(/href="(\/blog\/[^/"?#]+\/)"/g), m => m[1]));
+  return urls.size >= 3;
 };
 const category = (p) =>
   p === '/blog/' ? 'Digest landing page'
@@ -81,11 +80,11 @@ for (const [path, html] of pages) {
   const robots = (html.match(/<meta name="robots" content="([^"]*)"/) ?? [])[1] ?? '';
   const noindex = /noindex/.test(robots);
   const canonical = (html.match(/<link rel="canonical" href="([^"]*)"/) ?? [])[1];
-  const want = indexable(path);
+  const want = indexable(path, html);
   if (noindex) bump(cat, 'noindex');
   if (sitemapLocs.has(path)) bump(cat, 'inSitemap');
-  if (want && noindex) fail(`original page is noindex: ${path}`);
-  if (!want && !noindex) fail(`Digest page is missing noindex: ${path}`);
+  if (want && noindex) fail(`eligible page is noindex: ${path}`);
+  if (!want && !noindex) fail(`thin tag listing is missing noindex: ${path}`);
   if (!want && robots !== 'noindex, follow') fail(`unexpected robots value "${robots}": ${path}`);
   if (want && !sitemapLocs.has(path)) fail(`indexable page missing from sitemap: ${path}`);
   if (!want && sitemapLocs.has(path)) fail(`noindex page listed in sitemap: ${path}`);
