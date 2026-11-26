@@ -173,6 +173,10 @@ page. Two layers:
    never "Ashe runs ...", see D19) and link it to one of five deep
    links: `how-we-buy-domains.html`, `services.html#domains`, `#selling`, `#websites`, `#seo`.
    Never a pitch, never pricing, never on unrelated stories.
+   On 2026-11-25 the company description inside that sentence changed from "a domain
+   acquisition, brokerage, website-build, and white-hat SEO practice" to the digital presence
+   studio wording used on both sites. The trigger subjects, the example sentence, the five
+   links and the guardrail below did not change.
 2. **Guardrail** (`partner-links.ts`, applied in `run.ts` after tags are final): only those
    five URLs survive (others on luckydomains.io are remapped to the closest allowed page for
    the post's tags), at most one Lucky Domains link per post, and if the post carries none of
